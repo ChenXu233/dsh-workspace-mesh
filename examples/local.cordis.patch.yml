@@ -1,0 +1,8 @@
+# Local overlay for `dsh web --patch`.
+# Replace the absolute path with this repository's built entry point.
+- insert:
+    - id: mesh
+      name: '<repo>/lib/index.js'
+      config:
+        transport: auto
+        leaseMs: 900000

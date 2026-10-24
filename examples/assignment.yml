@@ -1,0 +1,12 @@
+# Static workspace -> node assignment (SPEC §5.4).
+# Workspaces missing here are "ungrouped" and left to the optional scheduler sub-plugin.
+nodes:
+  local-win:  { label: 本机,   endpoint: wss://100.x.x.1:7700 }
+  shanghai:   { label: 上海,   endpoint: wss://100.x.x.2:7700 }
+  tencent:    { label: 腾讯云, endpoint: wss://100.x.x.3:7700 }
+
+assignments:
+  - { workspaceId: ws-blog,   nodeId: shanghai  }
+  - { workspaceId: ws-newapi, nodeId: shanghai  }
+  - { workspaceId: ws-lobe,   nodeId: tencent   }
+  - { workspaceId: ws-dev,    nodeId: local-win }

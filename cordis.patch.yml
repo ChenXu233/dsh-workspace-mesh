@@ -1,0 +1,10 @@
+# dsh-workspace-mesh bundle layer.
+# Mounted into a profile's host composition by `dsh plugin --profile <name> add dsh-workspace-mesh`.
+# The row `name` must stay identical to package.json `name` so Node resolution finds the code.
+- insert:
+    - id: mesh
+      name: dsh-workspace-mesh
+      # config:
+      #   assignmentFile: ./mesh/assignment.yml
+      #   transport: auto        # auto | pairing | loopback
+      #   leaseMs: 900000

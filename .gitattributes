@@ -1,0 +1,16 @@
+# Normalize line endings on checkout everywhere; keep LF in the repo.
+* text=auto eol=lf
+
+*.ts   text eol=lf
+*.js   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
