@@ -1,8 +1,14 @@
 # Local overlay for `dsh web --patch`.
-# Replace the absolute path with this repository's built entry point.
+# `name` is a module specifier: either the installed package name
+# (`dsh-workspace-mesh`, what `dsh plugin add` makes resolvable) or a `file:` URL.
+#
+# Do NOT write a bare Windows path here: new URL('E:/git/...') parses `E:` as the
+# scheme, so the loader fails with ERR_UNSUPPORTED_ESM_URL_SCHEME.
+# Unverified against a live loader run (spike-p2-tool-api.md §4.1): if your loader
+# resolves `name` as a package specifier only, install the package and use its name.
 - insert:
     - id: mesh
-      name: '<repo>/lib/index.js'
+      name: 'file:///<repo>/lib/index.js'
       config:
         transport: auto
         leaseMs: 900000
