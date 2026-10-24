@@ -21,7 +21,7 @@
 | `src/identity/` | Epoch key derivation, request tokens, replay guard (SPEC §17.3) |
 | `src/lifecycle/` | Self-restart controller (SPEC §14) |
 | `src/assignments/` | `assignment.yml` parsing (SPEC §5.4) — added with P2 |
-| `src/tools/` | Agent tool surface: `mesh_status`, `mesh_peers`, `mesh_dispatch` (SPEC §18) |
+| `src/tools/` | Agent tool surface: `mesh_list_nodes`, `mesh_status`, `mesh_dispatch`, `mesh_task_status` (SPEC §18; `mesh_status` is an addition, and `mesh_dispatch` blocking-until-reply is a documented deviation from the §18 `{taskId}` + `mesh_task_wait` model) |
 | `docs/` | Spike findings and roadmap |
 | `test/` | Node test runner suites, compiled to `lib-test/` |
 
