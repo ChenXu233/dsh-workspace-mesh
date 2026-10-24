@@ -14,6 +14,7 @@ export type {
   MeshToolRuntime,
 } from './types.js'
 
+export { PLUGIN_NAME } from './types.js'
 export { createTaskId } from './task-id.js'
 export { ReplyCollector } from './protocol.js'
 

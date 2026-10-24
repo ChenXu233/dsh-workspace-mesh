@@ -1,6 +1,6 @@
 import type { TaskState } from '../types.js'
 import type { MeshToolDefinition, MeshToolRuntime } from './types.js'
-import { renderJson, TRANSPORT_REPORT_SCHEMA, transportReport } from './types.js'
+import { PLUGIN_NAME, renderJson, TRANSPORT_REPORT_SCHEMA, transportReport } from './types.js'
 
 const ASSIGNMENT_SUMMARY_SCHEMA: Record<string, unknown> = {
   type: 'object',
@@ -98,7 +98,7 @@ export function createMeshStatusTool(runtime: MeshToolRuntime): MeshToolDefiniti
     async execute() {
       const lifecycle = runtime.lifecycle.status()
       return {
-        plugin: 'dsh-workspace-mesh',
+        plugin: PLUGIN_NAME,
         transport: transportReport(runtime),
         assignment: {
           configured: runtime.assignment !== undefined,

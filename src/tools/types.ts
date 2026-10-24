@@ -64,7 +64,24 @@ export interface MeshToolRuntime {
   newTaskId?: () => string
 }
 
-export const MESH_ERROR_CODE_VALUES: readonly MeshErrorCode[] = [
+/** Cordis registration name; mesh_status reports the same string. */
+export const PLUGIN_NAME = 'dsh-workspace-mesh'
+
+/**
+ * Tool-layer error vocabulary: SPEC §16 MeshErrorCode plus the local/target
+ * distinctions the tool face needs. src/types.ts is out of scope for t8, so the
+ * superset stays here; the model-facing schema enumerates this set.
+ */
+export type MeshToolErrorCode = MeshErrorCode | 'unavailable' | 'unknown-node' | 'invalid-target'
+
+export interface MeshToolError {
+  code: MeshToolErrorCode
+  message: string
+  /** Original error name/message/stack, retained for diagnosis (F-5). */
+  cause?: string
+}
+
+export const MESH_ERROR_CODE_VALUES: readonly MeshToolErrorCode[] = [
   'denied',
   'grant-expired',
   'node-offline',
@@ -72,6 +89,9 @@ export const MESH_ERROR_CODE_VALUES: readonly MeshErrorCode[] = [
   'tier-not-granted',
   'timeout',
   'remote-failure',
+  'unavailable',
+  'unknown-node',
+  'invalid-target',
 ]
 
 /** Shared transport report for mesh_status / mesh_list_nodes. */

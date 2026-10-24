@@ -1,8 +1,9 @@
 import { findAssignmentRoute } from '../assignments/index.js'
-import type { MeshError, MeshErrorCode, Task, TaskPolicy, TaskResult } from '../types.js'
+import type { LeaseFence } from '../board/index.js'
+import type { Task, TaskPolicy, TaskResult } from '../types.js'
 import { buildDispatchPrompt, meshErrorFrom, ReplyCollector, toMeshError } from './protocol.js'
 import { createTaskId } from './task-id.js'
-import type { MeshToolDefinition, MeshToolRuntime } from './types.js'
+import type { MeshToolDefinition, MeshToolError, MeshToolErrorCode, MeshToolRuntime } from './types.js'
 import { asArgsRecord, MESH_ERROR_CODE_VALUES, optionalString, rejectUnknownArgs, renderJson, requiredString } from './types.js'
 
 type DispatchState = 'done' | 'failed' | 'expired' | 'running'
@@ -12,13 +13,18 @@ interface DispatchTarget {
   workspaceId: string
 }
 
+interface DispatchResult extends TaskResult {
+  /** stream mode: dispatched, final reply not collected yet (F-6). */
+  pending?: boolean
+}
+
 interface DispatchOutput {
   ok: boolean
   taskId?: string
   state: DispatchState
   target?: DispatchTarget
-  result?: TaskResult
-  error?: MeshError
+  result?: DispatchResult
+  error?: MeshToolError
 }
 
 interface DispatchArgs {
@@ -72,6 +78,10 @@ const DISPATCH_OUTPUT_SCHEMA: Record<string, unknown> = {
         summary: { type: 'string', description: 'Final assistant text (or an explicit no-text marker).' },
         sessionId: { type: 'string', description: 'Remote session the task ran in.' },
         artifacts: { type: 'array', items: { type: 'string' } },
+        pending: {
+          type: 'boolean',
+          description: 'stream mode only: true means the prompt was delivered but no final reply is ready.',
+        },
       },
       required: ['summary'],
     },
@@ -81,6 +91,7 @@ const DISPATCH_OUTPUT_SCHEMA: Record<string, unknown> = {
       properties: {
         code: { type: 'string', enum: [...MESH_ERROR_CODE_VALUES] },
         message: { type: 'string' },
+        cause: { type: 'string', description: 'Original error name/message/stack for diagnosis.' },
       },
       required: ['code', 'message'],
     },
@@ -89,11 +100,15 @@ const DISPATCH_OUTPUT_SCHEMA: Record<string, unknown> = {
 }
 
 function failure(
-  code: MeshErrorCode,
+  code: MeshToolErrorCode,
   message: string,
-  options: { taskId?: string; target?: DispatchTarget; state?: 'failed' | 'expired' } = {},
+  options: { taskId?: string; target?: DispatchTarget; state?: 'failed' | 'expired'; cause?: string } = {},
 ): DispatchOutput {
-  const output: DispatchOutput = { ok: false, state: options.state ?? 'failed', error: { code, message } }
+  const output: DispatchOutput = {
+    ok: false,
+    state: options.state ?? 'failed',
+    error: options.cause === undefined ? { code, message } : { code, message, cause: options.cause },
+  }
   if (options.taskId !== undefined) output.taskId = options.taskId
   if (options.target !== undefined) output.target = options.target
   return output
@@ -173,7 +188,7 @@ function resolveTarget(args: DispatchArgs, runtime: MeshToolRuntime): DispatchTa
   const route = findAssignmentRoute(runtime.assignment, args.workspaceId)
   if (route !== undefined) return { nodeId: route.nodeId, workspaceId: args.workspaceId }
   return failure(
-    'scope-violation',
+    'invalid-target',
     `workspace "${args.workspaceId}" has no node assignment; pass nodeId explicitly or add it to assignment.yml`,
   )
 }
@@ -207,8 +222,9 @@ function buildTask(taskId: string, target: DispatchTarget, args: DispatchArgs, c
  * mesh_dispatch — the P2 acceptance path (SPEC §12):
  * Task board create -> claim lease -> createSession -> follow -> prompt ->
  * collect the final reply -> release the lease and record TaskResult.
- * Synthetic failures are returned as data with a MeshErrorCode; only malformed
- * tool arguments throw (the host turns that into a normal isError tool result).
+ * Synthetic failures are returned as data with the MeshErrorCode vocabulary
+ * (plus unavailable/unknown-node/invalid-target); only malformed tool arguments
+ * throw (the host turns that into a normal isError tool result).
  *
  * Deviation from SPEC §18 (explicit): this tool blocks and returns
  * { taskId, state, target, result|error } instead of { taskId }. The async
@@ -219,7 +235,7 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
   return {
     name: 'mesh_dispatch',
     description:
-      '把任务投递到工作区所在节点并阻塞等待最终回复：写入任务板、取得租约、createSession → follow → prompt，收到 turn/end（或 final:true / session/idle）后返回 TaskResult（summary + sessionId）。nodeId 省略时查 assignment.yml。失败以 MeshErrorCode 返回；没有配置传输时返回 "no transport configured"。注意：与 SPEC §18 的异步 {taskId}+mesh_task_wait 不同（持久化任务板属后续增量），本工具直接返回结果。',
+      '把任务投递到工作区所在节点并阻塞等待最终回复：写入任务板、取得租约、createSession → follow → prompt，收到 turn/end（或 final:true / session/idle）后返回 TaskResult（summary + sessionId）。nodeId 省略时查 assignment.yml。失败以 MeshErrorCode/扩展码（unavailable、unknown-node、invalid-target）返回；没有配置传输时返回 "no transport configured"。注意：与 SPEC §18 的异步 {taskId}+mesh_task_wait 不同（持久化任务板属后续增量），本工具直接返回结果。',
     parameters: {
       type: 'object',
       properties: {
@@ -252,11 +268,14 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
       schema: DISPATCH_OUTPUT_SCHEMA,
       render: renderJson,
     },
+    // Host cancellation must not outrun our own dispatch deadline (F-8).
+    timeoutMs: Math.max(runtime.config.dispatchTimeoutMs + 30_000, 60_000),
     async execute(rawArgs, exec) {
       const args = parseDispatchArgs(rawArgs, runtime)
 
       if (runtime.transport === undefined) {
-        return failure('remote-failure', 'no transport configured')
+        // Local degradation, not a remote failure (F-5).
+        return failure('unavailable', 'no transport configured')
       }
       const transport = runtime.transport
 
@@ -293,20 +312,22 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
       let unsubscribe: (() => void) | undefined
 
       const boardFailure = (): DispatchOutput =>
-        failure('remote-failure', `task board rejected the lease release or state update for task "${id}"`, {
+        failure('unavailable', `task board rejected the lease release or state update for task "${id}"`, {
           taskId: id,
           target,
         })
+
+      let fence: LeaseFence = { owner, fencingToken: 0 }
 
       const finalize = (
         state: 'done' | 'failed' | 'expired' | 'running',
         patch: { result?: TaskResult; error?: string },
       ): boolean => {
         if (!ownsLease) return false
-        // Release first: a rejected release is a board failure, not a silent success.
+        // Fenced write first: a preempted owner must not record anything (F-2).
+        if (!runtime.board.update(id, { state, ...patch }, fence)) return false
         if (!runtime.board.release(id, owner)) return false
         ownsLease = false
-        if (!runtime.board.update(id, { state, ...patch })) return false
         settled = true
         return true
       }
@@ -328,8 +349,10 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
           })
         }
         ownsLease = true
+        const claimedTask = runtime.board.get(id)
+        fence = { owner, fencingToken: claimedTask?.lease.fencingToken ?? 0 }
 
-        if (!runtime.board.update(id, { state: 'dispatched' })) return boardFailure()
+        if (!runtime.board.update(id, { state: 'dispatched' }, fence)) return boardFailure()
 
         let sessionId: string
         if (args.sessionMode === 'resume') {
@@ -341,15 +364,45 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
           sessionId = await transport.createSession(target.nodeId, target.workspaceId)
         }
 
-        if (!runtime.board.update(id, { state: 'running' })) return boardFailure()
+        const sessionKey = `${target.nodeId}\u0000${sessionId}`
+        if (!runtime.board.bindSession(id, sessionKey)) {
+          const message = `session "${sessionId}" on node "${target.nodeId}" already has an active task`
+          if (!finalize('failed', { error: message })) return boardFailure()
+          return failure('denied', message, { taskId: id, target })
+        }
+
+        if (!runtime.board.update(id, { state: 'running' }, fence)) return boardFailure()
 
         collector = new ReplyCollector()
-        unsubscribe = await transport.follow(target.nodeId, sessionId, (event) => {
-          collector?.push(event)
-        })
-        // The initial follow is a replacement baseline (SPEC §7.2): discard it so
-        // a resumed session cannot hand us a previous turn's reply.
+        // Start BEFORE follow: the baseline may be delivered synchronously inside
+        // follow() or asynchronously afterwards; neither may count as this reply.
         collector.start()
+        let baselineEnded = false
+        const follower = transport as typeof transport & {
+          supportsBaselineSignal?: boolean
+          follow: (
+            nodeId: string,
+            sessionId: string,
+            onEvent: (event: unknown) => void,
+            options?: { onBaselineDone?: () => void },
+          ) => Promise<() => void>
+        }
+        unsubscribe = await follower.follow(
+          target.nodeId,
+          sessionId,
+          (event) => {
+            collector?.push(event)
+          },
+          {
+            onBaselineDone: () => {
+              baselineEnded = true
+              collector?.endBaseline()
+            },
+          },
+        )
+        // A transport without an explicit baseline signal is assumed to have
+        // delivered the baseline by the time follow() resolves.
+        if (!baselineEnded && follower.supportsBaselineSignal !== true) collector.endBaseline()
         await transport.prompt(
           target.nodeId,
           sessionId,
@@ -362,13 +415,36 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
         )
 
         if (args.replyMode === 'stream') {
+          // If the transport already settled the turn (sync mock), stream can
+          // return the real result; otherwise say "dispatched, not ready yet"
+          // explicitly instead of pretending success (F-6).
+          const settled = collector.outcome()
+          if (settled?.kind === 'final') {
+            const result: TaskResult = {
+              summary: settled.summary.trim() === '' ? '(no assistant text received)' : settled.summary,
+              sessionId,
+            }
+            if (!finalize('done', { result })) return boardFailure()
+            return { ok: true, taskId: id, state: 'done', target, result }
+          }
+          if (settled?.kind === 'failure') {
+            const error = meshErrorFrom(settled.failure.code, settled.failure.message)
+            if (!finalize('failed', { error: error.message })) return boardFailure()
+            return { ok: false, taskId: id, state: 'failed', target, error }
+          }
           const snapshot = collector.snapshot()
-          const result: TaskResult = {
+          const stored: TaskResult = {
             summary: snapshot.latestText === '' ? '(streaming: no assistant text yet)' : snapshot.latestText,
             sessionId,
           }
-          if (!finalize('running', { result })) return boardFailure()
-          return { ok: true, taskId: id, state: 'running', target, result }
+          if (!finalize('running', { result: stored })) return boardFailure()
+          return {
+            ok: true,
+            taskId: id,
+            state: 'running',
+            target,
+            result: { ...stored, pending: true },
+          }
         }
 
         const outcome = await collector.wait(args.maxDurationMs, exec.signal)
@@ -398,12 +474,18 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
         const error = toMeshError(err)
         if (!settled) {
           try {
-            runtime.board.update(id, {
-              state: error.code === 'timeout' ? 'expired' : 'failed',
-              error: error.message,
-            })
-          } catch {
-            // Best effort while unwinding; the original transport/board error wins.
+            const wrote = runtime.board.update(
+              id,
+              { state: error.code === 'timeout' ? 'expired' : 'failed', error: error.message },
+              fence,
+            )
+            if (!wrote) {
+              // Another owner took the lease while this call was in flight: the
+              // late write is correctly rejected (F-2), but keep a trace.
+              console.warn(`[mesh] task "${id}" was fenced out before the failure could be recorded`)
+            }
+          } catch (boardError) {
+            console.warn(`[mesh] failed to record dispatch failure for task "${id}":`, boardError)
           }
         }
         return {

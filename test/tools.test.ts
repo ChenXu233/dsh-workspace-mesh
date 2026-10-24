@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -13,8 +13,9 @@ import * as plugin from '../src/index.js'
 import { createSelfRestartController } from '../src/lifecycle/index.js'
 import { createMockTransport } from '../src/transport/mock.js'
 import type { MockTransport } from '../src/transport/mock.js'
-import { registerMeshTools } from '../src/tools/index.js'
+import { PLUGIN_NAME, registerMeshTools } from '../src/tools/index.js'
 import type { MeshToolConfig, MeshToolDefinition, MeshToolRuntime } from '../src/tools/index.js'
+import type { Task } from '../src/types.js'
 
 const ASSIGNMENT_YAML = `nodes:
   node-a: { label: Node A, endpoint: mock://a }
@@ -109,6 +110,29 @@ function makeDispatchTransport(autoRespond: boolean): MockTransport {
       ? { autoRespond: () => [{ type: 'assistant/message', text: 'final reply', final: true }] }
       : {}),
   })
+}
+
+function makeTask(taskId: string, nodeId = 'node-a', workspaceId = 'ws-1'): Task {
+  return {
+    taskId,
+    target: { nodeId, workspaceId },
+    objective: 'task ' + taskId,
+    policy: { sessionMode: 'new', replyMode: 'final' },
+    lease: { owner: '', fencingToken: 0, expiresAt: 0 },
+    state: 'queued',
+    createdAt: 1_000,
+    updatedAt: 1_000,
+  }
+}
+
+function sourceFiles(root: URL): string[] {
+  const files: string[] = []
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const child = new URL(entry.name + (entry.isDirectory() ? '/' : ''), root)
+    if (entry.isDirectory()) files.push(...sourceFiles(child))
+    else if (entry.name.endsWith('.ts')) files.push(fileURLToPath(child))
+  }
+  return files
 }
 
 function withTempDir(run: (dir: string) => void): void {
@@ -256,6 +280,7 @@ test('an empty assignment file is rejected at line 1', () => {
 
 test("the plugin exports inject = ['tools'] and registers four mesh tools with raw JSON Schema", () => {
   assert.deepEqual(plugin.inject, ['tools'])
+  assert.equal(plugin.name, PLUGIN_NAME, 'cordis name and mesh_status must agree (F-10)')
 
   const definitions = capture(makeRuntime())
   assert.deepEqual(
@@ -290,40 +315,52 @@ test("the plugin exports inject = ['tools'] and registers four mesh tools with r
   ])
   assert.deepEqual(dispatchProperties.sessionMode!.enum, ['new', 'resume'])
   assert.deepEqual(dispatchProperties.replyMode!.enum, ['final', 'stream'])
+  assert.ok(
+    typeof dispatch.timeoutMs === 'number' && dispatch.timeoutMs > 1_000,
+    'mesh_dispatch must declare a host timeout above dispatchTimeoutMs (F-8)',
+  )
+
+  const dispatchOutput = dispatch.output.schema.properties as Record<string, Record<string, unknown>>
+  const errorCodes = (dispatchOutput.error!.properties as Record<string, Record<string, unknown>>).code!.enum as string[]
+  for (const code of ['unavailable', 'unknown-node', 'invalid-target']) {
+    assert.ok(errorCodes.includes(code), 'error schema must expose ' + code + ' (F-5)')
+  }
+  assert.ok(
+    (dispatchOutput.result!.properties as Record<string, unknown>).pending,
+    'stream mode must expose a pending flag (F-6)',
+  )
 
   const listNodes = tool(definitions, 'mesh_list_nodes')
   assert.deepEqual(Object.keys(listNodes.parameters.properties as Record<string, unknown>), ['nodeId', 'workspaceId'])
+  const peerSchema = (listNodes.output.schema.properties as Record<string, Record<string, unknown>>).peers!
+  const peerItem = peerSchema.items as Record<string, unknown>
+  assert.ok((peerItem.properties as Record<string, unknown>).online, 'SPEC §18 online boolean is preserved (F-4)')
+  assert.ok((peerItem.required as string[]).includes('online'))
 
   const taskStatus = tool(definitions, 'mesh_task_status')
   assert.deepEqual(taskStatus.parameters.required, ['taskId'])
   assert.deepEqual(Object.keys(taskStatus.parameters.properties as Record<string, unknown>), ['taskId'])
 })
 
-test('the tool and assignment modules stay zero-dependency and spawn nothing', () => {
-  const files = [
-    '../../src/tools/types.ts',
-    '../../src/tools/status.ts',
-    '../../src/tools/list-nodes.ts',
-    '../../src/tools/task-status.ts',
-    '../../src/tools/dispatch.ts',
-    '../../src/tools/protocol.ts',
-    '../../src/tools/task-id.ts',
-    '../../src/tools/index.ts',
-    '../../src/assignments/index.ts',
-    '../../src/index.ts',
-  ]
-  const allowed = new Set(['node:crypto', 'node:fs', 'node:path', '@deepseek-ai/cordis'])
-  for (const relative of files) {
-    const source = readFileSync(new URL(relative, import.meta.url), 'utf8')
-    const specifiers = [...new Set([...source.matchAll(/from '([^']+)'/g)].map((match) => match[1]!))]
+test('the whole src tree stays zero-dependency (from / import() / require()) and spawns nothing', () => {
+  const files = sourceFiles(new URL('../../src/', import.meta.url))
+  assert.ok(files.length >= 10, 'the audit must cover the whole src tree, not a hand-picked list (F-12)')
+
+  const builtins = new Set(['node:crypto', 'node:fs', 'node:path'])
+  const allowedPackages = new Set(['@deepseek-ai/cordis'])
+  const specifierPattern = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"]([^'"]+)['"]/g
+
+  for (const file of files) {
+    const source = readFileSync(file, 'utf8')
+    const specifiers = [...new Set([...source.matchAll(specifierPattern)].map((match) => match[1]!))]
     for (const specifier of specifiers) {
       assert.ok(
-        specifier.startsWith('.') || allowed.has(specifier),
-        relative + ' imports unexpected package ' + specifier,
+        specifier.startsWith('.') || builtins.has(specifier) || allowedPackages.has(specifier),
+        file + ' imports unexpected package ' + specifier,
       )
     }
     for (const token of ['child_process', 'spawn(', 'fetch(', 'node:http', 'node:https', 'node:net']) {
-      assert.equal(source.includes(token), false, relative + ' must not reference ' + token)
+      assert.equal(source.includes(token), false, file + ' must not reference ' + token)
     }
   }
 
@@ -342,7 +379,7 @@ test('mesh_status works without a transport and reports the degradation', async 
   const definitions = capture(runtime)
   const status = await invoke(tool(definitions, 'mesh_status'), {})
 
-  assert.equal(status.plugin, 'dsh-workspace-mesh')
+  assert.equal(status.plugin, PLUGIN_NAME)
   const transport = status.transport as Record<string, unknown>
   assert.equal(transport.configured, false)
   assert.equal(transport.kind, '')
@@ -368,6 +405,7 @@ test('mesh_list_nodes derives unknown nodes from assignment.yml when no transpor
   const peers = result.peers as Array<Record<string, unknown>>
   assert.deepEqual(peers.map((peer) => peer.nodeId), ['node-a', 'node-c'])
   assert.deepEqual(peers.map((peer) => peer.status), ['unknown', 'unknown'])
+  assert.deepEqual(peers.map((peer) => peer.online), [false, false], 'online is false and never invented (F-4)')
   assert.deepEqual(peers.map((peer) => peer.source), ['assignment', 'assignment'])
   assert.deepEqual(peers[0]!.assignedWorkspaceIds, ['ws-1'])
   assert.deepEqual(peers[0]!.workspaces, [])
@@ -390,6 +428,7 @@ test('mesh_list_nodes merges transport receipts, preserves unknown nodes and fil
 
   const nodeA = peers[0]!
   assert.equal(nodeA.status, 'online')
+  assert.equal(nodeA.online, true)
   assert.equal(nodeA.source, 'both')
   assert.equal(nodeA.label, 'Node A')
   assert.equal(nodeA.endpoint, 'mock://a')
@@ -407,10 +446,12 @@ test('mesh_list_nodes merges transport receipts, preserves unknown nodes and fil
 
   const nodeC = peers[1]!
   assert.equal(nodeC.status, 'unknown')
+  assert.equal(nodeC.online, false)
   assert.equal(nodeC.source, 'assignment')
 
   const nodeB = peers[2]!
   assert.equal(nodeB.status, 'offline')
+  assert.equal(nodeB.online, false)
   assert.equal(nodeB.source, 'transport')
   assert.deepEqual(nodeB.assignedWorkspaceIds, [])
 
@@ -431,9 +472,17 @@ test('mesh_list_nodes merges transport receipts, preserves unknown nodes and fil
   assert.ok((missing.notes as string[]).some((note) => note.includes('node-z')))
 })
 
-test('mesh_dispatch runs the full P2 path over the mock transport', async () => {
+test('mesh_dispatch runs the full P2 path over the mock transport and fences every write', async () => {
   const transport = makeDispatchTransport(true)
-  const board = createInMemoryBoard(() => 1_000)
+  const baseBoard = createInMemoryBoard(() => 1_000)
+  const updates: Array<{ state: unknown; fence: unknown }> = []
+  const board: TaskBoard = {
+    ...baseBoard,
+    update(taskId, patch, fence) {
+      updates.push({ state: patch.state, fence })
+      return baseBoard.update(taskId, patch, fence)
+    },
+  }
   let counter = 0
   const runtime = makeRuntime({
     transport,
@@ -477,6 +526,18 @@ test('mesh_dispatch runs the full P2 path over the mock transport', async () => 
   assert.match(prompts[0]!, /context text/)
   assert.match(prompts[0]!, /1\. tests pass/)
   assert.match(prompts[0]!, /2\. no dependencies/)
+
+  assert.deepEqual(
+    updates.map((update) => update.state),
+    ['dispatched', 'running', 'done'],
+    'dispatch writes go through the board in state order',
+  )
+  for (const update of updates) {
+    const fence = update.fence as { owner: string; fencingToken: number } | undefined
+    assert.ok(fence, 'every dispatch write must carry a lease fence (F-2)')
+    assert.equal(fence.owner, 'mesh-lead')
+    assert.equal(fence.fencingToken, 1)
+  }
 
   const rendered = tool(definitions, 'mesh_dispatch').output.render({}, output)
   assert.equal(rendered.length, 1)
@@ -524,7 +585,7 @@ test('mesh_dispatch reports no transport configured without creating a task', as
   assert.equal(output.state, 'failed')
   assert.equal(output.taskId, undefined)
   const error = output.error as Record<string, unknown>
-  assert.equal(error.code, 'remote-failure')
+  assert.equal(error.code, 'unavailable', 'local degradation must not look like a remote failure (F-5)')
   assert.match(String(error.message), /no transport configured/)
   assert.equal(runtime.board.list().length, 0, 'degradation happens before the board is touched')
 })
@@ -579,14 +640,224 @@ test('mesh_dispatch times out and marks the task expired', async () => {
   const output = await invoke(tool(capture(runtime), 'mesh_dispatch'), {
     workspaceId: 'ws-1',
     objective: 'never answers',
-    maxDurationMs: 20,
+    // F-9: assert the state/code, not wall-clock precision.
+    maxDurationMs: 40,
   })
   assert.equal(output.ok, false)
   assert.equal(output.state, 'expired')
   const error = output.error as Record<string, unknown>
   assert.equal(error.code, 'timeout')
-  assert.match(String(error.message), /timed out after 20ms/)
   assert.equal(board.get('task-timeout')!.state, 'expired')
+})
+
+test('the mock transport exposes sync and async delivery modes (F-11)', () => {
+  assert.equal(createMockTransport().deliveryMode, 'sync')
+  assert.equal(createMockTransport({ deliveryMode: 'async' }).deliveryMode, 'async')
+  assert.equal(createMockTransport().supportsBaselineSignal, true)
+})
+
+test('a preempted lease owner cannot write with a stale fencing token (F-2)', () => {
+  let clock = 1_000
+  const board = createInMemoryBoard(() => clock)
+  board.create(makeTask('t-fence'))
+
+  assert.equal(board.claim('t-fence', 'A', 10), true)
+  const tokenA = board.get('t-fence')!.lease.fencingToken
+
+  clock = 1_010
+  assert.equal(board.claim('t-fence', 'B', 10), true, 'the expired lease is stealable')
+  const tokenB = board.get('t-fence')!.lease.fencingToken
+  assert.ok(tokenB > tokenA, 'takeover mints a new fencing epoch')
+  const before = board.get('t-fence')!
+
+  assert.equal(
+    board.update('t-fence', { state: 'failed', error: 'late write from A' }, { owner: 'A', fencingToken: tokenA }),
+    false,
+    'a stale epoch must not write',
+  )
+  const after = board.get('t-fence')!
+  assert.equal(after.state, before.state, 'the rejected write changed nothing')
+  assert.equal(after.error, undefined)
+  assert.equal(after.lease.owner, 'B')
+  assert.equal(after.lease.fencingToken, tokenB)
+
+  assert.equal(
+    board.update('t-fence', { state: 'done', result: { summary: 'B result' } }, { owner: 'B', fencingToken: tokenB }),
+    true,
+    'the current epoch can still write',
+  )
+  assert.equal(board.get('t-fence')!.state, 'done')
+})
+
+test('a dispatch whose lease is preempted cannot record its late result (F-2)', async () => {
+  let clock = 1_000
+  const base = createInMemoryBoard(() => clock)
+  let stolen = false
+  const board: TaskBoard = {
+    ...base,
+    update(taskId, patch, fence) {
+      const wrote = base.update(taskId, patch, fence)
+      if (wrote && patch.state === 'running' && !stolen) {
+        stolen = true
+        clock = 70_000
+        assert.equal(base.claim(taskId, 'intruder', 60_000), true, 'the expired lease is stolen mid-flight')
+      }
+      return wrote
+    },
+  }
+  const transport = makeDispatchTransport(true)
+  const runtime = makeRuntime({
+    transport,
+    board,
+    assignment: makeAssignment(),
+    newTaskId: () => 'task-preempt',
+  })
+
+  const output = await invoke(tool(capture(runtime), 'mesh_dispatch'), {
+    workspaceId: 'ws-1',
+    objective: 'lose the lease',
+  })
+  assert.equal(output.ok, false)
+  assert.equal((output.error as Record<string, unknown>).code, 'unavailable')
+  const task = base.get('task-preempt')!
+  assert.equal(task.lease.owner, 'intruder', 'the late writer must not clear/overwrite B\'s lease')
+  assert.notEqual(task.state, 'done')
+  assert.equal(task.result, undefined, 'A\'s late result must be rejected')
+})
+
+test('an async replacement baseline with existing history is discarded (F-1)', async () => {
+  const transport = createMockTransport({
+    deliveryMode: 'async',
+    now: () => 1_000,
+    nodes: [
+      {
+        nodeId: 'node-a',
+        workspaces: [{ workspaceId: 'ws-1', sessions: [{ sessionId: 's-history', title: 'old' }] }],
+      },
+    ],
+    autoRespond: () => [{ type: 'assistant/message', text: 'fresh reply', final: true }],
+  })
+  transport.scriptEvents('node-a', 's-history', [
+    { type: 'assistant/message', text: 'STALE BASELINE FROM A PREVIOUS TURN', final: true },
+  ])
+  const board = createInMemoryBoard(() => 1_000)
+  const runtime = makeRuntime({
+    transport,
+    board,
+    assignment: makeAssignment(),
+    newTaskId: () => 'task-baseline',
+  })
+
+  const output = await invoke(tool(capture(runtime), 'mesh_dispatch'), {
+    workspaceId: 'ws-1',
+    objective: 'resume after history',
+    sessionMode: 'resume',
+    sessionId: 's-history',
+  })
+
+  assert.equal(output.ok, true)
+  const result = output.result as Record<string, unknown>
+  assert.equal(result.summary, 'fresh reply')
+  assert.notEqual(result.summary, 'STALE BASELINE FROM A PREVIOUS TURN')
+  assert.equal(board.get('task-baseline')!.state, 'done')
+  assert.equal(
+    transport.sessionEvents('node-a', 's-history').length,
+    2,
+    'the baseline history is still present; the collector, not the transport, discards it',
+  )
+})
+
+test('two dispatches cannot hold the same resume session at once (F-3)', async () => {
+  const transport = createMockTransport({
+    now: () => 1_000,
+    nodes: [
+      {
+        nodeId: 'node-a',
+        workspaces: [{ workspaceId: 'ws-1', sessions: [{ sessionId: 's-shared', title: 'shared' }] }],
+      },
+    ],
+    autoRespond: () => [{ type: 'assistant/message', text: 'ok', final: true }],
+  })
+  let counter = 0
+  const runtime = makeRuntime({
+    transport,
+    assignment: makeAssignment(),
+    newTaskId: () => 'task-' + ++counter,
+  })
+  const dispatch = tool(capture(runtime), 'mesh_dispatch')
+  const args = { workspaceId: 'ws-1', objective: 'same session', sessionMode: 'resume', sessionId: 's-shared' }
+
+  const first = invoke(dispatch, args)
+  const second = (await invoke(dispatch, args)) as Record<string, unknown>
+  const firstOutput = (await first) as Record<string, unknown>
+
+  assert.equal(second.ok, false)
+  assert.equal((second.error as Record<string, unknown>).code, 'denied')
+  assert.equal(firstOutput.ok, true)
+  assert.equal(transport.prompts('node-a', 's-shared').length, 1, 'only one prompt reaches the shared session')
+})
+
+test('mesh_dispatch reports a misspelled nodeId as unknown-node with the original cause (F-5)', async () => {
+  const transport = makeDispatchTransport(true)
+  const board = createInMemoryBoard(() => 1_000)
+  const runtime = makeRuntime({ transport, board, assignment: makeAssignment(), newTaskId: () => 'task-typo' })
+
+  const output = await invoke(tool(capture(runtime), 'mesh_dispatch'), {
+    workspaceId: 'ws-1',
+    nodeId: 'node-typo',
+    objective: 'x',
+  })
+  assert.equal(output.ok, false)
+  const error = output.error as Record<string, unknown>
+  assert.equal(error.code, 'unknown-node')
+  assert.match(String(error.message), /node-typo/)
+  assert.match(String(error.cause), /MockTransportError|no node/)
+  assert.equal(board.get('task-typo')!.state, 'failed')
+})
+
+test('stream mode reports pending and leaves the task running (F-6)', async () => {
+  const transport = makeDispatchTransport(false)
+  const board = createInMemoryBoard(() => 1_000)
+  const runtime = makeRuntime({
+    transport,
+    board,
+    assignment: makeAssignment(),
+    newTaskId: () => 'task-stream',
+  })
+  const definitions = capture(runtime)
+
+  const output = await invoke(tool(definitions, 'mesh_dispatch'), {
+    workspaceId: 'ws-1',
+    objective: 'stream it',
+    replyMode: 'stream',
+  })
+  assert.equal(output.ok, true)
+  assert.equal(output.state, 'running')
+  const result = output.result as Record<string, unknown>
+  assert.equal(result.pending, true)
+  assert.match(String(result.summary), /streaming/)
+  assert.equal(board.get('task-stream')!.state, 'running')
+
+  const status = await invoke(tool(definitions, 'mesh_task_status'), { taskId: 'task-stream' })
+  assert.equal(status.state, 'running', 'running is visible; it does not auto-advance in P2')
+})
+
+test('an aborted tool call records a failed task (F-8)', async () => {
+  const transport = makeDispatchTransport(false)
+  const board = createInMemoryBoard(() => 1_000)
+  const runtime = makeRuntime({ transport, board, assignment: makeAssignment(), newTaskId: () => 'task-abort' })
+  const controller = new AbortController()
+  controller.abort()
+
+  const output = await invoke(
+    tool(capture(runtime), 'mesh_dispatch'),
+    { workspaceId: 'ws-1', objective: 'abort me' },
+    { signal: controller.signal },
+  )
+  assert.equal(output.ok, false)
+  assert.equal(output.state, 'failed')
+  assert.equal((output.error as Record<string, unknown>).code, 'timeout')
+  assert.equal(board.get('task-abort')!.state, 'failed')
 })
 
 test('mesh_dispatch rejects a live lease with denied and leaves the task queued', async () => {

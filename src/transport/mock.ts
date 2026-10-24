@@ -47,8 +47,24 @@ export interface MockPromptContext {
   index: number
 }
 
+export interface MockFollowOptions {
+  /**
+   * Called after the replacement baseline has been delivered. Dispatch passes
+   * this to close the collector's baseline window (SPEC §7.2); a boundary event
+   * `{type:'mesh/baseline/end'}` is delivered immediately before the callback.
+   */
+  onBaselineDone?: () => void
+}
+
 export interface MockTransportOptions {
   nodes?: readonly MockNodeSeed[]
+  /**
+   * Baseline delivery timing. 'sync' (default) preserves the deterministic
+   * synchronous replay existing tests rely on; 'async' schedules the baseline
+   * over two microtask hops and makes prompt() wait for it, modelling a real
+   * transport where the baseline arrives after follow() returns.
+   */
+  deliveryMode?: 'sync' | 'async'
   /** Injected clock, used only for reported timestamps — never for scheduling. Defaults to Date.now. */
   now?: () => number
   /** Faults armed before the first call, keyed by method. */
@@ -85,6 +101,9 @@ export class MockTransportError extends Error {
  */
 export interface MockTransport extends MeshTransport {
   readonly kind: 'mock'
+  readonly deliveryMode: 'sync' | 'async'
+  /** Dispatch uses this capability flag to decide whether it must close the baseline itself. */
+  readonly supportsBaselineSignal: true
   /** Add or replace a node; replacing a node drops its previously created sessions. */
   addNode(seed: MockNodeSeed): void
   setOnline(nodeId: string, online: boolean): void
@@ -118,6 +137,8 @@ interface SessionState {
   prompts: string[]
   events: unknown[]
   followers: Set<(event: unknown) => void>
+  /** In-flight async baseline replays; prompt() waits for them before answering. */
+  pendingBaselines: Set<Promise<void>>
 }
 
 interface ArmedFault {
@@ -164,6 +185,7 @@ export function createMockTransport(options: MockTransportOptions = {}): MockTra
   const now = options.now ?? Date.now
   const prefix = options.sessionIdPrefix ?? 'mock-sess'
   const replayOnFollow = options.replayOnFollow ?? true
+  const deliveryMode = options.deliveryMode ?? 'sync'
   const nodes = new Map<string, NodeState>()
   const sessions = new Map<string, SessionState>()
   const faults = new Map<MockMethod, ArmedFault>()
@@ -244,6 +266,7 @@ export function createMockTransport(options: MockTransportOptions = {}): MockTra
           prompts: [],
           events: [],
           followers: new Set(),
+          pendingBaselines: new Set(),
         })
       }
     }
@@ -256,6 +279,8 @@ export function createMockTransport(options: MockTransportOptions = {}): MockTra
 
   return {
     kind: 'mock',
+    deliveryMode,
+    supportsBaselineSignal: true as const,
 
     async listNodes() {
       guard('listNodes', [])
@@ -293,6 +318,7 @@ export function createMockTransport(options: MockTransportOptions = {}): MockTra
         prompts: [],
         events: [],
         followers: new Set(),
+        pendingBaselines: new Set(),
       })
       return sessionId
     },
@@ -302,14 +328,20 @@ export function createMockTransport(options: MockTransportOptions = {}): MockTra
       requireOnline(nodeId)
       const session = requireSession(nodeId, sessionId)
       session.prompts.push(text)
+      // A real transport delivers the replacement baseline before the reply to
+      // this prompt; model that ordering so dispatch cannot mistake stale text.
+      if (deliveryMode === 'async' && session.pendingBaselines.size > 0) {
+        await Promise.all([...session.pendingBaselines])
+      }
       const respond = options.autoRespond
       if (!respond) return
       for (const reply of respond({ nodeId, sessionId, text, index: session.prompts.length - 1 })) {
         deliver(session, reply)
       }
+      if (deliveryMode === 'async') await Promise.resolve()
     },
 
-    async follow(nodeId, sessionId, onEvent) {
+    async follow(nodeId, sessionId, onEvent, followOptions?: MockFollowOptions) {
       guard('follow', [nodeId, sessionId])
       requireOnline(nodeId)
       const session = requireSession(nodeId, sessionId)
@@ -318,11 +350,44 @@ export function createMockTransport(options: MockTransportOptions = {}): MockTra
         if (active) onEvent(event)
       }
       session.followers.add(listener)
+
+      const finishBaseline = (): void => {
+        if (!active) return
+        // Only a baseline-aware follower sees the boundary event; the legacy
+        // stream (existing transport tests) stays exactly history + live events.
+        if (followOptions?.onBaselineDone !== undefined) {
+          listener({ type: 'mesh/baseline/end' })
+          followOptions.onBaselineDone()
+        }
+      }
+
       // Replacement baseline, exactly like a real reconnect (SPEC §7.2): history first,
       // then live events. No deltas are invented for the gap.
-      if (replayOnFollow) {
-        for (const event of [...session.events]) listener(event)
+      if (deliveryMode === 'async') {
+        let resolveBaseline!: () => void
+        const pending = new Promise<void>((resolve) => {
+          resolveBaseline = resolve
+        })
+        session.pendingBaselines.add(pending)
+        // Two hops place the replay after the caller's first continuation — the
+        // exact ordering that leaked stale text before the boundary work.
+        queueMicrotask(() =>
+          queueMicrotask(() => {
+            if (active && replayOnFollow) {
+              for (const event of [...session.events]) listener(event)
+            }
+            finishBaseline()
+            session.pendingBaselines.delete(pending)
+            resolveBaseline()
+          }),
+        )
+      } else {
+        if (replayOnFollow) {
+          for (const event of [...session.events]) listener(event)
+        }
+        finishBaseline()
       }
+
       return () => {
         if (!active) return
         active = false

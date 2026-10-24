@@ -200,3 +200,57 @@ S0 spike（可与 P2a 并行启动环境准备，判定不互相依赖）
 - 每个增量一个独立 commit（延续 41e498f 之后的惯例：05fa37e / 72b89a9 / 69104f0 / 79999fc 均为单主题提交）。
 - 每个增量合并前跑：`node ./node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node ./node_modules/typescript/bin/tsc -p tsconfig.test.json && node --test lib-test/test/*.test.js`。
 - SPEC 勘误是否落地由用户决定；落地时单独一个 docs commit，逐条引用本文 §7。
+
+---
+
+## 10. §18 工具面：实现对照与偏差（t8 修复轮）
+
+> 本节是 F-4 要求的可检索契约。SPEC §18 是草案；下表逐条写明模型实际看到的名字、入参、返回形状与偏差状态。
+
+| SPEC §18 草案 | 实现 | 入参 | 返回形状 | 语义差异 | 状态 |
+|---|---|---|---|---|---|
+| `mesh_list_nodes()` | `mesh_list_nodes` | `{nodeId?, workspaceId?}`（可选过滤） | `{transport, peers[], notes[]}`；每个 peer 含 `nodeId/label/endpoint/online/status/source/workspaces/assignedWorkspaceIds/lastSeenAt?` | 不返回裸数组，而是带 transport 诊断的包装；`online` 布尔与 `status` 并存（F-4 已补 `online`）；`status=unknown` 表示没有传输回执，绝不伪造 online | 有意偏离（包装/过滤）；`online` 已对齐 |
+| `mesh_list_workspaces(nodeId?)` | 折入 `mesh_list_nodes` 的 `peers[].workspaces` | 同上（按 nodeId 过滤） | 每个 peer 的 `workspaces[]`（workspaceId/name/path/sessions 计数） | 不设独立工具；workspace 枚举来自传输回执，DSH 无一次性 workspace/list（p1 §7.3） | 有意折入 |
+| `mesh_dispatch({...})` | `mesh_dispatch` | `workspaceId, nodeId?, objective, context?, acceptance?, sessionMode?, sessionId?, maxDurationMs?, replyMode?` | `{ok, taskId, state, target, result\|error}`；`result={summary, sessionId, artifacts?, pending?}` | **阻塞到最终回复**，不是 `{taskId}` + `mesh_task_wait`；`replyMode=stream` 返回 `pending:true`（见 §12） | 有意偏离；异步模型待持久化任务板（后续增量） |
+| `mesh_task_status(taskId)` | `mesh_task_status` | `{taskId}` | `Task`（SPEC §5.3） | 直接读进程内任务板；未知 id 是普通工具错误 | 对齐 |
+| `mesh_task_wait` / `mesh_cancel` | 未实现 | — | — | 需要可推进的持久任务板/取消通道 | 待实现 |
+| `mesh_lifecycle` / `mesh_plugin_*` / `mesh_call` / `mesh_grants` | 未实现 | — | — | 依 §14/§15/§16 的跨机面 | 待实现 |
+| （§18 之外） | `mesh_status` | `{}` | `{plugin, transport, assignment, board, lifecycle}` | mesh 级总览；**不替代** `mesh_task_status` | 有意新增（补充工具） |
+
+工具前缀统一为 `mesh_`；cordis 注册名、`mesh_status.plugin` 与包名统一为 `dsh-workspace-mesh`（F-10）。
+
+## 11. 错误码与降级（F-5）
+
+| 码 | 来源 | 是否可重试 | 说明 |
+|---|---|---|---|
+| `unavailable` | 本地 | 修配置后 | 没有传输、或任务板拒绝本地写；**本地降级**，不是远端失败 |
+| `unknown-node` | 目标 | 修 nodeId 后 | 显式 nodeId 拼错/传输没有该节点；不再伪装成 `node-offline` |
+| `invalid-target` | 目标 | 修 workspace/node 后 | workspace 没有 assignment，或传输报 unknown-workspace/unknown-session |
+| `denied` | 本地策略 | 视情况 | 租约冲突、session 已被占用、授权拒绝 |
+| `node-offline` | 远端 | 等节点回线 | 传输回执明确 offline |
+| `timeout` | 本地/远端 | 可重试 | 等待最终回复超时，或工具调用被宿主取消 |
+| `grant-expired` / `scope-violation` / `tier-not-granted` | 策略 | 否/补授权 | SPEC §16 词表 |
+| `remote-failure` | 远端/未知 | 视情况 | 传输/对端失败；非 MeshError 异常保留原始 `cause`（name/message/stack），并写 console.warn |
+
+## 12. stream 与 running 的推进语义（F-6）
+
+- `replyMode=stream` 在 `prompt` 返回后立即返回：`ok:true, state:"running", result.pending=true`。`summary` 是当前已收到的最后一段 assistant 文本，**不是最终结果**。
+- P2 没有后台事件收集器，也没有 `mesh_task_wait`：该 `running` 任务**不会自动推进**；租约已释放，调用方可用 `mesh_task_status` 读到 `running`，重新 dispatch 或等待后续增量的持久化任务板+wait 实现。
+- 若传输在 `prompt` 返回前已经给出终态（同步 mock），stream 直接返回 `done` 的真实结果，不标记 pending。
+
+## 13. 基线边界与 mock 交付模式（F-1/F-11）
+
+- dispatch 在 `follow()` **之前** `collector.start()`；传输通过 `onBaselineDone` 回调或 `{type:"mesh/baseline/end"}` 边界事件宣告基线结束，边界前的文本/终态一律丢弃；若事件带 `seq`，collector 还记录基线最后 seq，只接受更大 seq。
+- mock 新增 `deliveryMode: 'sync' | 'async'`（默认 `sync`，保留既有确定性测试）与 `supportsBaselineSignal`；`async` 用两个 microtask 调度回放，并让 `prompt()` 等待基线完成，逼近真实传输的时序。两种模式都有测试覆盖（F-11）。
+- 传输契约：真实适配器必须提供 `onBaselineDone`（或边界事件），或保证基线事件带单调 `seq`；两者都没有时 dispatch 无法区分“迟到的基线”和“本轮新事件”，该传输需先补齐边界语义再接 mesh。
+
+## 14. F-7：真实宿主加载（环境阻塞）
+
+按 Lead 决定，真实 DSH 加载不在本修复轮执行（无 spawn 纪律 + 需要交互式宿主）。关闭该 finding 需要：
+
+1. 一个可用的 DSH profile（本机只有 `desktop`；`web` profile 需先创建），且 `id: tools` 行已挂载；
+2. 构建产物 `lib/`（`pnpm build`）与 `dsh plugin --profile <name> add file:<repo>`，或 `dsh web --patch examples/local.cordis.patch.yml`；
+3. 新会话里让模型调用 `mesh_list_nodes`，按 spike §4.4 的判据确认调用卡片/tool-change developer message；
+4. 观察宿主日志中四个 `ctx.tools.register` 是否全部成功（任一 output.schema 越界会导致四个工具整体注册失败）。
+
+在此之前，P2 的“注册成功”证据仍只来自假 ctx 测试；这是已声明的验收缺口，不是通过。

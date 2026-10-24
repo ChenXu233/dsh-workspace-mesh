@@ -5,6 +5,21 @@ export interface TaskListFilter {
   nodeId?: string
 }
 
+/** A write may be fenced to one lease epoch (SPEC §6.3: stale writers must lose). */
+export interface LeaseFence {
+  owner: string
+  fencingToken: number
+}
+
+export interface ClaimOptions {
+  /**
+   * Session-level mutual exclusion key (SPEC §7.3). claim() derives it from
+   * policy.sessionId for resume tasks; a new session is bound after creation
+   * with bindSession().
+   */
+  sessionKey?: string
+}
+
 /**
  * Task board with the state machine from SPEC §7 and §6.3.
  * In-memory for v1; the interface is what the durable store will implement later.
@@ -15,17 +30,35 @@ export interface TaskListFilter {
  * - a live lease held by the caller is a renewal: TTL extended, fencingToken unchanged
  * - any claim that starts a new epoch (expired or released lease) increments fencingToken,
  *   so the token is strictly increasing for the whole life of a task
+ * - fenced writes are accepted only from the live lease owner with the current token;
+ *   a preempted writer's late update returns false and changes nothing
+ * - a session key is occupied while its task holds a live lease, enforcing the v1
+ *   "one active task per session" rule from SPEC §7.3
  */
 export interface TaskBoard {
   /** Returns false when a task with that id already exists; an existing task is never clobbered. */
   create(task: Task): boolean
   /** Returns a defensive copy, so callers cannot mutate lease state behind the board's back. */
   get(taskId: string): Task | undefined
-  /** Patch non-identity, non-lease fields. Returns false when the task is unknown. */
-  update(taskId: string, patch: Partial<Task>): boolean
+  /**
+   * Patch non-identity, non-lease fields. Returns false when the task is unknown.
+   * With `fence`, also returns false unless the task's lease is live and still
+   * owned by that owner at that fencing epoch.
+   */
+  update(taskId: string, patch: Partial<Task>, fence?: LeaseFence): boolean
   list(filter?: TaskListFilter): Task[]
-  /** Acquire or renew a lease. Returns false when another owner holds a live lease. */
-  claim(taskId: string, owner: string, ttlMs: number): boolean
+  /**
+   * Acquire or renew a lease. Returns false when another owner holds a live lease
+   * or the derived/explicit session key already has an active task.
+   */
+  claim(taskId: string, owner: string, ttlMs: number, options?: ClaimOptions): boolean
+  /**
+   * Bind a created session to the claiming task (SPEC §7.3). Returns false when
+   * another task already holds that session key with a live lease.
+   */
+  bindSession(taskId: string, sessionKey: string): boolean
+  /** The task currently holding a session key, or undefined when free. */
+  sessionOwner(sessionKey: string): string | undefined
   /**
    * Clear the lease. With `owner` the release is owner-guarded: a non-matching owner
    * leaves the lease intact and returns false. Without it the lease is cleared
@@ -42,8 +75,43 @@ function isLive(lease: Lease, at: number): boolean {
   return lease.owner !== '' && lease.expiresAt > at
 }
 
+function isTerminal(state: TaskState): boolean {
+  return state === 'done' || state === 'failed' || state === 'expired'
+}
+
+function sessionKeyOf(task: Task): string | undefined {
+  if (task.policy.sessionMode !== 'resume' || task.policy.sessionId === undefined) return undefined
+  return `${task.target.nodeId}\u0000${task.policy.sessionId}`
+}
+
 export function createInMemoryBoard(now: () => number = Date.now): TaskBoard {
   const tasks = new Map<string, Task>()
+  /** sessionKey -> taskId; entries are validated against a live lease on read. */
+  const sessions = new Map<string, string>()
+
+  const activeSessionHolder = (sessionKey: string, at: number): string | undefined => {
+    const taskId = sessions.get(sessionKey)
+    if (taskId === undefined) return undefined
+    const task = tasks.get(taskId)
+    if (task === undefined || !isLive(task.lease, at)) {
+      sessions.delete(sessionKey)
+      return undefined
+    }
+    return taskId
+  }
+
+  const releaseSession = (taskId: string): void => {
+    for (const [key, owner] of sessions) {
+      if (owner === taskId) sessions.delete(key)
+    }
+  }
+
+  const claimSession = (taskId: string, sessionKey: string, at: number): boolean => {
+    const holder = activeSessionHolder(sessionKey, at)
+    if (holder !== undefined && holder !== taskId) return false
+    sessions.set(sessionKey, taskId)
+    return true
+  }
 
   return {
     create(task) {
@@ -57,12 +125,19 @@ export function createInMemoryBoard(now: () => number = Date.now): TaskBoard {
       return task ? copyTask(task) : undefined
     },
 
-    update(taskId, patch) {
+    update(taskId, patch, fence) {
       const current = tasks.get(taskId)
       if (!current) return false
+      const at = now()
+      if (fence !== undefined) {
+        // Fencing is not advisory: an expired or superseded writer loses every field.
+        if (!isLive(current.lease, at)) return false
+        if (current.lease.owner !== fence.owner || current.lease.fencingToken !== fence.fencingToken) return false
+      }
       // taskId and lease are owned by create/claim/release; a patch must not bypass fencing.
       const { taskId: _ignoredId, lease: _ignoredLease, ...rest } = patch
-      tasks.set(taskId, { ...current, ...rest, taskId: current.taskId, updatedAt: now() })
+      tasks.set(taskId, { ...current, ...rest, taskId: current.taskId, updatedAt: at })
+      if (rest.state !== undefined && isTerminal(rest.state)) releaseSession(taskId)
       return true
     },
 
@@ -78,7 +153,7 @@ export function createInMemoryBoard(now: () => number = Date.now): TaskBoard {
       return matched.map(copyTask)
     },
 
-    claim(taskId, owner, ttlMs) {
+    claim(taskId, owner, ttlMs, options) {
       if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
         throw new RangeError(`lease ttlMs must be a positive finite number, got ${ttlMs}`)
       }
@@ -93,12 +168,29 @@ export function createInMemoryBoard(now: () => number = Date.now): TaskBoard {
       if (live && current.owner !== owner) return false
       const renewing = live && current.owner === owner
       const fencingToken = renewing ? current.fencingToken : current.fencingToken + 1
+
+      // SPEC §7.3: one active task per session, checked before any lease mutation.
+      const sessionKey = options?.sessionKey ?? sessionKeyOf(task)
+      if (sessionKey !== undefined && !claimSession(taskId, sessionKey, at)) return false
+
       tasks.set(taskId, {
         ...task,
         lease: { owner, fencingToken, expiresAt: at + ttlMs },
         updatedAt: at,
       })
       return true
+    },
+
+    bindSession(taskId, sessionKey) {
+      const task = tasks.get(taskId)
+      if (task === undefined) return false
+      const at = now()
+      if (!isLive(task.lease, at)) return false
+      return claimSession(taskId, sessionKey, at)
+    },
+
+    sessionOwner(sessionKey) {
+      return activeSessionHolder(sessionKey, now())
     },
 
     release(taskId, owner) {
@@ -110,6 +202,7 @@ export function createInMemoryBoard(now: () => number = Date.now): TaskBoard {
         lease: { owner: '', fencingToken: task.lease.fencingToken, expiresAt: 0 },
         updatedAt: now(),
       })
+      releaseSession(taskId)
       return true
     },
   }

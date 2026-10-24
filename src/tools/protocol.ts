@@ -1,4 +1,5 @@
-import type { MeshError, MeshErrorCode } from '../types.js'
+import type { MeshToolError, MeshToolErrorCode } from './types.js'
+import { MESH_ERROR_CODE_VALUES } from './types.js'
 
 /**
  * Translation between transport failures and the mesh error vocabulary, plus the
@@ -9,33 +10,34 @@ import type { MeshError, MeshErrorCode } from '../types.js'
  * - `turn/end` (or `final: true` / `done: true` / `session/idle`) is terminal
  * - `error` / `session/error` / `task/failed` (or an `error` payload on an
  *   error-typed event) is a failure
+ * - `mesh/baseline/end` marks the end of a replacement baseline (SPEC §7.2)
  * The mock transport scripts these shapes directly, so the P2 path never guesses.
  */
 
-const MESH_ERROR_CODES: ReadonlySet<string> = new Set<MeshErrorCode>([
-  'denied',
-  'grant-expired',
-  'node-offline',
-  'scope-violation',
-  'tier-not-granted',
-  'timeout',
-  'remote-failure',
-])
+const MESH_ERROR_CODES: ReadonlySet<string> = new Set(MESH_ERROR_CODE_VALUES)
 
-export function isMeshErrorCode(value: unknown): value is MeshErrorCode {
+export function isMeshToolErrorCode(value: unknown): value is MeshToolErrorCode {
   return typeof value === 'string' && MESH_ERROR_CODES.has(value)
 }
 
-/** Map an adapter-specific error code onto the SPEC §16 MeshErrorCode vocabulary. */
-export function mapErrorCode(rawCode: string | undefined): MeshErrorCode {
-  if (isMeshErrorCode(rawCode)) return rawCode
+/**
+ * Map an adapter-specific error code onto the tool vocabulary. Local degradation
+ * and target mistakes keep distinct codes instead of masquerading as remote
+ * failures (F-5): missing transport -> unavailable, unknown node -> unknown-node,
+ * unassigned workspace -> invalid-target.
+ */
+export function mapErrorCode(rawCode: string | undefined): MeshToolErrorCode {
+  if (isMeshToolErrorCode(rawCode)) return rawCode
   switch (rawCode) {
-    case 'unknown-node':
     case 'offline':
+    case 'node-not-found':
       return 'node-offline'
     case 'unknown-workspace':
-    case 'scope':
-      return 'scope-violation'
+    case 'no-assignment':
+    case 'bad-target':
+      return 'invalid-target'
+    case 'unknown-session':
+      return 'invalid-target'
     case 'expired':
     case 'lease-expired':
       return 'grant-expired'
@@ -45,17 +47,32 @@ export function mapErrorCode(rawCode: string | undefined): MeshErrorCode {
     case 'ETIMEDOUT':
     case 'aborted':
       return 'timeout'
+    case 'transport-unavailable':
+      return 'unavailable'
     default:
       return 'remote-failure'
   }
 }
 
-export function meshErrorFrom(rawCode: string | undefined, message: string): MeshError {
-  return { code: mapErrorCode(rawCode), message }
+export function meshErrorFrom(rawCode: string | undefined, message: string, cause?: string): MeshToolError {
+  return cause === undefined
+    ? { code: mapErrorCode(rawCode), message }
+    : { code: mapErrorCode(rawCode), message, cause }
 }
 
-/** Normalise anything thrown by a transport or the task board. */
-export function toMeshError(err: unknown): MeshError {
+function causeOf(err: unknown): string | undefined {
+  if (err instanceof Error) return err.stack ?? `${err.name}: ${err.message}`
+  if (typeof err === 'string') return undefined
+  try {
+    return JSON.stringify(err)
+  } catch {
+    return undefined
+  }
+}
+
+/** Normalise anything thrown by a transport or the task board, preserving cause. */
+export function toMeshError(err: unknown): MeshToolError {
+  const cause = causeOf(err)
   if (typeof err === 'object' && err !== null) {
     const record = err as Record<string, unknown>
     const rawCode = typeof record.code === 'string' ? record.code : undefined
@@ -65,10 +82,14 @@ export function toMeshError(err: unknown): MeshError {
         : err instanceof Error
           ? err.message
           : String(err)
-    return meshErrorFrom(rawCode, message === '' ? 'unknown transport failure' : message)
+    const error = meshErrorFrom(rawCode, message === '' ? 'unknown transport failure' : message, cause)
+    // An un-coded exception is usually a tool/host bug; leave a durable console
+    // trace instead of silently flattening it into remote-failure.
+    if (rawCode === undefined) console.warn('[mesh] unexpected dispatch failure:', message, cause)
+    return error
   }
   const message = typeof err === 'string' ? err : String(err)
-  return { code: 'remote-failure', message: message === '' ? 'unknown transport failure' : message }
+  return meshErrorFrom(undefined, message === '' ? 'unknown transport failure' : message, cause)
 }
 
 export interface MeshSessionFailure {
@@ -120,6 +141,16 @@ const TERMINAL_TYPES: ReadonlySet<string> = new Set([
 ])
 
 const FAILURE_REASON_KINDS: ReadonlySet<string> = new Set(['error', 'failed', 'aborted', 'interrupted', 'timeout', 'cancelled'])
+
+/** Explicit baseline terminator a transport may deliver to a follower (SPEC §7.2). */
+const BASELINE_BOUNDARY_TYPES: ReadonlySet<string> = new Set(['mesh/baseline/end', 'baseline/end'])
+
+function eventSeq(event: unknown): number | undefined {
+  const record = asRecord(event)
+  if (record === undefined) return undefined
+  const seq = record.seq
+  return typeof seq === 'number' && Number.isFinite(seq) ? seq : undefined
+}
 
 type JsonRecord = Record<string, unknown>
 
@@ -257,17 +288,57 @@ export class ReplyCollector {
   private timer: ReturnType<typeof setTimeout> | undefined
   private abortSignal: AbortSignal | undefined
   private abortListener: (() => void) | undefined
+  /** Events before the baseline boundary are replacement history, never this turn. */
+  private baselineOpen = false
+  private baselineLastSeq = Number.NEGATIVE_INFINITY
+  private minimumSeq: number | undefined
 
+  /**
+   * Start collecting. This MUST be called before follow(): the follow call itself
+   * may deliver the replacement baseline (sync) or schedule it (async), and none
+   * of it may count toward this turn's summary. Call endBaseline() when the
+   * transport signals the boundary (onBaselineDone or a boundary event).
+   */
   start(): void {
     this.started = true
+    this.baselineOpen = true
+    this.baselineLastSeq = Number.NEGATIVE_INFINITY
+    this.minimumSeq = undefined
     this.eventCount = 0
     this.texts = []
     this.terminalSummary = undefined
     this.settled = undefined
   }
 
+  /** Close the baseline window; anything at or below its last seq is discarded. */
+  endBaseline(): void {
+    if (!this.started) return
+    this.baselineOpen = false
+    this.minimumSeq = Number.isFinite(this.baselineLastSeq) ? this.baselineLastSeq + 1 : undefined
+    // The baseline never contributed text, but reset defensively if a transport
+    // delivered a boundary event without a prior endBaseline().
+    this.eventCount = 0
+    this.texts = []
+    this.terminalSummary = undefined
+  }
+
   push(event: unknown): void {
     if (!this.started || this.settled !== undefined) return
+    const type = asRecord(event) === undefined ? undefined : eventType(asRecord(event)!)
+    if (type !== undefined && BASELINE_BOUNDARY_TYPES.has(type)) {
+      // A late duplicate boundary must not erase live text collected after the
+      // first one; only the open window is closed.
+      if (this.baselineOpen) this.endBaseline()
+      return
+    }
+    if (this.baselineOpen) {
+      const seq = eventSeq(event)
+      if (seq !== undefined) this.baselineLastSeq = Math.max(this.baselineLastSeq, seq)
+      return
+    }
+    const seq = eventSeq(event)
+    if (this.minimumSeq !== undefined && seq !== undefined && seq < this.minimumSeq) return
+
     this.eventCount += 1
 
     const failure = readFailure(event) ?? readFailureReason(event)
@@ -283,6 +354,15 @@ export class ReplyCollector {
       this.terminalSummary = readTerminalSummary(event)
       this.complete({ kind: 'final', summary: this.summary(), eventCount: this.eventCount })
     }
+  }
+
+  /** The settled outcome, if any; used by stream mode without waiting. */
+  outcome(): ReplyOutcome | undefined {
+    return this.settled
+  }
+
+  get baselineDone(): boolean {
+    return this.started && !this.baselineOpen
   }
 
   summary(): string {
@@ -319,6 +399,7 @@ export class ReplyCollector {
 
   dispose(): void {
     this.started = false
+    this.baselineOpen = false
     this.clearWaitResources()
     this.resolveWait = undefined
   }

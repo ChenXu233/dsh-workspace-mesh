@@ -9,10 +9,11 @@ import { createLoopbackTransport } from './transport/loopback.js'
 import { createPairingTransport, detectPairingService } from './transport/pairing.js'
 import { TransportUnavailableError } from './transport/types.js'
 import type { MeshTransport } from './transport/types.js'
-import { registerMeshTools } from './tools/index.js'
+import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
 import type { MeshToolConfig, MeshToolRegistry } from './tools/index.js'
 
-export const name = 'swarm'
+/** Cordis registration name; mesh_status reports the same string (F-10). */
+export const name = PLUGIN_NAME
 
 /** Without this export cordis never injects the tool runtime (spike §2.1). */
 export const inject = ['tools']

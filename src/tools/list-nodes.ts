@@ -33,6 +33,10 @@ const PEER_SCHEMA: Record<string, unknown> = {
     nodeId: { type: 'string' },
     label: { type: 'string' },
     endpoint: { type: 'string' },
+    online: {
+      type: 'boolean',
+      description: 'SPEC §18 NodeDescriptor.online; true only when a transport receipt says online.',
+    },
     status: {
       type: 'string',
       enum: ['online', 'offline', 'unknown'],
@@ -51,7 +55,7 @@ const PEER_SCHEMA: Record<string, unknown> = {
       description: 'Workspaces assignment.yml routes to this node.',
     },
   },
-  required: ['nodeId', 'label', 'endpoint', 'status', 'source', 'workspaces', 'assignedWorkspaceIds'],
+  required: ['nodeId', 'label', 'endpoint', 'online', 'status', 'source', 'workspaces', 'assignedWorkspaceIds'],
 }
 
 const OUTPUT_SCHEMA: Record<string, unknown> = {
@@ -118,6 +122,7 @@ function toWirePeer(peer: PeerView): Record<string, unknown> {
     nodeId: peer.nodeId,
     label: peer.label === '' ? peer.nodeId : peer.label,
     endpoint: peer.endpoint,
+    online: peer.status === 'online',
     status: peer.status,
     source: peer.source,
     workspaces: peer.workspaces,
