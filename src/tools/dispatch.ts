@@ -158,15 +158,23 @@ function parseDispatchArgs(rawArgs: unknown, runtime: MeshToolRuntime): Dispatch
   }
 
   const maxDurationRaw = record.maxDurationMs
-  let maxDurationMs = runtime.config.dispatchTimeoutMs
+  const configMax = runtime.config.dispatchTimeoutMs
+  if (!Number.isFinite(configMax) || configMax <= 0) {
+    throw new Error('mesh_dispatch: dispatchTimeoutMs must be a positive finite number')
+  }
+  let maxDurationMs = configMax
   if (maxDurationRaw !== undefined) {
     if (typeof maxDurationRaw !== 'number' || !Number.isFinite(maxDurationRaw) || maxDurationRaw <= 0) {
       throw new Error('mesh_dispatch: "maxDurationMs" must be a positive finite number')
     }
+    if (maxDurationRaw > configMax) {
+      // The host tool timeout is fixed at dispatchTimeoutMs + 30s (F-8); a longer
+      // per-call wait would be cancelled by the host before it elapses.
+      throw new Error(
+        `mesh_dispatch: "maxDurationMs" must not exceed dispatchTimeoutMs (${configMax}ms); raise dispatchTimeoutMs to wait longer`,
+      )
+    }
     maxDurationMs = maxDurationRaw
-  }
-  if (!Number.isFinite(maxDurationMs) || maxDurationMs <= 0) {
-    throw new Error('mesh_dispatch: dispatchTimeoutMs must be a positive finite number')
   }
 
   return {
@@ -230,6 +238,11 @@ function buildTask(taskId: string, target: DispatchTarget, args: DispatchArgs, c
  * { taskId, state, target, result|error } instead of { taskId }. The async
  * "taskId + mesh_task_wait" model needs a durable task store; it is deferred to
  * a later increment.
+ *
+ * Duration invariants: per-call maxDurationMs is capped at config
+ * dispatchTimeoutMs (the host tool timeout is fixed at dispatchTimeoutMs+30s,
+ * F-8), and the runtime must keep leaseMs > dispatchTimeoutMs so the lease
+ * always outlives the wait; a fenced-out finalize reports grant-expired.
  */
 export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefinition {
   return {
@@ -254,7 +267,7 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
           description: 'new（默认）创建会话；resume 复用 sessionId。',
         },
         sessionId: { type: 'string', description: 'sessionMode=resume 时必填。' },
-        maxDurationMs: { type: 'number', description: '等待最终回复的上限（毫秒），默认取插件配置 dispatchTimeoutMs。' },
+        maxDurationMs: { type: 'number', description: '等待最终回复的上限（毫秒）；默认取插件配置 dispatchTimeoutMs，且不得超过它（宿主超时按 dispatchTimeoutMs+30s 固定截断，想等更久请调大配置）。' },
         replyMode: {
           type: 'string',
           enum: ['final', 'stream'],
@@ -289,6 +302,16 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
       if (!Number.isFinite(leaseMs) || leaseMs <= 0) {
         return failure('denied', `leaseMs must be a positive finite number, got ${leaseMs}`, { target })
       }
+      if (leaseMs <= runtime.config.dispatchTimeoutMs) {
+        // maxDurationMs is capped at dispatchTimeoutMs, so this invariant makes
+        // the lease outlive every legal wait; without it a slow dispatch would
+        // be fenced out by its own expired lease when recording the result.
+        return failure(
+          'denied',
+          `leaseMs (${leaseMs}) must be greater than dispatchTimeoutMs (${runtime.config.dispatchTimeoutMs}) so the lease outlives the wait`,
+          { target },
+        )
+      }
 
       const now = runtime.now ?? Date.now
       const nextTaskId = runtime.newTaskId ?? (() => createTaskId(now()))
@@ -311,13 +334,29 @@ export function createMeshDispatchTool(runtime: MeshToolRuntime): MeshToolDefini
       let collector: ReplyCollector | undefined
       let unsubscribe: (() => void) | undefined
 
-      const boardFailure = (): DispatchOutput =>
-        failure('unavailable', `task board rejected the lease release or state update for task "${id}"`, {
-          taskId: id,
-          target,
-        })
-
       let fence: LeaseFence = { owner, fencingToken: 0 }
+
+      // Only reached after a fenced write or owner-guarded release came back
+      // false. Per the TaskBoard contract that means our lease epoch ended, so
+      // report the preemption as grant-expired; "unavailable" is reserved for a
+      // board that no longer knows the task at all.
+      const boardFailure = (): DispatchOutput => {
+        const current = runtime.board.get(id)
+        if (current === undefined) {
+          return failure('unavailable', `task board rejected the lease release or state update for task "${id}"`, {
+            taskId: id,
+            target,
+          })
+        }
+        const takenOver = current.lease.owner !== fence.owner || current.lease.fencingToken !== fence.fencingToken
+        return failure(
+          'grant-expired',
+          takenOver
+            ? `lease for task "${id}" was taken over by another owner before the result could be recorded`
+            : `lease for task "${id}" expired before the result could be recorded`,
+          { taskId: id, target },
+        )
+      }
 
       const finalize = (
         state: 'done' | 'failed' | 'expired' | 'running',

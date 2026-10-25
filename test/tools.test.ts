@@ -718,11 +718,75 @@ test('a dispatch whose lease is preempted cannot record its late result (F-2)', 
     objective: 'lose the lease',
   })
   assert.equal(output.ok, false)
-  assert.equal((output.error as Record<string, unknown>).code, 'unavailable')
+  const preemptError = output.error as Record<string, unknown>
+  assert.equal(preemptError.code, 'grant-expired', 'a preempted dispatch reports its lost lease, not a board failure')
+  assert.match(String(preemptError.message), /taken over/)
   const task = base.get('task-preempt')!
   assert.equal(task.lease.owner, 'intruder', 'the late writer must not clear/overwrite B\'s lease')
   assert.notEqual(task.state, 'done')
   assert.equal(task.result, undefined, 'A\'s late result must be rejected')
+})
+
+test('a dispatch whose lease expires mid-flight reports grant-expired instead of a board failure', async () => {
+  let clock = 1_000
+  const base = createInMemoryBoard(() => clock)
+  let jumped = false
+  const board: TaskBoard = {
+    ...base,
+    update(taskId, patch, fence) {
+      const wrote = base.update(taskId, patch, fence)
+      if (wrote && patch.state === 'running' && !jumped) {
+        // The lease was claimed at t=1_000 with ttl 60_000; jump past its expiry
+        // before the final reply is recorded, without any takeover.
+        jumped = true
+        clock = 70_000
+      }
+      return wrote
+    },
+  }
+  const runtime = makeRuntime({
+    transport: makeDispatchTransport(true),
+    board,
+    assignment: makeAssignment(),
+    newTaskId: () => 'task-expired',
+  })
+
+  const output = await invoke(tool(capture(runtime), 'mesh_dispatch'), {
+    workspaceId: 'ws-1',
+    objective: 'outlive the lease',
+  })
+  assert.equal(output.ok, false)
+  const error = output.error as Record<string, unknown>
+  assert.equal(error.code, 'grant-expired')
+  assert.match(String(error.message), /expired/)
+  const expiredTask = base.get('task-expired')!
+  assert.notEqual(expiredTask.state, 'done')
+  assert.equal(expiredTask.result, undefined, 'the late result must not be recorded against a dead lease')
+  assert.equal(expiredTask.lease.owner, '', 'the owner-guarded release still clears the expired lease')
+})
+
+test('mesh_dispatch refuses a runtime whose lease cannot outlive the wait', async () => {
+  const transport = makeDispatchTransport(true)
+  const board = createInMemoryBoard(() => 1_000)
+  const runtime = makeRuntime({
+    transport,
+    board,
+    assignment: makeAssignment(),
+    newTaskId: () => 'task-guard',
+    config: { leaseMs: 1_000, dispatchTimeoutMs: 2_000 },
+  })
+
+  const output = await invoke(tool(capture(runtime), 'mesh_dispatch'), {
+    workspaceId: 'ws-1',
+    objective: 'never dispatched',
+  })
+  assert.equal(output.ok, false)
+  assert.equal(output.state, 'failed')
+  const guardError = output.error as Record<string, unknown>
+  assert.equal(guardError.code, 'denied')
+  assert.match(String(guardError.message), /leaseMs/)
+  assert.equal(board.list().length, 0, 'the guard fires before any task is created')
+  assert.equal(transport.calls().length, 0, 'no transport call is made')
 })
 
 test('an async replacement baseline with existing history is discarded (F-1)', async () => {
@@ -929,6 +993,10 @@ test('mesh_dispatch rejects malformed arguments as an ordinary tool error', asyn
   await rejects({ workspaceId: 'ws-1', objective: 'x', sessionMode: 'resume' }, /sessionId/)
   await rejects({ workspaceId: 'ws-1', objective: 'x', surprise: true }, /unknown argument/)
   await rejects({ workspaceId: 'ws-1', objective: 'x', maxDurationMs: 0 }, /maxDurationMs/)
+  await rejects(
+    { workspaceId: 'ws-1', objective: 'x', maxDurationMs: 2_000 },
+    /must not exceed dispatchTimeoutMs/,
+  )
 })
 
 // -------------------------------------------------------------------- apply
