@@ -49,7 +49,8 @@ window.__ModuleLoader__.load({
     function ConfigSection(props) {
       var ctx = props.ctx;
       var subject = props.subject;
-      if (!subject || subject.kind !== "bundle" || subject.pkg !== "dsh-workspace-mesh") return null;
+      var pkgName = subject && subject.pkg && typeof subject.pkg === "object" ? subject.pkg.name : subject.pkg;
+      if (!subject || subject.kind !== "bundle" || pkgName !== "dsh-workspace-mesh") return null;
       var st = React.useState({ phase: "loading", values: {}, revision: undefined, dirty: {}, message: "", tone: "warn" });
       var state = st[0], set = st[1];
       var load = React.useCallback(function () {
