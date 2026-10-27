@@ -347,7 +347,7 @@ test('the whole src tree stays zero-dependency (from / import() / require()) and
   assert.ok(files.length >= 10, 'the audit must cover the whole src tree, not a hand-picked list (F-12)')
 
   const builtins = new Set(['node:crypto', 'node:fs', 'node:path'])
-  const allowedPackages = new Set(['@deepseek-ai/cordis'])
+  const allowedPackages = new Set(['@deepseek-ai/cordis', '@deepseek-ai/schemastery'])
   const specifierPattern = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"]([^'"]+)['"]/g
 
   for (const file of files) {
@@ -367,9 +367,12 @@ test('the whole src tree stays zero-dependency (from / import() / require()) and
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
     dependencies?: Record<string, string>
     peerDependencies?: Record<string, string>
+    peerDependenciesMeta?: Record<string, { optional?: boolean }>
   }
   assert.equal(pkg.dependencies, undefined, 'no runtime dependencies may be added')
-  assert.deepEqual(Object.keys(pkg.peerDependencies ?? {}), ['@deepseek-ai/cordis'])
+  assert.deepEqual(Object.keys(pkg.peerDependencies ?? {}).sort(), ['@deepseek-ai/cordis', '@deepseek-ai/schemastery'])
+  assert.deepEqual(pkg.peerDependencies?.['@deepseek-ai/schemastery'], '3.18.5')
+  assert.deepEqual(pkg.peerDependenciesMeta?.['@deepseek-ai/schemastery'], { optional: true })
 })
 
 // -------------------------------------------------------------------- tools

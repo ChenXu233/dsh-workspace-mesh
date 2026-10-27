@@ -4,15 +4,16 @@ import { CONFIG_ENVELOPE } from './config-envelope.gen.js'
  * Live plugin configuration (official "live configuration forms" convention).
  *
  * The Host discovers an exported `Config` schema on the plugin runtime and:
- * - renders the native settings/plugins form from `Config.toJSON()`
- *   (settings-controller describe → serialized schemastery envelope), and
- * - validates + defaults every profile entry through cordis `resolveConfig`,
- *   which calls `Config["~standard"].validate` and hands the resolved value
- *   to `apply(ctx, config)`.
+ * - projects the native settings form from its schemastery face
+ *   (`meta`/`type`/`dict`/`toJSON`, only `.volatile()` fields become entries),
+ * - validates + defaults every profile entry through cordis `resolveConfig`
+ *   (`Config["~standard"].validate`), handing the resolved value to `apply`.
  *
- * Zero-dependency note (F-12): the schema is authored with @deepseek-ai/schemastery
- * at build time (scripts/gen-config-schema.mjs) and ships only as a serialized
- * envelope; this module rehydrates the two protocol faces without importing it.
+ * The schema is authored once in scripts/gen-config-schema.mjs and ships as a
+ * serialized envelope. At startup we rehydrate it through the host-side
+ * schemastery runtime when available (optional peer, same framework-face
+ * category as @deepseek-ai/cordis); otherwise a minimal plain face keeps
+ * validation and form rendering working without the dependency.
  */
 
 export interface Config {
@@ -30,6 +31,20 @@ export interface Config {
   leaseOwner?: string
 }
 
+/** A volatile config reference handed to apply() by the loader. */
+export interface Volatile<T> {
+  get(): T
+}
+
+/** Read a config field that may be a volatile reference or a plain value. */
+export function readLive<T>(value: Volatile<T> | T | undefined, fallback: T): T {
+  if (value === undefined) return fallback
+  if (typeof value === 'object' && value !== null && 'get' in (value as Record<string, unknown>)) {
+    return (value as Volatile<T>).get()
+  }
+  return value as T
+}
+
 const TRANSPORT_VALUES = new Set(['auto', 'pairing', 'loopback'])
 
 interface SchemaIssue {
@@ -38,13 +53,13 @@ interface SchemaIssue {
 }
 
 interface ValidationResult {
-  value?: Record<string, unknown>
+  value?: unknown
   issues?: SchemaIssue[]
 }
 
 /** Field specs mirrored from scripts/gen-config-schema.mjs (single source of truth lives there). */
 const FIELDS = {
-  transport: { type: 'enum', values: TRANSPORT_VALUES, fallback: 'auto' },
+  transport: { type: 'enum', values: TRANSPORT_VALUES, fallback: 'auto' as const },
   peerBaseUrl: { type: 'string', fallback: '' },
   assignmentFile: { type: 'string', fallback: '' },
   leaseMs: { type: 'integer', fallback: 900000 },
@@ -65,8 +80,8 @@ function validate(input: unknown): ValidationResult {
     if (!known.has(key)) return { issues: [{ message: `unknown field "${key}"`, path: [key] }] }
   }
   const value: Record<string, unknown> = {}
-  for (const [key, spec] of Object.entries(FIELDS) as Array<[FieldName, (typeof FIELDS)[FieldName] | undefined]>) {
-    if (spec === undefined) continue
+  for (const key of Object.keys(FIELDS) as FieldName[]) {
+    const spec = FIELDS[key]
     const raw = source[key]
     if (raw === undefined || raw === null) {
       value[key] = spec.fallback
@@ -92,15 +107,27 @@ function validate(input: unknown): ValidationResult {
   return { value }
 }
 
+/** Plain two-face schema used when the schemastery runtime is unavailable. */
+function fallbackSchema(): Record<string, unknown> {
+  return {
+    type: 'object',
+    meta: {},
+    toJSON: () => CONFIG_ENVELOPE,
+    '~standard': { validate },
+  }
+}
+
 /**
- * The schema object proper. A plain frozen object exposing exactly the two
- * protocol faces the host reads: `toJSON()` (form rendering) and
- * `~standard.validate` (cordis `resolveConfig`). No schemastery import at
- * runtime; the envelope is build-generated.
+ * The exported Config schema. Rehydrated schemastery object when the optional
+ * peer is resolvable (full native settings-form compatibility), plain face
+ * otherwise. Top-level await is safe: the host loads plugins as ESM.
  */
-export const Config = {
-  toJSON: () => CONFIG_ENVELOPE,
-  '~standard': {
-    validate,
-  },
-} as const
+let schema: Record<string, unknown>
+try {
+  const { default: Schema } = await import('@deepseek-ai/schemastery')
+  schema = Schema(CONFIG_ENVELOPE as never) as unknown as Record<string, unknown>
+} catch {
+  schema = fallbackSchema()
+}
+
+export const Config: Record<string, unknown> = schema

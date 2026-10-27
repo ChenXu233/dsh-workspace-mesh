@@ -1,39 +1,35 @@
 // Generates src/config-envelope.gen.ts from the schemastery schema below.
 // Run: pnpm gen:schema   (build runs it automatically)
 // Runtime stays zero-dependency: only the serialized envelope ships in lib/.
+// Every field is .volatile(): only volatile fields become live settings-form
+// entries (see @deepseek-ai/dsh-settings volatileForm()).
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import z from '@deepseek-ai/schemastery'
 
+const live = (schema) => schema.volatile()
+
 const schema = z.object({
-  transport: z
-    .union([z.const('auto'), z.const('pairing'), z.const('loopback')])
-    .default('auto')
-    .description('transport: auto = pairing 优先, 回落 loopback(需 peerBaseUrl); 保存后重启生效'),
-  peerBaseUrl: z
-    .string()
-    .default('')
-    .description('loopback 传输的对端 DSH 基础 URL (如 https://peer.example.com); 留空 = 不启用'),
-  assignmentFile: z
-    .string()
-    .default('')
-    .description('assignment.yml 路径, 相对宿主进程 cwd (容器内为 /data/workspace); 留空 = 不加载'),
-  leaseMs: z
-    .number()
-    .step(1)
-    .min(0)
-    .default(900000)
-    .description('任务租约时长 (毫秒)'),
-  dispatchTimeoutMs: z
-    .number()
-    .step(1)
-    .min(0)
-    .default(120000)
-    .description('mesh_dispatch 等待最终回复的超时 (毫秒)'),
-  leaseOwner: z
-    .string()
-    .default('mesh-lead')
-    .description('任务板租约归属者标识'),
+  transport: live(
+    z.union([z.const('auto'), z.const('pairing'), z.const('loopback')])
+      .default('auto')
+      .description('transport: auto = pairing 优先, 回落 loopback(需 peerBaseUrl); 保存后立即生效'),
+  ),
+  peerBaseUrl: live(
+    z.string().default('').description('loopback 传输的对端 DSH 基础 URL (如 https://peer.example.com); 留空 = 不启用'),
+  ),
+  assignmentFile: live(
+    z.string().default('').description('assignment.yml 路径, 相对宿主进程 cwd (容器内为 /data/workspace); 留空 = 不加载'),
+  ),
+  leaseMs: live(
+    z.number().step(1).min(0).default(900000).description('任务租约时长 (毫秒)'),
+  ),
+  dispatchTimeoutMs: live(
+    z.number().step(1).min(0).default(120000).description('mesh_dispatch 等待最终回复的超时 (毫秒)'),
+  ),
+  leaseOwner: live(
+    z.string().default('mesh-lead').description('任务板租约归属者标识'),
+  ),
 })
 
 const envelope = JSON.stringify(schema.toJSON(), null, 2)

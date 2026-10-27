@@ -11,6 +11,7 @@ import { TransportUnavailableError } from './transport/types.js'
 import type { MeshTransport } from './transport/types.js'
 import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
 import type { MeshToolConfig, MeshToolRegistry } from './tools/index.js'
+import { readLive } from './config.js'
 
 /** Cordis registration name; mesh_status reports the same string (F-10). */
 export const name = PLUGIN_NAME
@@ -63,12 +64,14 @@ function pickTransport(ctx: Context, config: MeshConfig): MeshTransport | undefi
 }
 
 export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
+  // Fields are schema-volatile: the loader hands them over as live references.
   const config: ResolvedMeshConfig = {
     ...rawConfig,
-    transport: rawConfig.transport ?? 'auto',
-    leaseMs: rawConfig.leaseMs ?? 15 * 60_000,
-    dispatchTimeoutMs: rawConfig.dispatchTimeoutMs ?? 120_000,
-    leaseOwner: rawConfig.leaseOwner ?? 'mesh-lead',
+    transport: readLive(rawConfig.transport, 'auto'),
+    peerBaseUrl: readLive(rawConfig.peerBaseUrl, ''),
+    leaseMs: readLive(rawConfig.leaseMs, 15 * 60_000),
+    dispatchTimeoutMs: readLive(rawConfig.dispatchTimeoutMs, 120_000),
+    leaseOwner: readLive(rawConfig.leaseOwner, 'mesh-lead'),
   }
   const board = createInMemoryBoard()
 
