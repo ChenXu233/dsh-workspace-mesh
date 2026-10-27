@@ -26,11 +26,12 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm gen:schema && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test \"lib-test/test/*.test.js\"",
     "clean": "node -e \"for (const d of ['lib','lib-test']) require('fs').rmSync(d,{recursive:true,force:true})\"",
-    "verify": "pnpm build && pnpm typecheck && pnpm test"
+    "verify": "pnpm build && pnpm typecheck && pnpm test",
+    "gen:schema": "node scripts/gen-config-schema.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.5"
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "~4.0.5",
+    "@deepseek-ai/schemastery": "3.18.5",
     "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
   },

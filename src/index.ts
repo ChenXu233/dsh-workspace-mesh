@@ -124,6 +124,8 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   })
 }
 
+export { Config } from './config.js'
+export type { Config as MeshConfigSchema } from './config.js'
 export { AssignmentFileError, findAssignmentNode, findAssignmentRoute, loadAssignmentTable, parseAssignment } from './assignments/index.js'
 export type { AssignmentNode, AssignmentRoute, AssignmentTable } from './assignments/index.js'
 export { createTaskId, registerMeshTools } from './tools/index.js'
