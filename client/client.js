@@ -105,7 +105,7 @@ window.__ModuleLoader__.load({
             jsx.jsx("span", { className: "dwm-label", children: f.label }),
             control,
             jsx.jsx("span", { className: "dwm-hint", children: f.hint })
-          ], f.key }));
+          ], key: f.key }));
         })(FIELDS[k]);
       }
       return jsx.jsxs("div", { className: "dwm-section", children: [
