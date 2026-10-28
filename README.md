@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/dsh-workspace-mesh.svg)](https://www.npmjs.com/package/dsh-workspace-mesh)
 [![CI](https://github.com/ChenXu233/dsh-workspace-mesh/actions/workflows/ci.yml/badge.svg)](https://github.com/ChenXu233/dsh-workspace-mesh/actions/workflows/ci.yml)
-[![license: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](./LICENSE)
+[![license: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 
 Workspace **mesh** for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — the mesh is a grid of *workspaces*, not of agents.
 
@@ -88,35 +88,36 @@ Skeleton. Transport adapters are stubs that fail loudly rather than silently
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — build, install, cloud dev chain
 - [docs/roadmap.md](./docs/roadmap.md) — increments and current state
 
-## Why GPL-3.0?
+## Why Apache-2.0?
 
-The mesh only becomes useful when it spans machines, and the setups that need
-that — many workspaces, many hosts, an operator team — are almost always
-companies. Companies are also the first to fork a plugin that already works.
+The mesh is only useful when many DSH instances speak the same thing, so
+adoption beats code ownership. Apache-2.0 maximises both without giving up the
+parts that matter:
 
-GPL-3.0 is a deliberate choice, not a default:
+- **Enterprises can actually use it.** Apache-2.0 is on nearly every corporate
+  allow-list, so the plugin can be installed into a profile or baked into a
+  pre-built image without a licence review. Copyleft would end that
+  conversation before it starts, while buying almost nothing in return: the
+  typical deployment is internal, and internal use never triggers copyleft.
+- **Patents are explicit, not implied.** Section 3 grants a patent licence from
+  every contributor and terminates it for anyone who sues over patents. MIT
+  only implies this; GPLv3 has the same grant but brings distribution
+  obligations that do not match how a plugin is actually shipped.
+- **It fits the ecosystem.** dsh and cordis are MIT; Apache-2.0 combines with
+  them cleanly.
+- **It is honest about what it cannot do.** No open-source licence stops a fork
+  that is never distributed. What protects the mesh is the [SPEC](./SPEC.md),
+  the package name and the reference implementation staying ahead — not a
+  licence clause.
 
-- **Fixes flow back.** Anyone may run and modify the plugin, but a *distributed*
-  modified version has to ship its source under the same terms. The mesh
-  protocol stays one protocol instead of drifting into N private dialects.
-- **The ecosystem keeps the upside.** Adapters, hardening and protocol fixes
-  that get shipped also land in the open, instead of disappearing inside a
-  closed fork of a public npm package.
-- **Nobody is blocked from using it.** Internal use, evaluation and research
-  need no permission and no paperwork; GPL only starts to matter when the
-  modified code is handed to someone else.
-
-It is compatible with the host: dsh and cordis are MIT, and MIT code may be
-combined with GPL-3.0 code as long as the combined distribution honours GPL-3.0.
-
-If your use case cannot meet these terms — embedding the plugin in a
-closed-source product, for example — open an issue and we can talk about a
-different arrangement.
+If your organisation needs different terms, open an issue.
 
 ## License
 
-GNU General Public License v3.0 (`GPL-3.0-only`) — see [LICENSE](./LICENSE).
+Apache License 2.0 (`Apache-2.0`) — see [LICENSE](./LICENSE) and
+[NOTICE](./NOTICE).
 
-GPL is a copyleft license: if you distribute a modified version, you must make
-the source available under the same terms. The plugin contains no code from
-dsh itself; it talks to dsh only through its public cordis interfaces.
+You may use, modify and redistribute this plugin, including inside closed
+products, provided you keep the copyright and licence notices. The plugin
+contains no code from dsh itself; it talks to dsh only through its public
+cordis interfaces.
