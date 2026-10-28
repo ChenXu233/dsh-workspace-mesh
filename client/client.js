@@ -50,7 +50,11 @@ window.__ModuleLoader__.load({
       var ctx = props.ctx;
       var subject = props.subject;
       var pkgName = subject && subject.pkg && typeof subject.pkg === "object" ? subject.pkg.name : subject.pkg;
-      if (!subject || subject.kind !== "bundle" || pkgName !== "dsh-workspace-mesh") return jsx.jsx("span", { hidden: true });
+      // The detail page re-renders this slot once without a subject; keep
+      // rendering our section there and only hide on a DIFFERENT bundle.
+      if (subject) {
+        if (subject.kind !== "bundle" || pkgName !== "dsh-workspace-mesh") return null;
+      }
       var st = React.useState({ phase: "loading", values: {}, revision: undefined, dirty: {}, message: "", tone: "warn" });
       var state = st[0], set = st[1];
       var load = React.useCallback(function () {
