@@ -10,7 +10,8 @@
     "client",
     "cordis.patch.yml",
     "README.md",
-    "SPEC.md"
+    "SPEC.md",
+    "DEVELOPMENT.md"
   ],
   "keywords": [
     "dsh",

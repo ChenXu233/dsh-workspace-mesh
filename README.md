@@ -26,6 +26,11 @@ pnpm build
 dsh plugin --profile web add file:$(pwd)
 ```
 
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for the full picture: the pack cloud dev
+chain we use (own dev server + `sync-plugin.ps1`), the local install, and the
+released-package install — plus what has to be configured once before the cloud
+chain works.
+
 Or load without installing, using an overlay patch (`--patch`):
 
 ```yaml
