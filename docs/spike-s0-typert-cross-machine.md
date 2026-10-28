@@ -1,6 +1,6 @@
 # S0 spike：跨机 Typert 可达性实测（U6/U7/U8）
 
-> 任务 t-S0 · 日期 2026-10-28 · 环境：本机（Windows 桌面实例）+ host-a（<host-a-ip>，oh-my-dsh-pack dev 部署）+ host-b（<host-b-ip>:3211，oh-my-dsh-pack Docker 部署，<registry>/oh-my-dsh-pack:latest，机上零编译）
+> 任务 t-S0 · 日期 2026-10-28 · 环境：本机（Windows 桌面实例）+ 云主机 A（`oh-my-dsh-pack` dev 部署，地址略）+ 云主机 B（`oh-my-dsh-pack` Docker 部署，地址略，机上零编译）
 > 探针：s0-probe/（临时插件，未入 src/；两端以 dev-plugins link + profile patch insert 挂载，含 mesh_s0_probe 工具与 owner-gated GET /api/s0/run 触发器）
 > 结论先行：**U6 ✅ / U7 ✅ / U8 ✅ / 跨机 ✅ —— 增量 3（TypertTransport）解锁。**
 

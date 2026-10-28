@@ -25,3 +25,9 @@ Thumbs.db
 .vscode/
 *.swp
 *.log
+
+# package artifacts / scratch
+*.tgz
+.pnpm-store/
+.cache/
+*.local

@@ -26,13 +26,29 @@
     "swarm",
     "cordis-plugin"
   ],
-  "license": "MIT",
+  "license": "GPL-3.0-only",
+  "author": {
+    "name": "ChenXu233",
+    "url": "https://github.com/ChenXu233"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChenXu233/dsh-workspace-mesh.git"
+  },
+  "homepage": "https://github.com/ChenXu233/dsh-workspace-mesh#readme",
+  "bugs": {
+    "url": "https://github.com/ChenXu233/dsh-workspace-mesh/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "pnpm gen:schema && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test \"lib-test/test/*.test.js\"",
     "clean": "node -e \"for (const d of ['lib','lib-test']) require('fs').rmSync(d,{recursive:true,force:true})\"",
     "verify": "pnpm build && pnpm typecheck && pnpm test",
+    "prepublishOnly": "pnpm build",
     "gen:schema": "node scripts/gen-config-schema.mjs"
   },
   "peerDependencies": {

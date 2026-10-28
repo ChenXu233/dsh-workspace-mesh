@@ -1,6 +1,10 @@
 # dsh-workspace-mesh
 
-Workspace **mesh** for DeepSeek Harness — the mesh is a grid of *workspaces*, not of agents.
+[![npm version](https://img.shields.io/npm/v/dsh-workspace-mesh.svg)](https://www.npmjs.com/package/dsh-workspace-mesh)
+[![CI](https://github.com/ChenXu233/dsh-workspace-mesh/actions/workflows/ci.yml/badge.svg)](https://github.com/ChenXu233/dsh-workspace-mesh/actions/workflows/ci.yml)
+[![license: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](./LICENSE)
+
+Workspace **mesh** for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — the mesh is a grid of *workspaces*, not of agents.
 
 > **Not resource remote-access.** The agent loop never leaves the machine that owns the workspace;
 > peers only exchange messages. See [SPEC.md](./SPEC.md).
@@ -12,10 +16,26 @@ Workspace **mesh** for DeepSeek Harness — the mesh is a grid of *workspaces*, 
 - Keeps execution local: only `workspace/list`, `workspace/follow`, `session/create`,
   `session/prompt`, `session/follow` are ever used. No bash, no file access.
 
+## Requirements
+
+| | |
+| --- | --- |
+| dsh | `>=0.2.1-rc.2` — declared in `dsh.engines` and checked when the bundle loads |
+| Node.js | `>=20` |
+| Runtime deps | none; cordis services are detected at runtime (SPEC §9.4) |
+
 ## Install
 
 ```sh
 dsh plugin --profile web add dsh-workspace-mesh
+```
+
+Or load without installing, using an overlay patch (`--patch`):
+
+```yaml
+- insert:
+    - id: swarm
+      name: dsh-workspace-mesh
 ```
 
 ## Local development
@@ -26,18 +46,12 @@ pnpm build
 dsh plugin --profile web add file:$(pwd)
 ```
 
+`pnpm verify` runs the same gate as CI: build + typecheck + tests.
+
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for the full picture: the pack cloud dev
 chain we use (own dev server + `sync-plugin.ps1`), the local install, and the
 released-package install — plus what has to be configured once before the cloud
 chain works.
-
-Or load without installing, using an overlay patch (`--patch`):
-
-```yaml
-- insert:
-    - id: swarm
-      name: dsh-workspace-mesh
-```
 
 ## Settings page
 
@@ -65,9 +79,44 @@ pipe cannot edit it.
 ## Status
 
 Skeleton. Transport adapters are stubs that fail loudly rather than silently
-(see SPEC §13). Dependency policy: zero runtime dependencies; third-party
-capabilities are detected as cordis services at runtime (SPEC §9.4).
+(see SPEC §13). The Typert transport is the next increment — see
+[docs/roadmap.md](./docs/roadmap.md) and the spikes under `docs/`.
+
+## Docs
+
+- [SPEC.md](./SPEC.md) — the contract: what "mesh" means, tool surface, failure modes
+- [DEVELOPMENT.md](./DEVELOPMENT.md) — build, install, cloud dev chain
+- [docs/roadmap.md](./docs/roadmap.md) — increments and current state
+
+## Why GPL-3.0?
+
+The mesh only becomes useful when it spans machines, and the setups that need
+that — many workspaces, many hosts, an operator team — are almost always
+companies. Companies are also the first to fork a plugin that already works.
+
+GPL-3.0 is a deliberate choice, not a default:
+
+- **Fixes flow back.** Anyone may run and modify the plugin, but a *distributed*
+  modified version has to ship its source under the same terms. The mesh
+  protocol stays one protocol instead of drifting into N private dialects.
+- **The ecosystem keeps the upside.** Adapters, hardening and protocol fixes
+  that get shipped also land in the open, instead of disappearing inside a
+  closed fork of a public npm package.
+- **Nobody is blocked from using it.** Internal use, evaluation and research
+  need no permission and no paperwork; GPL only starts to matter when the
+  modified code is handed to someone else.
+
+It is compatible with the host: dsh and cordis are MIT, and MIT code may be
+combined with GPL-3.0 code as long as the combined distribution honours GPL-3.0.
+
+If your use case cannot meet these terms — embedding the plugin in a
+closed-source product, for example — open an issue and we can talk about a
+different arrangement.
 
 ## License
 
-MIT
+GNU General Public License v3.0 (`GPL-3.0-only`) — see [LICENSE](./LICENSE).
+
+GPL is a copyleft license: if you distribute a modified version, you must make
+the source available under the same terms. The plugin contains no code from
+dsh itself; it talks to dsh only through its public cordis interfaces.
