@@ -79,7 +79,10 @@ window.__ModuleLoader__.load({
       ".dwm-empty{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0}" +
       ".dwm-form{display:flex;flex-direction:column;gap:10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:12px}" +
       ".dwm-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}" +
-      ".dwm-field{display:flex;flex-direction:column;gap:4px;min-width:0}";
+      ".dwm-field{display:flex;flex-direction:column;gap:4px;min-width:0}" +
+      ".dwm-topo{width:100%;height:auto;display:block;color:var(--dsw-alias-label-primary)}" +
+      ".dwm-topo text{fill:var(--dsw-alias-label-primary)}" +
+      ".dwm-topo text[fontSize=\"10\"],.dwm-topo text[opacity=\"0.7\"]{fill:var(--dsw-alias-label-tertiary)}";
     if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css='dsh-workspace-mesh/config']") === null) {
       var tag = document.createElement("style");
       tag.dataset.plugin = "dsh-workspace-mesh";
@@ -227,6 +230,80 @@ window.__ModuleLoader__.load({
 
     function Badge(props) {
       return jsx.jsx("span", { className: "dwm-badge", "data-tone": props.tone || "muted", children: props.children });
+    }
+
+    /** Trim a label for the fixed-width SVG column. */
+    function topoLabel(text, max) {
+      var s = String(text || "");
+      return s.length > max ? s.slice(0, max - 1) + "…" : s;
+    }
+
+    /**
+     * Connectivity topology (v1, honest shape): the instance serving this page
+     * is the mesh hub — it owns the task board and leases and dispatches to
+     * every peer directly. Discovery is single-hop (assignment.yml + transport
+     * receipts); there is no multi-hop chain yet, so each edge is drawn from
+     * the hub, solid when the transport reports the peer online, dashed when
+     * the peer is static (assignment only) or offline.
+     */
+    function MeshTopology(props) {
+      var peers = props.peers;
+      var selfLabel = props.selfLabel;
+      var count = peers.length;
+      var height = Math.max(96, count * 46 + 34);
+      var width = 560;
+      var selfY = height / 2;
+      var children = [];
+
+      // Edges first so nodes render on top.
+      for (var i = 0; i < count; i++) {
+        var peer = peers[i];
+        var py = 26 + i * 46;
+        var online = peer.status === "online";
+        children.push(jsx.jsx("line", {
+          x1: 148, y1: selfY, x2: 402, y2: py,
+          stroke: online ? "var(--dsw-alias-state-success, currentColor)" : "var(--dsw-alias-label-tertiary)",
+          strokeWidth: online ? 1.6 : 1,
+          strokeDasharray: online ? undefined : "4 4",
+          opacity: online ? 0.8 : 0.55,
+          children: undefined
+        }, "edge" + i));
+      }
+      // Hub node: the board/lease owner on this instance.
+      children.push(jsx.jsxs("g", { children: [
+        jsx.jsx("circle", { cx: 112, cy: selfY, r: 17, fill: "var(--dsw-alias-state-business-primary, currentColor)", opacity: 0.16 }),
+        jsx.jsx("circle", { cx: 112, cy: selfY, r: 9, fill: "var(--dsw-alias-state-business-primary, currentColor)" }),
+        jsx.jsx("text", { x: 112, y: selfY - 30, textAnchor: "middle", fontSize: 12, fontWeight: 600, children: topoLabel(selfLabel, 18) }),
+        jsx.jsx("text", { x: 112, y: selfY + 34, textAnchor: "middle", fontSize: 10, opacity: 0.7, children: t("leader · 任务板/租约", "leader · board/leases") })
+      ] }, "hub"));
+      // Peer nodes column.
+      for (var j = 0; j < count; j++) {
+        var p = peers[j];
+        var yy = 26 + j * 46;
+        var ok = p.status === "online";
+        var dot = ok ? "var(--dsw-alias-state-success, currentColor)" : p.status === "offline" ? "var(--dsw-alias-state-danger, currentColor)" : "var(--dsw-alias-label-tertiary)";
+        children.push(jsx.jsxs("g", { children: [
+          jsx.jsx("line", { x1: 402, y1: yy, x2: 418, y2: yy, stroke: dot, strokeWidth: 1.2 }),
+          jsx.jsx("circle", { cx: 426, cy: yy, r: 5, fill: ok ? dot : "transparent", stroke: dot, strokeWidth: 1.5 }),
+          jsx.jsx("text", { x: 440, y: yy + 4, fontSize: 12, children: topoLabel(p.label || p.nodeId, 13) }),
+          jsx.jsx("title", { children: (p.nodeId || "") + (p.endpoint ? " · " + p.endpoint : "") + " · " + (p.status || "unknown") + " · " + sourceText(p.source) })
+        ] }, "peer" + j));
+      }
+
+      return jsx.jsxs("div", { className: "dwm-form", children: [
+        jsx.jsx("h3", { className: "dwm-h3", children: t("互联拓扑", "Connectivity topology") }),
+        count === 0
+          ? jsx.jsx("p", { className: "dwm-empty", children: t("还没有可绘制的节点。", "No peers to draw yet.") })
+          : jsx.jsx("svg", { className: "dwm-topo", viewBox: "0 0 " + width + " " + height, role: "img", children: children }),
+        count > 0 ? jsx.jsx("p", { className: "dwm-note", children: t(
+          "实线 = 传输回执在线；虚线 = 仅 assignment.yml 静态登记或离线。悬停节点看 endpoint。",
+          "Solid = online per transport receipt; dashed = assignment-only or offline. Hover a node for its endpoint."
+        ) }) : null,
+        jsx.jsx("p", { className: "dwm-note", children: t(
+          "发现链（v1 单跳）：所有节点由本机经 assignment.yml / 传输直接发现；多跳中继属后续增量，届时此卡会画出中继路径。",
+          "Discovery (v1, single hop): every peer is discovered by this node via assignment.yml / the transport. Multi-hop relays arrive with a later increment and will be drawn here."
+        ) })
+      ] });
     }
 
     /** Workspaces seen per node: assignment routes plus transport-reported workspaces. */
@@ -397,6 +474,11 @@ window.__ModuleLoader__.load({
         jsx.jsx(Stat, { label: t("工作区", "Workspaces"), value: String(workspaces), hint: assignment.configured ? "assignment.yml " + assignment.assignments + " 条路由" : t("未配置 assignment.yml", "no assignment.yml") }, "s3"),
         jsx.jsx(Stat, { label: t("任务", "Tasks"), value: active + " / " + counts.total, hint: t("活跃 / 累计", "active / total") }, "s4")
       ] }, "stats"));
+
+      blocks.push(jsx.jsx(MeshTopology, {
+        peers: peers,
+        selfLabel: (data && data.config && data.config.leaseOwner ? String(data.config.leaseOwner) + " · " : "") + t("本机", "this node")
+      }, "topology"));
 
       // Configuration form: the native settings document cannot edit a
       // profile-patch mounted entry, so the page writes the plugin's own
