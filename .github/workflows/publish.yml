@@ -75,11 +75,41 @@ jobs:
             echo "::error::tag $TAG_VERSION does not match package.json version $PKG_VERSION"
             exit 1
           fi
+      # Idempotent: re-pointing an existing release tag at a rewritten history
+      # must not fail the run just because that version is already on npm.
+      - name: Check whether this version is already on npm
+        id: published
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "dsh-workspace-mesh@$VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::dsh-workspace-mesh@$VERSION is already on npm - skipping publish"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Inspect the publishable tarball
         run: npm pack --dry-run
       - name: Publish
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs['dry-run']) }}
+        if: ${{ steps.published.outputs.exists == 'false' && !(github.event_name == 'workflow_dispatch' && inputs['dry-run']) }}
         run: npm publish --provenance --access public
       - name: Dry run (no upload)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs['dry-run'] }}
         run: npm publish --provenance --access public --dry-run
+
+  release:
+    name: GitHub release
+    needs: publish
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: dsh-workspace-mesh ${{ github.ref_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
