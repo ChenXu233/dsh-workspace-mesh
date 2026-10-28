@@ -538,7 +538,7 @@ window.__ModuleLoader__.load({
       blocks.push(jsx.jsxs("div", { className: "dwm-footer", children: [
         jsx.jsx("span", { children: t("更新于 ", "updated ") + (state.at ? fmtClock(state.at) : "—") }, "time"),
         jsx.jsx("button", { className: "dwm-ghost", onClick: load, children: t("立即刷新", "Refresh") }, "refresh"),
-        jsx.jsx("span", { children: t("配置编辑在「内置插件 → 本插件详情页」", "Edit settings on the plugin's detail page") }, "hint"),
+        jsx.jsx("span", { children: t("快照只读；配置更改写入 mesh-config.json", "Snapshot is read-only; config changes go to mesh-config.json") }, "hint"),
         state.phase === "error" ? jsx.jsx("span", { "data-tone": "warn", children: t("上次刷新失败：", "last refresh failed: ") + state.error }) : null
       ] }, "footer"));
 
