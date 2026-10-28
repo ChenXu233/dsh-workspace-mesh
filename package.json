@@ -1,6 +1,6 @@
 {
   "name": "dsh-workspace-mesh",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Workspace mesh for DeepSeek Harness: declare which workspace lives on which host, dispatch tasks by workspace across paired DSH instances, and control the remote host lifecycle. The agent loop never leaves the owning machine.",
   "type": "module",
   "main": "lib/index.js",
