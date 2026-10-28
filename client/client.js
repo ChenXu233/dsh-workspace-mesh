@@ -44,7 +44,7 @@ window.__ModuleLoader__.load({
     }
 
     /** Required services (cordis fiber inject on the browser half). */
-    var inject = ["slots", "remote.settings"];
+    var inject = ["slots", "remote", "remote.settings"];
 
     function ConfigSection(props) {
       var ctx = props.ctx;
@@ -58,6 +58,10 @@ window.__ModuleLoader__.load({
       var st = React.useState({ phase: "loading", values: {}, revision: undefined, dirty: {}, message: "", tone: "warn" });
       var state = st[0], set = st[1];
       var load = React.useCallback(function () {
+        if (!ctx.remote || !ctx.remote.settings) {
+          set({ phase: "error", values: {}, revision: undefined, dirty: {}, message: "ctx.remote.settings 不可用", tone: "err" });
+          return;
+        }
         ctx.remote.settings.describe().then(function (doc) {
           var nsList = (doc && doc.namespaces) || [];
           var ns = null;
