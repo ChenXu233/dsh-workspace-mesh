@@ -107,11 +107,34 @@ function validate(input: unknown): ValidationResult {
   return { value }
 }
 
+/**
+ * Schema-face projection hints mirrored from scripts/gen-config-schema.mjs,
+ * so the plain fallback stays form-visible: dsh-settings' volatileForm()
+ * reads node.type / node.meta.volatile / node.dict.
+ */
+const HINTS: Record<string, { label: string }> = {
+  transport: { label: 'transport: auto = pairing 优先, 回落 loopback(需 peerBaseUrl); 保存后立即生效' },
+  peerBaseUrl: { label: 'loopback 传输的对端 DSH 基础 URL; 留空 = 不启用' },
+  assignmentFile: { label: 'assignment.yml 路径, 相对宿主进程 cwd; 留空 = 不加载' },
+  leaseMs: { label: '任务租约时长 (毫秒)' },
+  dispatchTimeoutMs: { label: 'mesh_dispatch 等待最终回复的超时 (毫秒)' },
+  leaseOwner: { label: '任务板租约归属者标识' },
+}
+
 /** Plain two-face schema used when the schemastery runtime is unavailable. */
 function fallbackSchema(): Record<string, unknown> {
+  const dict: Record<string, unknown> = {}
+  for (const [key, spec] of Object.entries(FIELDS) as Array<[FieldName, (typeof FIELDS)[FieldName] | undefined]>) {
+    if (spec === undefined) continue
+    dict[key] = {
+      type: spec.type === 'enum' ? 'union' : spec.type === 'integer' ? 'number' : 'string',
+      meta: { volatile: true, default: spec.fallback, description: HINTS[key]?.label ?? '' },
+    }
+  }
   return {
     type: 'object',
     meta: {},
+    dict,
     toJSON: () => CONFIG_ENVELOPE,
     '~standard': { validate },
   }

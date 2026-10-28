@@ -66,7 +66,7 @@ window.__ModuleLoader__.load({
           var nsList = (doc && doc.namespaces) || [];
           var ns = null;
           for (var i = 0; i < nsList.length; i++) if (nsList[i].ns === NS) ns = nsList[i];
-          if (!ns) { set({ phase: "missing", values: {}, revision: undefined, dirty: {}, message: "", tone: "warn" }); return; }
+          if (!ns) { set({ phase: "missing", values: {}, revision: undefined, dirty: {}, message: "namespaces=[" + nsList.map(function (n) { return n.ns; }).join(",") + "]", tone: "warn" }); return; }
           set({ phase: "ready", values: ns.value || {}, revision: ns.revision, dirty: {}, message: "", tone: "warn" });
         }).catch(function (err) {
           set({ phase: "error", values: {}, revision: undefined, dirty: {}, message: String((err && err.message) || err), tone: "err" });
@@ -74,7 +74,7 @@ window.__ModuleLoader__.load({
       }, [ctx]);
       React.useEffect(function () { load(); }, [load]);
       if (state.phase === "loading") return jsx.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "正在读取 mesh 配置…" });
-      if (state.phase === "missing") return jsx.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "设置服务未暴露 mesh 命名空间（本部署未启用 live 配置）" });
+      if (state.phase === "missing") return jsx.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "设置服务未暴露 mesh 命名空间 " + (state.message || "") });
       if (state.phase === "error") return jsx.jsxs("p", { className: "dwm-status", "data-tone": "err", children: ["读取失败：", state.message] });
       var dirtyKeys = Object.keys(state.dirty);
       function setDirty(key, value) {
