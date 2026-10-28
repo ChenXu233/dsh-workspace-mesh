@@ -9,8 +9,11 @@ import { createLoopbackTransport } from './transport/loopback.js'
 import { createPairingTransport, detectPairingService } from './transport/pairing.js'
 import { TransportUnavailableError } from './transport/types.js'
 import type { MeshTransport } from './transport/types.js'
+import { registerMeshStateRoute } from './api/index.js'
+import { registerMeshConfigRoute } from './api/config.js'
+import { meshConfigPath, readConfigOverride } from './config/store.js'
 import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
-import type { MeshToolConfig, MeshToolRegistry } from './tools/index.js'
+import type { MeshToolConfig, MeshToolRegistry, MeshToolRuntime } from './tools/index.js'
 import { readLive } from './config.js'
 
 /** Cordis registration name; mesh_status reports the same string (F-10). */
@@ -65,13 +68,26 @@ function pickTransport(ctx: Context, config: MeshConfig): MeshTransport | undefi
 
 export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Fields are schema-volatile: the loader hands them over as live references.
-  const config: ResolvedMeshConfig = {
+  const entryConfig: ResolvedMeshConfig = {
     ...rawConfig,
     transport: readLive(rawConfig.transport, 'auto'),
     peerBaseUrl: readLive(rawConfig.peerBaseUrl, ''),
     leaseMs: readLive(rawConfig.leaseMs, 15 * 60_000),
     dispatchTimeoutMs: readLive(rawConfig.dispatchTimeoutMs, 120_000),
     leaseOwner: readLive(rawConfig.leaseOwner, 'mesh-lead'),
+  }
+  // Browser-saved overrides win over the cordis entry config. The native
+  // settings document cannot edit a profile-patch mounted entry, so the
+  // settings page writes its own file instead.
+  const overrideFile = meshConfigPath()
+  const override = readConfigOverride(overrideFile)
+  const config: ResolvedMeshConfig = {
+    ...entryConfig,
+    ...(override.transport !== undefined ? { transport: override.transport } : {}),
+    ...(override.peerBaseUrl !== undefined ? { peerBaseUrl: override.peerBaseUrl } : {}),
+    ...(override.leaseMs !== undefined ? { leaseMs: override.leaseMs } : {}),
+    ...(override.dispatchTimeoutMs !== undefined ? { dispatchTimeoutMs: override.dispatchTimeoutMs } : {}),
+    ...(override.leaseOwner !== undefined ? { leaseOwner: override.leaseOwner } : {}),
   }
   const board = createInMemoryBoard()
 
@@ -91,12 +107,13 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // a plain string is a real path here — anything else is treated as unset
   // rather than killing the whole entry (a dead fiber hides the settings form).
   const rawAssignment: unknown = rawConfig.assignmentFile
-  const assignmentFile =
+  const entryAssignmentFile =
     typeof rawAssignment === 'string'
       ? rawAssignment
       : rawAssignment !== null && typeof rawAssignment === 'object' && 'get' in (rawAssignment as Record<string, unknown>)
         ? String((rawAssignment as { get(): unknown }).get() ?? '')
         : ''
+  const assignmentFile = override.assignmentFile !== undefined ? override.assignmentFile : entryAssignmentFile
   let assignment: AssignmentTable | undefined
   if (assignmentFile !== '') {
     assignment = loadAssignmentTable(assignmentFile)
@@ -114,18 +131,29 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     dispatchTimeoutMs: config.dispatchTimeoutMs,
   }
 
+  // One runtime object backs both faces: the model tools and the read-only
+  // snapshot the browser settings page polls.
+  const toolRuntime: MeshToolRuntime = { board, transport, transportError, assignment, lifecycle, config: toolConfig }
+
   const tools = (ctx as unknown as { tools?: MeshToolRegistry }).tools
   if (tools === undefined) {
     // The host composition may legitimately mount this plugin without the tools
     // service; mesh_* then cannot exist, but the plugin still loads.
     console.warn('[mesh] tool runtime unavailable: mesh_* tools were not registered')
   } else {
-    registerMeshTools(
-      { tools },
-      { board, transport, transportError, assignment, lifecycle, config: toolConfig },
-    )
+    registerMeshTools({ tools }, toolRuntime)
     console.info('[mesh] registered mesh_list_nodes / mesh_status / mesh_dispatch / mesh_task_status')
   }
+
+  // Settings page surface. Absent in headless compositions (no web server):
+  // the page then explains that the route is missing instead of failing silently.
+  const stateExtras = () => ({
+    peerBaseUrl: config.peerBaseUrl ?? '',
+    assignmentFile: toolRuntime.assignment?.file ?? '',
+    configFile: overrideFile,
+  })
+  registerMeshStateRoute(ctx, toolRuntime, stateExtras)
+  registerMeshConfigRoute(ctx, { runtime: toolRuntime, file: overrideFile, extras: stateExtras })
 
   if (!transport) {
     console.info('[mesh] loaded without a transport: mesh_* tools will report "no transport configured"')
@@ -138,6 +166,15 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
 }
 
 export { Config } from './config.js'
+export { buildMeshState, MESH_STATE_VERSION, MAX_TASK_ROWS, recentTasks } from './api/state.js'
+export type { MeshStateCounts, MeshStatePayload, MeshStateTaskView } from './api/state.js'
+export { MESH_STATE_PATH, registerMeshStateRoute } from './api/index.js'
+export { handleConfigSave, HOT_CONFIG_KEYS, MESH_CONFIG_PATH, registerMeshConfigRoute, RESTART_CONFIG_KEYS } from './api/config.js'
+export type { MeshConfigControl } from './api/config.js'
+export { meshConfigPath, readConfigOverride, sanitizeOverride, writeConfigOverride } from './config/store.js'
+export type { MeshConfigOverride } from './config/store.js'
+export { deriveRoster, wirePeer } from './roster/index.js'
+export type { PeerSource, PeerStatus, PeerView, RosterSnapshot } from './roster/index.js'
 export type { Config as MeshConfigSchema } from './config.js'
 export { AssignmentFileError, findAssignmentNode, findAssignmentRoute, loadAssignmentTable, parseAssignment } from './assignments/index.js'
 export type { AssignmentNode, AssignmentRoute, AssignmentTable } from './assignments/index.js'

@@ -346,7 +346,7 @@ test('the whole src tree stays zero-dependency (from / import() / require()) and
   const files = sourceFiles(new URL('../../src/', import.meta.url))
   assert.ok(files.length >= 10, 'the audit must cover the whole src tree, not a hand-picked list (F-12)')
 
-  const builtins = new Set(['node:crypto', 'node:fs', 'node:path'])
+  const builtins = new Set(['node:crypto', 'node:fs', 'node:os', 'node:path'])
   const allowedPackages = new Set(['@deepseek-ai/cordis', '@deepseek-ai/schemastery'])
   const specifierPattern = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"]([^'"]+)['"]/g
 

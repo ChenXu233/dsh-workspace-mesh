@@ -34,6 +34,29 @@ Or load without installing, using an overlay patch (`--patch`):
       name: dsh-workspace-mesh
 ```
 
+## Settings page
+
+The browser half registers a read-only dashboard into the native settings
+navigation (`settings.section`, id `mesh`) and a live-configuration card on the
+plugin's own detail page (`plugins.detail.section`). The dashboard renders the
+transport state, the peer roster, workspace placement and recent tasks.
+
+Data comes from two authenticated Fetch routes registered inside Connection's
+fence (the same seat the shipped `/api/present.host` route uses):
+
+| Route | Method | Purpose |
+| --- | --- | --- |
+| `/api/mesh/state` | GET | Read-only snapshot: transport, config, peers, counts, recent tasks |
+| `/api/mesh/config` | POST | Validate + persist a config patch, apply the hot subset |
+
+Configuration writes land in `$DSH_HOME/mesh-config.json` and are layered over
+the cordis entry config at apply time. `leaseMs`, `dispatchTimeoutMs`,
+`leaseOwner` and `assignmentFile` apply immediately; `transport` and
+`peerBaseUrl` are persisted now and take effect on the next container restart.
+The file lives under `$DSH_HOME` because a profile-patch mounted entry is not
+projected into this DSH version's settings document, so the native settings
+pipe cannot edit it.
+
 ## Status
 
 Skeleton. Transport adapters are stubs that fail loudly rather than silently
