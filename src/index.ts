@@ -87,9 +87,19 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
 
   // A configured assignment file is configuration, not an optional dependency:
   // a missing or malformed file fails loudly with its path and line (SPEC §8).
+  // The loader may hand the raw entry config through as live references; only
+  // a plain string is a real path here — anything else is treated as unset
+  // rather than killing the whole entry (a dead fiber hides the settings form).
+  const rawAssignment: unknown = rawConfig.assignmentFile
+  const assignmentFile =
+    typeof rawAssignment === 'string'
+      ? rawAssignment
+      : rawAssignment !== null && typeof rawAssignment === 'object' && 'get' in (rawAssignment as Record<string, unknown>)
+        ? String((rawAssignment as { get(): unknown }).get() ?? '')
+        : ''
   let assignment: AssignmentTable | undefined
-  if (config.assignmentFile !== undefined && config.assignmentFile !== '') {
-    assignment = loadAssignmentTable(config.assignmentFile)
+  if (assignmentFile !== '') {
+    assignment = loadAssignmentTable(assignmentFile)
   }
 
   // Lifecycle is opt-in (SPEC §14.5): the controller exists, but nothing calls
