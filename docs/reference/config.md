@@ -59,6 +59,10 @@ relay 模式的握手（`POST /api/mesh/handshake`）与执行（`POST /api/mesh
 
 这不是性能优化。页面每几秒轮询一次，没有退避时一个过期 token 会变成持续的 401 流——一次轮询会打两次 `/connect`（401 后立即重试一次），5 秒一轮就是每分钟 36 个 401；对端的入侵过滤（fail2ban 一类，规则通常是「10 分钟内 20 个 401」）会在半分钟内把本机 IP 封掉。退避后同样的场景降到每 10 分钟个位数。
 
+**只读操作重放一次**：连接在请求还没答完时被关掉（`ECONNRESET`）或代理回 5xx，算「没有答案」而不是「对端拒绝」，只读操作（`list` / `page` / `workspaces`）重放一次；`create` / `prompt` 不重放——重复的 prompt 就是重复的一轮。
+
+触发条件是真实的：对端跑 turn 时 `session/list` 要 5～6 秒；同一个请求走复用的 keep-alive 连接会在约 5.8 秒收到 `ECONNRESET`，每次新建连接（curl）则 6.1 秒正常返回。
+
 **没有传输不是启动失败**（SPEC §9.4.2）：没配 `peers` 时插件照常加载，`mesh_status.transport.reason` 说明原因，`mesh_dispatch` 返回 `unavailable`，其余三个工具照常可用。
 
 | kind | 何时 | 说明 |

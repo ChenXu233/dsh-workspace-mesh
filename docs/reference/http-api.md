@@ -1,12 +1,21 @@
-# 参考：设置页 HTTP 路由
+# 参考：HTTP 路由
 
 > **状态**：已实施
 > **日期**：2026-11-01
-> **读者**：改设置页或 `src/api/` 的人
+> **读者**：改设置页、跨机传输或 `src/api/` 的人
 > **上游材料**：[config.md](./config.md)、[tools.md](./tools.md)
 > **口径**：依据 `src/api/*.ts`
 
-两条路由注册在 Connection 的 fence 内（与宿主自带的 `/api/present.host` 同一席位），鉴权面与宿主 `/api` 一致。headless 组合没有 web server，路由不挂载，设置页会显示「路由缺失」而不是静默失败。
+两组路由，分界线是**谁在调用**：
+
+| 组 | 调用者 | 挂在哪 | 认证 |
+| --- | --- | --- | --- |
+| 设置页路由（§1–§5） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
+| 对端路由（§6–§7） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
+
+对端路由不能放进 fence：调用方手里还没有 cookie，放进去会先被 401 挡掉，握手永远走不到自己的处理器。它们因此自带校验，且只服务这两个操作面。
+
+headless 组合没有 web server，两组都不挂载，设置页显示「路由缺失」而不是静默失败。
 
 路由是精确路径匹配，只接受下表列出的方法。
 
@@ -101,7 +110,55 @@ GET /api/mesh/session?nodeId=<peer>&sessionId=<id>&limit=50
 
 和工具一样**阻塞到最终回复**（或 `dispatchTimeoutMs`），所以一次页面请求最长约两分钟。
 
-## 6. 为什么不用原生 settings 管道
+## 6. POST /api/mesh/handshake
+
+对端用共享密钥换一个短期 mesh token。这是 relay 模式的入口：调用方不需要对端那个每次重启都轮换的登录 token。
+
+请求体：
+
+```text
+{ nodeId, ts, nonce, hmac }
+hmac = base64url(HMAC-SHA256(meshSecret, "mesh-handshake:<nodeId>:<ts>:<nonce>"))
+```
+
+返回 `{ ok: true, token, expiresAt }`，token 有效期 10 分钟。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 400 | 请求体不是 JSON，或缺字段（`nonce` 少于 8 字符） |
+| 401 | hmac 不对 / `ts` 偏离本机时钟超过 60 秒 / nonce 在窗口内重放 |
+| 503 | 本机没配 `meshSecret`——没配就是不开放，不是默认放行 |
+
+nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒（防重放）。
+
+## 7. POST /api/mesh/relay
+
+对端**在本机**执行一次会话操作。凭 §6 换到的 mesh token。
+
+```text
+{ token, op, args }        op ∈ list | create | prompt | page | workspaces
+```
+
+`args` 就是 Typert 的 `payload.args`：`list` 传 `{_request:{}}`，其余传 `{request:{...}}`。返回 `{ ok: true, value }`；业务失败是 200 + `{ ok: false, code?, error }`。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 400 | 请求体不是 JSON，或 `op` 不在枚举内 |
+| 401 | token 缺失 / 过期 / 签名不符 |
+| 503 | 本机没配 `meshSecret`，或组合里没有 `sessionController` |
+
+这五个操作直接调 `ctx.sessionController` 的同名方法。**它拿到的是生成的 `session` 命名空间，不是内部命令控制器**，两者签名不同：
+
+| 方法 | 签名 | 坑 |
+| --- | --- | --- |
+| `list` | `list(request, signal)` | 第一个参数是保留的空请求，**signal 在第二位** |
+| `create` | `create(request)` | 没有 signal 参数 |
+| `prompt` | `prompt(request, signal)` | 第二个参数是 signal，**不是** source；source 由它自己从 `request.requestId` 造 |
+| `page` | `page(request, signal)` | — |
+
+把 source 传进 `prompt` 的第二位，报错是 `signal.throwIfAborted is not a function`——错误发生在对端，调用方只看到一句与参数无关的话。`test/relay-route.test.ts` 用「假控制器先调 `signal.throwIfAborted()`」把这条契约钉住。
+
+## 8. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

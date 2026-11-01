@@ -64,12 +64,33 @@ export interface TypertTransportOptions {
 /** Error carrying the mesh error code the tool layer maps onto its vocabulary. */
 export class TypertRpcError extends Error {
   readonly code: string
-  constructor(code: string, message: string) {
+  /**
+   * True when the call never produced an answer (socket reset, proxy 5xx). A
+   * read may be replayed once; a create or a prompt may not.
+   */
+  readonly transient: boolean
+  constructor(code: string, message: string, transient = false) {
     super(message)
     this.name = 'TypertRpcError'
     this.code = code
+    this.transient = transient
   }
 }
+
+/** Readable one-liner for a fetch failure, including undici's `cause` code. */
+function describeError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err)
+  const cause = (err as { cause?: { code?: unknown; message?: unknown } }).cause
+  const code = typeof cause?.code === 'string' ? cause.code : ''
+  return code === '' ? err.message : `${err.message} (${code})`
+}
+
+/**
+ * Ops that may be replayed after a transport failure. `create` and `prompt`
+ * change peer state, so they are never retried: a duplicate prompt is a
+ * duplicate turn.
+ */
+const IDEMPOTENT_OPS: ReadonlySet<string> = new Set(['list', 'page', 'workspaces'])
 
 interface RpcEnvelope {
   result?: {
@@ -119,8 +140,10 @@ function nextRequestId(prefix: string): string {
 function mapGatewayCode(code: string | undefined, message: string): string {
   const raw = code ?? ''
   if (/access|denied|forbidden|unauthorized/i.test(raw) || /access denied|unauthorized/i.test(message)) return 'forbidden'
-  if (/unknown-session/i.test(raw)) return 'unknown-session'
-  if (/unknown-workspace/i.test(raw)) return 'unknown-workspace'
+  // The host answers "session/not-found" / "workspace/not-found"; older builds
+  // used "unknown-session". Both mean the same thing to a caller.
+  if (/unknown-session|session\/not-found/i.test(raw)) return 'unknown-session'
+  if (/unknown-workspace|workspace\/not-found/i.test(raw)) return 'unknown-workspace'
   if (/timeout|aborted/i.test(raw)) return 'timeout'
   if (/arguments-invalid/i.test(raw)) return 'bad-target'
   return 'remote-failure'
@@ -178,33 +201,74 @@ class TypertClient {
     return body.token
   }
 
-  /** One relay round trip; a 401 means the token expired, so renew once. */
+  /** Fetch that reports a socket-level failure as a transient peer error. */
+  private async send(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await this.fetchImpl(url, init)
+    } catch (err) {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: transport error (${describeError(err)})`, true)
+    }
+  }
+
+  /** Read a JSON body; a connection reset mid-body is a transient failure, not an answer. */
+  private async readJson<T>(res: Response, what: string): Promise<T> {
+    try {
+      return (await res.json()) as T
+    } catch (err) {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: ${what} response was cut off (${describeError(err)})`, true)
+    }
+  }
+
+  /**
+   * One relay round trip.
+   *
+   * Three recoveries, in order of what they cost the peer:
+   * - a 401 renews the mesh token once (it expires every ten minutes);
+   * - a read whose connection died is replayed once — a busy peer takes seconds
+   *   to answer `session/list`, and a keep-alive socket that closes under a slow
+   *   request surfaces as ECONNRESET, not as a peer answer;
+   * - anything else is reported as it happened.
+   */
   async relayOp<T = unknown>(op: string, args: unknown): Promise<T> {
     this.assertNotCoolingDown(op)
-    const send = async (): Promise<Response> => {
-      const token = await this.ensureMeshToken()
-      return this.fetchImpl(this.url('/api/mesh/relay'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token, op, args }),
-      })
+    const attempt = async (): Promise<T> => {
+      const send = async (): Promise<Response> => {
+        const token = await this.ensureMeshToken()
+        return this.send(this.url('/api/mesh/relay'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ token, op, args }),
+        })
+      }
+      let res = await send()
+      if (res.status === 401) {
+        this.meshToken = undefined
+        res = await send()
+      }
+      if (res.status === 401) {
+        throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: relay rejected the mesh token`)
+      }
+      if (!res.ok) {
+        throw new TypertRpcError(
+          'remote-failure',
+          `peer ${this.peer.nodeId}: relay ${op} returned HTTP ${res.status}`,
+          res.status >= 500,
+        )
+      }
+      const envelope = await this.readJson<{ ok?: boolean; value?: unknown; error?: string; code?: string }>(res, `relay ${op}`)
+      if (envelope.ok !== true) {
+        throw new TypertRpcError(mapGatewayCode(envelope.code, envelope.error ?? 'relay failed'), `peer ${this.peer.nodeId}: ${envelope.error ?? 'relay failed'}`)
+      }
+      return envelope.value as T
     }
-    let res = await send()
-    if (res.status === 401) {
-      this.meshToken = undefined
-      res = await send()
+    try {
+      return await attempt()
+    } catch (err) {
+      if (err instanceof TypertRpcError && err.transient && IDEMPOTENT_OPS.has(op)) {
+        return attempt()
+      }
+      throw err
     }
-    if (res.status === 401) {
-      throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: relay rejected the mesh token`)
-    }
-    if (!res.ok) {
-      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: relay ${op} returned HTTP ${res.status}`)
-    }
-    const envelope = (await res.json()) as { ok?: boolean; value?: unknown; error?: string; code?: string }
-    if (envelope.ok !== true) {
-      throw new TypertRpcError(mapGatewayCode(envelope.code, envelope.error ?? 'relay failed'), `peer ${this.peer.nodeId}: ${envelope.error ?? 'relay failed'}`)
-    }
-    return envelope.value as T
   }
 
   private assertNotCoolingDown(path: string): void {
@@ -268,9 +332,10 @@ class TypertClient {
       return this.relayOp<T>(op, args)
     }
     this.assertNotCoolingDown(method)
+    const isRead = IDEMPOTENT_OPS.has(METHOD_TO_OP[method] ?? '')
     const attempt = async (): Promise<T> => {
       const cookie = await this.connect()
-      const res = await this.fetchImpl(this.url(`/api/${method}`), {
+      const res = await this.send(this.url(`/api/${method}`), {
         method: 'POST',
         headers: { 'content-type': 'application/json', cookie },
         body: JSON.stringify({ type: 'client-request', rpcId: nextRequestId(method), method, payload: { args } }),
@@ -281,9 +346,9 @@ class TypertClient {
         throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: ${method} was rejected (HTTP ${res.status}); refresh the peer token`)
       }
       if (!res.ok) {
-        throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: ${method} returned HTTP ${res.status}`)
+        throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: ${method} returned HTTP ${res.status}`, res.status >= 500)
       }
-      const envelope = (await res.json()) as RpcEnvelope
+      const envelope = await this.readJson<RpcEnvelope>(res, method)
       const result = envelope.result
       if (result === undefined) {
         throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: ${method} returned no result envelope`)
@@ -298,18 +363,21 @@ class TypertClient {
     try {
       return await attempt()
     } catch (err) {
-      // A stale cookie is recoverable: reconnect once with the same token. The
-      // retry is one call, not two failures — counting both doubled the 401 rate.
-      if (err instanceof TypertRpcError && err.code === 'forbidden' && this.cookie === undefined) {
-        try {
-          return await attempt()
-        } catch (retried) {
-          this.onFailure()
-          throw retried
-        }
+      // A stale cookie is recoverable: reconnect once with the same token. A read
+      // whose socket died is recoverable too. Either way the retry is one call,
+      // not two failures — counting both doubled the 401 rate.
+      const recoverable = err instanceof TypertRpcError &&
+        (err.code === 'forbidden' ? this.cookie === undefined : err.transient && isRead)
+      if (!recoverable) {
+        this.onFailure()
+        throw err
       }
-      this.onFailure()
-      throw err
+      try {
+        return await attempt()
+      } catch (retried) {
+        this.onFailure()
+        throw retried
+      }
     }
   }
 }

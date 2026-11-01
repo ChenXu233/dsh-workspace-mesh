@@ -57,7 +57,7 @@
 | 项 | 事实 | 依据 |
 | --- | --- | --- |
 | 模型工具 | 4 个 `mesh_*` 已注册，参数校验与返回形状有测试 | `src/tools/` |
-| 跨机传输 | `typert`（配 `peers` 后可用，走对端 web API）；`mock` 仅测试 | `src/transport/typert.ts` |
+| 跨机传输 | `typert`（配 `peers` 后可用，走对端 web API；配 `meshSecret` 时走对端中继，不依赖会轮换的登录 token）；`mock` 仅测试 | `src/transport/typert.ts` |
 | 任务板 | 进程内存，无持久化；进程重启即清空 | `src/board/` |
 | 设置页 | 读快照 + 写配置两条路由已实现 | `src/api/` |
 | hub / 广播注册表 | 不存在 | 文件树 |

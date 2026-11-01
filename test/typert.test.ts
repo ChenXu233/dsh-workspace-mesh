@@ -21,6 +21,14 @@ interface FakePeerOptions {
   nativeWorkspaces?: Array<{ workspaceId: string; title?: string; path?: string; sessionIds?: string[] }>
   /** Secret the peer requires on /api/mesh/handshake; enables relay mode. */
   meshSecret?: string
+  /** Relay reads that die on the socket before answering, then succeed. */
+  relayListResets?: number
+  /** Relay prompts that die on the socket before answering (must never be replayed). */
+  relayPromptResets?: number
+  /** Token-mode session/list calls that answer 502, then succeed. */
+  listBadGateway?: number
+  /** session/page answers the host's "session/not-found" envelope. */
+  pageNotFound?: boolean
 }
 
 function fakePeer(options: FakePeerOptions = {}) {
@@ -29,6 +37,10 @@ function fakePeer(options: FakePeerOptions = {}) {
   let issuedCookie = false
   let rejected = false
   let connectAttempts = 0
+  let relayListResets = options.relayListResets ?? 0
+  let relayPromptResets = options.relayPromptResets ?? 0
+  let listBadGateway = options.listBadGateway ?? 0
+  const relayOps: string[] = []
   const token = options.token ?? 'tok'
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
@@ -51,6 +63,18 @@ function fakePeer(options: FakePeerOptions = {}) {
     if (url.endsWith('/api/mesh/relay')) {
       const body = JSON.parse(String(init?.body ?? '{}')) as { token?: string; op?: string; args?: Record<string, unknown> }
       if (body.token !== 'mesh-token') return new Response('', { status: 401 })
+      relayOps.push(String(body.op))
+      if (body.op === 'list' && relayListResets > 0) {
+        relayListResets -= 1
+        throw new TypeError('fetch failed')
+      }
+      if (body.op === 'prompt') {
+        if (relayPromptResets > 0) {
+          relayPromptResets -= 1
+          throw new TypeError('fetch failed')
+        }
+        return new Response(JSON.stringify({ ok: true, value: { accepted: true } }), { status: 200 })
+      }
       if (body.op === 'workspaces') {
         return new Response(JSON.stringify({ ok: true, value: { workspaces: options.nativeWorkspaces ?? [] } }), { status: 200 })
       }
@@ -71,6 +95,10 @@ function fakePeer(options: FakePeerOptions = {}) {
     calls.push({ method, args })
     const cookie = String((init?.headers as Record<string, string> | undefined)?.cookie ?? '')
     if (!issuedCookie || !cookie.includes('dsh-auth')) return new Response('', { status: 401 })
+    if (method === 'session/list' && listBadGateway > 0) {
+      listBadGateway -= 1
+      return new Response('', { status: 502 })
+    }
     if (options.rejectFirst === true && !rejected) {
       rejected = true
       return new Response('', { status: 401 })
@@ -91,6 +119,9 @@ function fakePeer(options: FakePeerOptions = {}) {
       return reply({ ok: true, value: { accepted: true } })
     }
     if (method === 'session/page') {
+      if (options.pageNotFound === true) {
+        return reply({ ok: false, error: { code: 'session/not-found', message: 'session "s1" not found' } })
+      }
       const request = (args.request ?? {}) as { throughSeq?: number }
       const through = request.throughSeq ?? 0
       const records = (options.events?.[through] ?? []).map((event) => ({ type: 'event', event }))
@@ -102,6 +133,7 @@ function fakePeer(options: FakePeerOptions = {}) {
   return {
     fetchImpl,
     calls,
+    relayOps,
     connectAttempts: () => connectAttempts,
     advanceTo(next: number) { cursor = next },
   }
@@ -346,3 +378,49 @@ test('an unknown node is refused before any network call', async () => {
   })
   assert.equal(peer.calls.length, 0)
 })
+
+/**
+ * A busy peer answers `session/list` in seconds, and a keep-alive socket that
+ * closes under a slow request surfaces as ECONNRESET — measured on the two cloud
+ * hosts, not a hypothetical. Reads are replayed; writes are not.
+ */
+
+test('a relay read that loses its connection is replayed once', async () => {
+  const peer = fakePeer({ sessions: [{ sessionId: 's1' }], meshSecret: 'shared', relayListResets: 1 })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl, meshSecret: 'shared' })
+  const messages = await transport.readSession?.('peer-a', 's1')
+  assert.deepEqual(messages, [])
+  assert.equal(peer.relayOps.filter((op) => op === 'list').length, 2, 'the read ran twice')
+})
+
+test('a relay prompt is never replayed: a lost connection is not a second turn', async () => {
+  const peer = fakePeer({ meshSecret: 'shared', relayPromptResets: 1 })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl, meshSecret: 'shared' })
+  await assert.rejects(() => transport.prompt('peer-a', 's1', 'hi'), (err: unknown) => {
+    assert.ok(err instanceof TypertRpcError)
+    assert.equal(err.code, 'remote-failure')
+    return true
+  })
+  assert.equal(peer.relayOps.filter((op) => op === 'prompt').length, 1, 'one attempt, one turn')
+})
+
+test('a token-mode read survives one bad gateway', async () => {
+  const peer = fakePeer({ sessions: [{ sessionId: 's1' }], listBadGateway: 1 })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })
+  const messages = await transport.readSession?.('peer-a', 's1')
+  assert.deepEqual(messages, [])
+  assert.equal(peer.calls.filter((call) => call.method === 'session/list').length, 2)
+})
+
+test('a peer not-found code surfaces as unknown-session, not remote-failure', async () => {
+  const peer = fakePeer({ sessions: [{ sessionId: 's1' }], cursor: 5, pageNotFound: true })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })
+  const readSession = transport.readSession
+  assert.ok(readSession !== undefined)
+  await assert.rejects(() => readSession('peer-a', 's1'), (err: unknown) => {
+    assert.ok(err instanceof TypertRpcError)
+    assert.equal(err.code, 'unknown-session')
+    return true
+  })
+})
+

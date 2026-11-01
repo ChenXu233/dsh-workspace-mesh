@@ -19,11 +19,21 @@ export const MESH_RELAY_PATH = '/api/mesh/relay'
 
 export type MeshRelayOp = 'list' | 'create' | 'prompt' | 'page' | 'workspaces'
 
+/**
+ * The shape of `ctx.sessionController` as this plugin uses it.
+ *
+ * Measured against `@deepseek-ai/dsh-api-session-controller` 0.2.1-rc.5: the
+ * service *is* the generated `session` namespace, so its signatures are the
+ * remote ones, not the internal command controller's. `prompt`'s second
+ * argument is the caller's `AbortSignal` (the source metadata is built inside
+ * from `request.requestId`), and `list` takes an (unused) request first.
+ * Passing a source object there is what produced
+ * "signal.throwIfAborted is not a function".
+ */
 export interface SessionControllerLike {
-  /** `list` takes only a signal — it has no request object. */
-  list(signal?: AbortSignal): Promise<unknown>
-  create(request: unknown, signal?: AbortSignal): Promise<unknown>
-  prompt(request: unknown, source: unknown): Promise<unknown>
+  list(request?: unknown, signal?: AbortSignal): Promise<unknown>
+  create(request: unknown): Promise<unknown>
+  prompt(request: unknown, signal?: AbortSignal): Promise<unknown>
   page(request: unknown, signal?: AbortSignal): Promise<unknown>
 }
 
@@ -62,7 +72,8 @@ export async function handleRelay(request: Request, control: MeshRelayControl): 
     return jsonResponse({ ok: false, error: `op must be one of ${[...RELAY_OPS].join(' | ')}` }, 400)
   }
   const args = (record.args ?? {}) as Record<string, unknown>
-  // The host passes a per-request signal; these methods call signal.throwIfAborted().
+  // The controller calls signal.throwIfAborted() before touching the log, so the
+  // signal must be a real AbortSignal. The HTTP bridge does not hand one through.
   const signal = new AbortController().signal
   if (op === 'workspaces') {
     return jsonResponse({ ok: true, value: control.workspaces?.() ?? { ok: true, workspaces: [] } }, 200)
@@ -74,18 +85,16 @@ export async function handleRelay(request: Request, control: MeshRelayControl): 
   try {
     switch (op as MeshRelayOp) {
       case 'list':
-        return jsonResponse({ ok: true, value: await controller.list(signal) }, 200)
+        return jsonResponse({ ok: true, value: await controller.list(args._request ?? {}, signal) }, 200)
       case 'create':
-        return jsonResponse({ ok: true, value: await controller.create(args.request ?? {}, signal) }, 200)
+        // create() has no signal parameter: it resolves or reuses a blank Session.
+        return jsonResponse({ ok: true, value: await controller.create(args.request ?? {}) }, 200)
       case 'page':
         return jsonResponse({ ok: true, value: await controller.page(args.request ?? {}, signal) }, 200)
-      case 'prompt': {
-        const promptRequest = (args.request ?? {}) as Record<string, unknown>
-        // The host records the source on the user message; 'user-rpc' is the shape
-        // a browser prompt uses, and the mesh is just another caller of it.
-        const source = { kind: 'user', rpcId: String(promptRequest.requestId ?? '') }
-        return jsonResponse({ ok: true, value: await controller.prompt(promptRequest, source) }, 200)
-      }
+      case 'prompt':
+        // The controller records the source itself from request.requestId; the
+        // second argument is the cancellation signal, not the source.
+        return jsonResponse({ ok: true, value: await controller.prompt(args.request ?? {}, signal) }, 200)
       default:
         return jsonResponse({ ok: false, error: 'unreachable' }, 500)
     }

@@ -24,12 +24,40 @@ function signed(nodeId: string, now: number, nonce = 'nonce-1234') {
   return { ...base, hmac: signHandshake(SECRET, base) }
 }
 
-function controller(calls: string[]): SessionControllerLike {
+/**
+ * Mirrors `ctx.sessionController` as the host declares it: every operation that
+ * touches the log calls `signal.throwIfAborted()` first, and `create` takes no
+ * signal. A relay that passes the wrong thing in that position fails here
+ * instead of only on a real peer.
+ */
+function controller(calls: string[], seen: Record<string, unknown> = {}): SessionControllerLike {
+  const needSignal = (method: string, signal: AbortSignal | undefined): AbortSignal => {
+    if (signal === undefined || typeof signal.throwIfAborted !== 'function') {
+      throw new TypeError(`${method}: signal.throwIfAborted is not a function`)
+    }
+    return signal
+  }
   return {
-    list: async () => ({ items: [{ sessionId: 's1' }] }),
-    create: async (request) => ({ sessionId: 'session-new', request }),
-    prompt: async (request) => { calls.push(String((request as { sessionId?: string }).sessionId)); return { accepted: true } },
-    page: async () => ({ records: [], hasMore: false }),
+    list: async (request, signal) => {
+      needSignal('list', signal)
+      seen.list = request
+      return { items: [{ sessionId: 's1' }] }
+    },
+    create: async (request) => {
+      seen.create = request
+      return { sessionId: 'session-new' }
+    },
+    prompt: async (request, signal) => {
+      needSignal('prompt', signal)
+      seen.prompt = request
+      calls.push(String((request as { sessionId?: string }).sessionId))
+      return { accepted: true }
+    },
+    page: async (request, signal) => {
+      needSignal('page', signal)
+      seen.page = request
+      return { records: [], hasMore: false }
+    },
   }
 }
 
@@ -94,3 +122,32 @@ test('both routes mount on their exact paths with POST', () => {
   assert.equal(mountMeshRelayRoute(ctx, { secret: () => SECRET, controller: () => controller([]) }), true)
   assert.deepEqual(routes.map((route) => [route.path, route.methods]), [[MESH_HANDSHAKE_PATH, ['POST']], [MESH_RELAY_PATH, ['POST']]])
 })
+
+test('the relay calls the controller with the host\'s own signatures', async () => {
+  const now = 1_000_000
+  const handshake = await handleHandshake(post(MESH_HANDSHAKE_PATH, signed('peer-a', now)), { secret: () => SECRET, nonces: new NonceCache(), now: () => now })
+  const minted = (await handshake.json()) as { token: string }
+  const calls: string[] = []
+  const seen: Record<string, unknown> = {}
+  const control = { secret: () => SECRET, controller: () => controller(calls, seen), now: () => now }
+
+  const ops: Array<[string, Record<string, unknown>]> = [
+    ['list', { _request: {} }],
+    ['create', { request: { workspaceId: 'ws-1' } }],
+    ['page', { request: { address: { kind: 'session', sessionId: 's1' }, throughSeq: 7 } }],
+    ['prompt', { request: { requestId: 'r1', sessionId: 's1', mode: 'queue', content: [{ type: 'text', text: 'hi' }] } }],
+  ]
+  for (const [op, args] of ops) {
+    const response = await handleRelay(post(MESH_RELAY_PATH, { token: minted.token, op, args }), control)
+    assert.equal(response.status, 200, `${op} must reach the controller`)
+    const body = (await response.json()) as { ok: boolean; error?: string }
+    assert.equal(body.ok, true, `${op}: ${body.error ?? ''}`)
+  }
+  // The payload travels unchanged: the relay unwraps the RPC envelope, nothing more.
+  assert.deepEqual(seen.list, {})
+  assert.deepEqual(seen.create, { workspaceId: 'ws-1' })
+  assert.deepEqual(seen.page, { address: { kind: 'session', sessionId: 's1' }, throughSeq: 7 })
+  assert.deepEqual(seen.prompt, { requestId: 'r1', sessionId: 's1', mode: 'queue', content: [{ type: 'text', text: 'hi' }] })
+  assert.deepEqual(calls, ['s1'])
+})
+

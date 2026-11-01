@@ -15,7 +15,7 @@
 | 改代码、跑起来、看日志 | [how-to/development.md](how-to/development.md) |
 | 查工具名 / 参数 / 返回 / 错误码 | [reference/tools.md](reference/tools.md) |
 | 查配置字段、热更新边界 | [reference/config.md](reference/config.md) |
-| 查设置页的两条 HTTP 路由 | [reference/http-api.md](reference/http-api.md) |
+| 查 HTTP 路由（设置页 + 对端握手/中继） | [reference/http-api.md](reference/http-api.md) |
 | 引用规模数字（用例数等） | [reference/baselines.md](reference/baselines.md) |
 | 知道「mesh 到底是什么意思」 | [SPEC.md](../SPEC.md) |
 | 知道下一步做什么、什么不做 | [explanation/roadmap.md](explanation/roadmap.md) |

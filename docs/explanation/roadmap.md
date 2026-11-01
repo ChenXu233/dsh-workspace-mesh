@@ -8,7 +8,7 @@
 
 ## 0. 一句话
 
-零件齐了，缺一条能用的传输。下一步是把 `TypertTransport` 接上，让 `mesh_dispatch` 真的跨机跑通。
+传输通了：两种凭证模式都能跨机 dispatch。下一步要么补消息总线平面，要么补授权层。
 
 ## 1. 已落地
 
@@ -26,6 +26,7 @@
 | 跨机传输 TypertTransport | `src/transport/typert.ts` | `test/typert.test.ts`；阿里云 → 腾讯云实测 `mesh_dispatch` 拿到真实回复（4.4s） |
 | 模型可见的工具面（真机） | — | 云端实例里模型调用 `mesh_list_nodes`，返回 `transport.kind = "typert"` |
 | 浏览器直发 + 侧栏「工作区网格」面板 | `src/api/dispatch.ts`、`client/client.js` | `test/dispatch-route.test.ts` |
+| 自愈凭据（HMAC 握手 + 中继执行） | `src/api/handshake.ts`、`src/api/relay.ts`、`src/transport/typert.ts` | `test/relay-route.test.ts`、`test/typert.test.ts`；调用方配置里故意留过期登录 token，实测跨机 dispatch 拿到回复（新会话 12.4s、续会话 7.2s） |
 | 远端会话历史（只读） | `src/api/session.ts`、`client/client.js` | `test/session-route.test.ts`；实测跨机读到一个会话的 4 条消息（3 user + 1 assistant） |
 | 对端原生工作区与会话列表 | `src/api/workspaces.ts`、`src/transport/typert.ts` | `test/workspaces-route.test.ts`、`test/typert.test.ts`；实测对端 18 个会话全部可见（12 + 4 + 2 三组），续用其中一个 3.2s 拿到回复 |
 | 自重启控制器 | `src/lifecycle/` | `test/lifecycle.test.ts`（未接线：默认不启用） |
@@ -44,7 +45,7 @@
 | # | 风险 | 触发条件 | 卡住什么 | 缓解 |
 | --- | --- | --- | --- | --- |
 | R1 | 工具注册 API 随 DSH 升级漂移（rc 通道可能 breaking） | DSH 升级后插件挂载失败或工具消失 | 全部工具面 | 零依赖手写 definition，依赖面只有 `ctx.tools.register` 与 `output` 形状；`dsh.engines` 钉版本；升级后先用「故意非法注册」反证链路 |
-| R2 | 跨机调用的信任头不匹配 | 对端 `DSH_TRUSTED_HOST` / `DSH_PUBLIC_URL` 与实际访问地址不一致 | 跨机 dispatch | 部署时把两者对齐；`/connect` token 每次重启轮换，配置里的 `peers[].token` 要同步更新（[decisions](decisions.md) D13） |
+| R2 | 跨机调用的信任头不匹配 | 对端 `DSH_TRUSTED_HOST` / `DSH_PUBLIC_URL` 与实际访问地址不一致 | 跨机 dispatch | 部署时把两者对齐；配了 `meshSecret` 走 relay 模式时不再依赖会轮换的登录 token（[config](../reference/config.md) §3），token 模式仍需手工同步（[decisions](decisions.md) D13） |
 | R3 | 两端 DSH 版本组合未验证 | 节点版本不一致 | 跨机 dispatch | 先用同版本验证（已用 0.2.1-rc.4 ↔ rc.4 跑通），再逐台升 |
 | R4 | 断线重连的 offset 语义未定（SPEC §7.2） | 想要 `stream` 或异步模型 | 推进语义 | 先按「替换 baseline + seq 单调」实现（typert 已按此做），真机观察后再定 |
 
