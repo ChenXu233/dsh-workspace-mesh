@@ -26,10 +26,12 @@ function fakePeer(options: FakePeerOptions = {}) {
   let cursor = options.cursor ?? 0
   let issuedCookie = false
   let rejected = false
+  let connectAttempts = 0
   const token = options.token ?? 'tok'
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
     if (url.includes('/connect')) {
+      connectAttempts += 1
       const parsed = new URL(url)
       if (parsed.searchParams.get('token') !== token) {
         return new Response('', { status: 401 })
@@ -81,6 +83,7 @@ function fakePeer(options: FakePeerOptions = {}) {
   return {
     fetchImpl,
     calls,
+    connectAttempts: () => connectAttempts,
     advanceTo(next: number) { cursor = next },
   }
 }
@@ -259,6 +262,22 @@ test('a failing peer is left alone for the cooldown instead of being hammered', 
   const callsAfterCooldown = peer.calls.length
   assert.equal((await transport.listNodes())[0]?.online, false)
   assert.equal(peer.calls.length, callsAfterCooldown, 'no extra network calls while cooling down')
+})
+
+test('repeated failures back off further instead of retrying at a fixed rate', async () => {
+  let clock = 1_000
+  const peer = fakePeer({ token: 'other' })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl, failureCooldownMs: 60_000, now: () => clock })
+  await transport.listNodes() // failure 1
+  await transport.listNodes() // failure 2 -> 60s cooldown
+  const afterTwo = peer.connectAttempts()
+  clock += 61_000
+  await transport.listNodes() // failure 3 -> 120s cooldown
+  assert.ok(peer.connectAttempts() > afterTwo, 'retried once the cooldown expired')
+  const afterThree = peer.connectAttempts()
+  clock += 61_000 // still inside the doubled window
+  await transport.listNodes()
+  assert.equal(peer.connectAttempts(), afterThree, 'the second cooldown is longer than the first')
 })
 
 test('a stale cookie is refreshed once instead of surfacing as a failure', async () => {

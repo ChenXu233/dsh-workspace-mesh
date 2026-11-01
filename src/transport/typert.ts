@@ -153,7 +153,6 @@ class TypertClient {
       : [res.headers.get('set-cookie')].filter((value): value is string => typeof value === 'string' && value !== '')
     const cookie = cookies.map((value) => value.split(';')[0]).join('; ')
     if (cookie === '') {
-      this.onFailure()
       throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: /connect returned no credential (token stale?)`)
     }
     this.cookie = cookie
@@ -163,11 +162,19 @@ class TypertClient {
   /** Authenticated GET against the peer's own routes (not the Typert RPC surface). */
   async get<T = unknown>(path: string): Promise<T> {
     this.assertNotCoolingDown(path)
+    try {
+      return await this.getOnce<T>(path)
+    } catch (err) {
+      this.onFailure()
+      throw err
+    }
+  }
+
+  private async getOnce<T = unknown>(path: string): Promise<T> {
     const cookie = await this.connect()
     const res = await this.fetchImpl(this.url(path), { headers: { cookie, accept: 'application/json' } })
     if (res.status === 401 || res.status === 403) {
       this.cookie = undefined
-      this.onFailure()
       throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: ${path} was rejected (HTTP ${res.status}); refresh the peer token`)
     }
     if (!res.ok) {
@@ -208,10 +215,17 @@ class TypertClient {
     try {
       return await attempt()
     } catch (err) {
-      // A stale cookie is recoverable: reconnect once with the same token.
+      // A stale cookie is recoverable: reconnect once with the same token. The
+      // retry is one call, not two failures — counting both doubled the 401 rate.
       if (err instanceof TypertRpcError && err.code === 'forbidden' && this.cookie === undefined) {
-        return attempt()
+        try {
+          return await attempt()
+        } catch (retried) {
+          this.onFailure()
+          throw retried
+        }
       }
+      this.onFailure()
       throw err
     }
   }
@@ -234,7 +248,12 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
   const noteFailure = (nodeId: string): void => {
     const next = (failureCount.get(nodeId) ?? 0) + 1
     failureCount.set(nodeId, next)
-    if (next >= FAILURES_BEFORE_COOLDOWN) blockedUntil.set(nodeId, now() + cooldownMs)
+    if (next < FAILURES_BEFORE_COOLDOWN) return
+    // Exponential backoff: 60s, 120s, 240s … capped at 16x. A flat 60s window
+    // still leaks two 401s a minute, which is exactly the rate an intrusion
+    // filter bans an IP for; the backoff drops it to a handful per hour.
+    const factor = Math.min(2 ** (next - FAILURES_BEFORE_COOLDOWN), 16)
+    blockedUntil.set(nodeId, now() + cooldownMs * factor)
   }
   const noteSuccess = (nodeId: string): void => {
     failureCount.delete(nodeId)

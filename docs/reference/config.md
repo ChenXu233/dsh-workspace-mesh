@@ -45,7 +45,9 @@ POST /api/<namespace>/<method>  {type:'client-request', rpcId, method, payload:{
 
 **对端 token 每次重启轮换**：`mesh-config.json` 里的 `token` 要跟着更新，失效时工具报 `denied` 并提示刷新。真正的凭据层在 SPEC §17，尚未实现。
 
-**失败冷却**：同一个 peer 连续失败 2 次后进入 60 秒冷却（`failureCooldownMs`），期间不再发请求。这不是性能优化——页面每几秒轮询一次，没有冷却时一个过期 token 会变成持续的 401 流，足以触发对端的入侵过滤（fail2ban 一类）把本机 IP 封掉。
+**失败退避**：同一个 peer 连续失败 2 次后进入冷却（`failureCooldownMs`，默认 60s），之后每失败一次冷却翻倍（60s → 120s → 240s …，上限 16 倍）。冷却期间不发任何请求。
+
+这不是性能优化。页面每几秒轮询一次，没有退避时一个过期 token 会变成持续的 401 流——一次轮询会打两次 `/connect`（401 后立即重试一次），5 秒一轮就是每分钟 36 个 401；对端的入侵过滤（fail2ban 一类，规则通常是「10 分钟内 20 个 401」）会在半分钟内把本机 IP 封掉。退避后同样的场景降到每 10 分钟个位数。
 
 **没有传输不是启动失败**（SPEC §9.4.2）：没配 `peers` 时插件照常加载，`mesh_status.transport.reason` 说明原因，`mesh_dispatch` 返回 `unavailable`，其余三个工具照常可用。
 
