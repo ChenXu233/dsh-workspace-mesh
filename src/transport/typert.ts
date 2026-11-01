@@ -593,21 +593,18 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
       const nodes: NodeDescriptor[] = []
       for (const peer of options.peers) {
         const client = requireClient(peer.nodeId)
-        let online = true
-        let workspaces = workspacesOf(peer.nodeId)
-        try {
-          await listSessions(client)
-          workspaces = (await fetchNativeWorkspaces(client, peer.nodeId)) ?? workspaces
-        } catch {
-          online = false
-        }
+        // One fan-out per peer. The registry read already lists the session log,
+        // so probing with a separate listSessions() first made every refresh cost
+        // three round trips (two of them the full session list) instead of two.
+        // A peer that cannot answer returns undefined here and is reported offline.
+        const native = await fetchNativeWorkspaces(client, peer.nodeId)
         nodes.push({
           nodeId: peer.nodeId,
           label: peer.nodeId,
           endpoint: peer.baseUrl,
-          online,
+          online: native !== undefined,
           lastSeenAt: now(),
-          workspaces,
+          workspaces: native ?? workspacesOf(peer.nodeId),
         })
       }
       return nodes

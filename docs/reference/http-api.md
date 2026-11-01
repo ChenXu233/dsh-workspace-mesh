@@ -21,7 +21,7 @@ headless 组合没有 web server，两组都不挂载，设置页显示「路由
 
 ## 1. GET /api/mesh/state
 
-只读快照，设置页轮询它。
+只读快照。设置页在打开、切回本页或点「立即刷新」时读它，不按定时器轮询：这一条要扇出到每个对端（读注册表 + 读它的整份会话列表），空转的轮询等于替所有人反复买单。
 
 ```text
 { ok: true, version: 1, plugin, generatedAt,

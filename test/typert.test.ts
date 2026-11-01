@@ -181,6 +181,26 @@ test('listNodes marks the peer offline when the call fails, instead of throwing'
   assert.equal(nodes[0]?.online, false)
 })
 
+/**
+ * A refresh fans out over the network, so the number of round trips is part of
+ * the contract: the registry read already proves the peer answers, and probing
+ * with a second listSessions() made every refresh cost three calls, two of them
+ * the whole session list.
+ */
+test('one refresh asks each peer once, not three times', async () => {
+  const peer = fakePeer({ sessions: [{ sessionId: 's1' }], nativeWorkspaces: [{ workspaceId: 'workspace-abc', title: 'Blog', path: '/data/blog' }] })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })
+  await transport.listNodes()
+  assert.equal(peer.calls.filter((call) => call.method === 'session/list').length, 1)
+})
+
+test('a relay refresh is one registry read plus one session list', async () => {
+  const peer = fakePeer({ sessions: [{ sessionId: 's1' }], meshSecret: 'shared' })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl, meshSecret: 'shared' })
+  await transport.listNodes()
+  assert.deepEqual([...peer.relayOps].sort(), ['list', 'workspaces'])
+})
+
 test('createSession sends the assignment cwd and rejects an unassigned workspace', async () => {
   const peer = fakePeer()
   const transport = createTypertTransport({

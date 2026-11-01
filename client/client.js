@@ -17,7 +17,6 @@ window.__ModuleLoader__.load({
     var DISPATCH_PATH = "/api/mesh/dispatch";
     // Remote session history: the peer is the only authority, this route proxies.
     var SESSION_PATH = "/api/mesh/session";
-    var AUTO_REFRESH_MS = 5000;
 
     var FIELDS = [
       { key: "transport", label: "传输模式", kind: "select", options: ["auto"],
@@ -606,13 +605,17 @@ window.__ModuleLoader__.load({
             });
           });
       }, []);
+      // On demand, not on a timer. This snapshot fans out to every peer (a
+      // registry read plus its whole session list), so a 5s poll asked each peer
+      // for everything three times a minute whether or not anyone was looking.
+      // Reading on open, on return to the tab and on the refresh button keeps it
+      // current where it matters and costs nothing while it sits idle.
       React.useEffect(function () {
         load();
-        var timer = setInterval(function () {
-          if (typeof document !== "undefined" && document.hidden) return;
-          load();
-        }, AUTO_REFRESH_MS);
-        return function () { clearInterval(timer); };
+        if (typeof document === "undefined") return;
+        var onVisible = function () { if (!document.hidden) load(); };
+        document.addEventListener("visibilitychange", onVisible);
+        return function () { document.removeEventListener("visibilitychange", onVisible); };
       }, [load]);
 
       // Configuration form state. Values are read from the served snapshot and
@@ -676,8 +679,8 @@ window.__ModuleLoader__.load({
       var header = [
         jsx.jsx("h2", { className: "dwm-h2", children: t("工作区网格", "Workspace mesh") }, "h2"),
         jsx.jsx("p", { className: "dwm-intro", children: t(
-          "本机 mesh 运行时快照：传输状态、节点、工作区分布与近期任务。数据只读，每 5 秒自动刷新。",
-          "Local mesh snapshot: transport, peers, workspace placement and recent tasks. Read-only, refreshed every 5 seconds."
+          "本机 mesh 运行时快照：传输状态、节点、工作区分布与近期任务。数据只读；打开本页、切回本页或点「立即刷新」时重新读取。",
+          "Local mesh snapshot: transport, peers, workspace placement and recent tasks. Read-only; re-read when the page opens, when the tab regains focus, or on Refresh."
         ) }, "intro")
       ];
 
@@ -944,7 +947,7 @@ window.__ModuleLoader__.load({
      * and shows the reply the owning machine produced.
      */
     function MeshWorkspacePage() {
-      var st = React.useState({ phase: "loading", data: null, error: "" });
+      var st = React.useState({ phase: "loading", data: null, error: "", at: 0 });
       var state = st[0];
       var set = st[1];
       var load = React.useCallback(function () {
@@ -953,13 +956,17 @@ window.__ModuleLoader__.load({
             if (!response.ok) throw new Error("HTTP " + response.status);
             return response.json();
           })
-          .then(function (data) { set({ phase: "ready", data: data, error: "" }); })
-          .catch(function (err) { set({ phase: "error", data: null, error: String((err && err.message) || err) }); });
+          .then(function (data) { set({ phase: "ready", data: data, error: "", at: Date.now() }); })
+          .catch(function (err) { set({ phase: "error", data: null, error: String((err && err.message) || err), at: Date.now() }); });
       }, []);
+      // Same rule as the settings section: the fan-out is paid for when someone
+      // asks for it, not on a timer nobody watches.
       React.useEffect(function () {
         load();
-        var timer = setInterval(load, 10000);
-        return function () { clearInterval(timer); };
+        if (typeof document === "undefined") return;
+        var onVisible = function () { if (!document.hidden) load(); };
+        document.addEventListener("visibilitychange", onVisible);
+        return function () { document.removeEventListener("visibilitychange", onVisible); };
       }, [load]);
 
       var data = state.data || {};
@@ -978,6 +985,10 @@ window.__ModuleLoader__.load({
           jsx.jsx(Stat, { label: t("工作区总数", "Total"), value: String(rows.length) }, "s2")
         ] }, "stats"),
         jsx.jsx(RemoteWorkspacePanel, { rows: rows }, "remote"),
+        jsx.jsxs("div", { className: "dwm-footer", children: [
+          jsx.jsx("span", { children: t("更新于 ", "updated ") + (state.at ? fmtClock(state.at) : "—") }, "time"),
+          jsx.jsx("button", { className: "dwm-ghost", onClick: load, children: t("立即刷新", "Refresh") }, "refresh")
+        ] }, "footer"),
         jsx.jsx("p", { className: "dwm-note", children: t(
           "断网或对端离线时，工作区状态变离线，发送会直接失败——不会留下半截任务。",
           "When the network or the peer is down the workspace turns offline and sending fails fast; nothing is left half-queued."
