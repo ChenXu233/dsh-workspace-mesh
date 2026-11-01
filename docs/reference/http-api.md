@@ -54,6 +54,8 @@
   note?: string }
 ```
 
+注册表只登记**显式建进工作区**的会话：按目录创建的旧会话不在 `sessionIds` 里。所以调用方必须再拉一次 `session/list`，把剩下的会话按 `cwd` 归组（匹配已有工作区路径就并进去，否则单独成组），否则旧会话会凭空消失。
+
 `sessions` 是数量，`sessionIds` 是**该工作区里的会话 id 列表**——工作区是一组会话，不是投递口；调用方拿这些 id 去 `session/list` 取标题与运行状态，再决定新建还是续用（`sessionMode: "resume"`）。
 
 数据源是 host 的 `ctx.workspaceRegistry.list()`（`dsh-workspace` 提供的 cordis 服务）。组合里没有这个服务时返回空数组 + `note`，不报错。

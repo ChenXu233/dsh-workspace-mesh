@@ -26,7 +26,7 @@
 | 跨机传输 TypertTransport | `src/transport/typert.ts` | `test/typert.test.ts`；阿里云 → 腾讯云实测 `mesh_dispatch` 拿到真实回复（4.4s） |
 | 模型可见的工具面（真机） | — | 云端实例里模型调用 `mesh_list_nodes`，返回 `transport.kind = "typert"` |
 | 浏览器直发 + 侧栏「工作区网格」面板 | `src/api/dispatch.ts`、`client/client.js` | `test/dispatch-route.test.ts` |
-| 对端原生工作区与会话列表 | `src/api/workspaces.ts`、`src/transport/typert.ts` | `test/workspaces-route.test.ts`、`test/typert.test.ts`；实测列出 workdesktop 的 4 个会话，续用其中一个 3.2s 拿到回复 |
+| 对端原生工作区与会话列表 | `src/api/workspaces.ts`、`src/transport/typert.ts` | `test/workspaces-route.test.ts`、`test/typert.test.ts`；实测对端 18 个会话全部可见（12 + 4 + 2 三组），续用其中一个 3.2s 拿到回复 |
 | 自重启控制器 | `src/lifecycle/` | `test/lifecycle.test.ts`（未接线：默认不启用） |
 | 身份原语（epoch key / token / 防重放） | `src/identity/` | `test/identity.test.ts`（纯函数库，未接请求路径） |
 

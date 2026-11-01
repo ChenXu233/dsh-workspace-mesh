@@ -100,7 +100,9 @@ test('listNodes reports the peer online and projects its native workspaces', asy
   assert.equal(nodes[0]?.nodeId, 'peer-a')
   assert.equal(nodes[0]?.online, true)
   assert.equal(nodes[0]?.lastSeenAt, 42)
-  assert.deepEqual(nodes[0]?.workspaces.map((w) => [w.workspaceId, w.path]), [['workspace-abc', '/data/blog']])
+  // Session s1 has no cwd, so it also shows up as its own ungrouped bucket; the
+  // native workspace must stay first.
+  assert.deepEqual(nodes[0]?.workspaces[0] && [nodes[0].workspaces[0].workspaceId, nodes[0].workspaces[0].path], ['workspace-abc', '/data/blog'])
 })
 
 test('listNodes falls back to assignment aliases when the peer cannot report its registry', async () => {
@@ -198,7 +200,7 @@ test('listWorkspaces prefers the peer native registry over assignment aliases', 
     listAssigned: () => [{ workspaceId: 'ws-blog', cwd: '/data/workspace' }],
   })
   const workspaces = await transport.listWorkspaces('peer-a')
-  assert.deepEqual(workspaces.map((w) => [w.workspaceId, w.name, w.path]), [['workspace-abc', 'Blog', '/data/blog']])
+  assert.deepEqual(workspaces[0] && [workspaces[0].workspaceId, workspaces[0].name, workspaces[0].path], ['workspace-abc', 'Blog', '/data/blog'])
 })
 
 test('a workspace carries its sessions, joined from the peer session log', async () => {
@@ -211,9 +213,10 @@ test('a workspace carries its sessions, joined from the peer session log', async
   })
   const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })
   const workspaces = await transport.listWorkspaces('peer-a')
+  // Newest first: a workspace lists its conversations the way a sidebar does.
   assert.deepEqual(workspaces[0]?.sessions, [
-    { sessionId: 's1', title: 'Blog rewrite', updatedAt: 11, busy: false },
     { sessionId: 's2', title: 'Deploy', updatedAt: 22, busy: true },
+    { sessionId: 's1', title: 'Blog rewrite', updatedAt: 11, busy: false },
   ])
 })
 

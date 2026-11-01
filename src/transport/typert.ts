@@ -227,27 +227,65 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
       const byId = new Map<string, SessionListRow>()
       for (const row of rows) if (typeof row.sessionId === 'string') byId.set(row.sessionId, row)
       const ids = new Set<string>()
-      const workspaces = items
+      const accounted = new Set<string>()
+      const toSession = (sessionId: string) => {
+        const row = byId.get(sessionId)
+        return {
+          sessionId,
+          title: row?.projections?.values?.title ?? '',
+          updatedAt: typeof row?.updatedAt === 'number' ? row.updatedAt : 0,
+          busy: row?.running === true,
+        }
+      }
+      const workspaces: WorkspaceSummary[] = items
         .filter((item) => typeof item.workspaceId === 'string' && item.workspaceId !== '')
         .map((item) => {
           const workspaceId = String(item.workspaceId)
           ids.add(workspaceId)
           const sessionIds = Array.isArray(item.sessionIds) ? item.sessionIds.map(String) : []
+          for (const sessionId of sessionIds) accounted.add(sessionId)
           return {
             workspaceId,
             name: item.title !== undefined && item.title !== '' ? item.title : workspaceId,
             path: item.path ?? '',
-            sessions: sessionIds.map((sessionId) => {
-              const row = byId.get(sessionId)
-              return {
-                sessionId,
-                title: row?.projections?.values?.title ?? '',
-                updatedAt: typeof row?.updatedAt === 'number' ? row.updatedAt : 0,
-                busy: row?.running === true,
-              }
-            }),
+            sessions: sessionIds.map(toSession),
           }
         })
+
+      // A DSH registry only accounts Sessions created *into* a Workspace; anything
+      // created by path (or before the Workspace existed) stays ungrouped. Those
+      // are the user's old conversations — they must not disappear, so they are
+      // grouped by their cwd, and a cwd that matches a Workspace joins it.
+      const byCwd = new Map<string, string[]>()
+      for (const row of rows) {
+        const sessionId = row.sessionId
+        if (typeof sessionId !== 'string' || accounted.has(sessionId)) continue
+        const cwd = typeof row.cwd === 'string' && row.cwd !== '' ? row.cwd : ''
+        const list = byCwd.get(cwd)
+        if (list === undefined) byCwd.set(cwd, [sessionId])
+        else list.push(sessionId)
+      }
+      for (const [cwd, sessionIds] of byCwd) {
+        const owner = workspaces.find((workspace) => cwd !== '' && workspace.path === cwd)
+        if (owner !== undefined) {
+          const seen = new Set(owner.sessions.map((session) => session.sessionId))
+          for (const sessionId of sessionIds) if (!seen.has(sessionId)) owner.sessions.push(toSession(sessionId))
+          continue
+        }
+        // No registered Workspace backs this directory: expose it as its own group
+        // so every conversation on the peer is reachable, newest first.
+        const pseudoId = cwd === '' ? 'cwd:' : `cwd:${cwd}`
+        ids.add(pseudoId)
+        workspaces.push({
+          workspaceId: pseudoId,
+          name: cwd === '' ? '(no workspace)' : cwd.split('/').filter(Boolean).pop() ?? cwd,
+          path: cwd,
+          sessions: sessionIds.map(toSession),
+        })
+      }
+      for (const workspace of workspaces) {
+        workspace.sessions.sort((a, b) => b.updatedAt - a.updatedAt)
+      }
       nativeIds.set(nodeId, ids)
       return workspaces
     } catch {
@@ -351,6 +389,17 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
       }
       if (native) {
         const created = await client.call<{ sessionId?: string }>('session/create', { request: { workspaceId } })
+        if (typeof created.sessionId !== 'string' || created.sessionId === '') {
+          throw new TypertRpcError('remote-failure', `peer ${nodeId}: session/create returned no sessionId`)
+        }
+        return created.sessionId
+      }
+      if (workspaceId.startsWith('cwd:')) {
+        // Grouped by directory rather than by a registered Workspace: create the
+        // session in that directory, which is what DSH itself does for ungrouped
+        // conversations.
+        const cwd = workspaceId.slice('cwd:'.length)
+        const created = await client.call<{ sessionId?: string }>('session/create', { request: cwd === '' ? {} : { cwd } })
         if (typeof created.sessionId !== 'string' || created.sessionId === '') {
           throw new TypertRpcError('remote-failure', `peer ${nodeId}: session/create returned no sessionId`)
         }
