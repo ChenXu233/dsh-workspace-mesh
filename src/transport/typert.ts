@@ -39,6 +39,8 @@ export interface TypertTransportOptions {
   listAssigned?: (nodeId: string) => readonly TypertWorkspaceRoute[]
   /** Resolve one workspaceId to the node that hosts it and its remote cwd. */
   resolveWorkspace?: (workspaceId: string) => { nodeId: string; cwd: string } | undefined
+  /** Path the peer serves its native workspace list on (default /api/mesh/workspaces). */
+  workspacesPath?: string
   /** Poll interval for follow(), milliseconds. */
   pollMs?: number
   fetchImpl?: typeof fetch
@@ -125,6 +127,20 @@ class TypertClient {
     return cookie
   }
 
+  /** Authenticated GET against the peer's own routes (not the Typert RPC surface). */
+  async get<T = unknown>(path: string): Promise<T> {
+    const cookie = await this.connect()
+    const res = await this.fetchImpl(this.url(path), { headers: { cookie, accept: 'application/json' } })
+    if (res.status === 401 || res.status === 403) {
+      this.cookie = undefined
+      throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: ${path} was rejected (HTTP ${res.status}); refresh the peer token`)
+    }
+    if (!res.ok) {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: ${path} returned HTTP ${res.status}`)
+    }
+    return (await res.json()) as T
+  }
+
   async call<T = unknown>(method: string, args: unknown): Promise<T> {
     const attempt = async (): Promise<T> => {
       const cookie = await this.connect()
@@ -181,6 +197,7 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
     return client
   }
 
+  /** assignment.yml routes, used when the peer cannot report its own registry. */
   const workspacesOf = (nodeId: string): WorkspaceSummary[] =>
     (options.listAssigned?.(nodeId) ?? []).map((route) => ({
       workspaceId: route.workspaceId,
@@ -188,6 +205,41 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
       path: route.cwd,
       sessions: [],
     }))
+
+  const workspacesPath = options.workspacesPath ?? '/api/mesh/workspaces'
+  /** Native workspace ids seen per node: the only ids the peer's session/create accepts. */
+  const nativeIds = new Map<string, Set<string>>()
+
+  const fetchNativeWorkspaces = async (client: TypertClient, nodeId: string): Promise<WorkspaceSummary[] | undefined> => {
+    try {
+      const payload = await client.get<{ workspaces?: Array<{ workspaceId?: string; title?: string; path?: string; sessions?: number }> }>(workspacesPath)
+      const items = payload.workspaces
+      if (!Array.isArray(items)) return undefined
+      const ids = new Set<string>()
+      const workspaces = items
+        .filter((item) => typeof item.workspaceId === 'string' && item.workspaceId !== '')
+        .map((item) => {
+          const workspaceId = String(item.workspaceId)
+          ids.add(workspaceId)
+          return {
+            workspaceId,
+            name: item.title !== undefined && item.title !== '' ? item.title : workspaceId,
+            path: item.path ?? '',
+            sessions: [],
+          }
+        })
+      nativeIds.set(nodeId, ids)
+      return workspaces
+    } catch {
+      return undefined
+    }
+  }
+
+  const resolveWorkspaces = async (nodeId: string): Promise<WorkspaceSummary[]> => {
+    const client = requireClient(nodeId)
+    const native = await fetchNativeWorkspaces(client, nodeId)
+    return native ?? workspacesOf(nodeId)
+  }
 
   /** session/list tolerates the "_request" carrier; retry once if a peer rejects it. */
   const listSessions = async (client: TypertClient): Promise<SessionListRow[]> => {
@@ -245,8 +297,10 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
       for (const peer of options.peers) {
         const client = requireClient(peer.nodeId)
         let online = true
+        let workspaces = workspacesOf(peer.nodeId)
         try {
           await listSessions(client)
+          workspaces = (await fetchNativeWorkspaces(client, peer.nodeId)) ?? workspaces
         } catch {
           online = false
         }
@@ -256,22 +310,35 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
           endpoint: peer.baseUrl,
           online,
           lastSeenAt: now(),
-          workspaces: workspacesOf(peer.nodeId),
+          workspaces,
         })
       }
       return nodes
     },
 
     async listWorkspaces(nodeId: string): Promise<WorkspaceSummary[]> {
-      requireClient(nodeId)
-      return workspacesOf(nodeId)
+      return resolveWorkspaces(nodeId)
     },
 
     async createSession(nodeId: string, workspaceId: string): Promise<string> {
       const client = requireClient(nodeId)
+      // A native workspace id is the peer's own identity for the directory: use it
+      // directly so the session lands in the workspace the user picked.
+      let native = nativeIds.get(nodeId)?.has(workspaceId) ?? false
+      if (!native && nativeIds.get(nodeId) === undefined) {
+        const listed = await fetchNativeWorkspaces(client, nodeId)
+        native = listed?.some((item) => item.workspaceId === workspaceId) ?? false
+      }
+      if (native) {
+        const created = await client.call<{ sessionId?: string }>('session/create', { request: { workspaceId } })
+        if (typeof created.sessionId !== 'string' || created.sessionId === '') {
+          throw new TypertRpcError('remote-failure', `peer ${nodeId}: session/create returned no sessionId`)
+        }
+        return created.sessionId
+      }
       const target = options.resolveWorkspace?.(workspaceId)
       if (target === undefined) {
-        throw new TypertRpcError('unknown-workspace', `workspace "${workspaceId}" has no remote cwd; add one to assignment.yml`)
+        throw new TypertRpcError('unknown-workspace', `workspace "${workspaceId}" is not a native workspace on "${nodeId}" and has no remote cwd; add it to assignment.yml`)
       }
       if (target.nodeId !== nodeId) {
         throw new TypertRpcError('unknown-workspace', `workspace "${workspaceId}" is assigned to "${target.nodeId}", not "${nodeId}"`)

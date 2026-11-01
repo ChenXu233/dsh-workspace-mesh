@@ -44,7 +44,21 @@
 
 热字段（`leaseMs` / `dispatchTimeoutMs` / `leaseOwner` / `assignmentFile`）当场生效；`transport` 先落盘，下次 `apply()` 才生效。
 
-## 3. POST /api/mesh/dispatch
+## 3. GET /api/mesh/workspaces
+
+本机**原生工作区**清单，给对端调用。mesh 不自造工作区 id：远端要投递时，必须用归属机注册表里的那个 id，所以由归属机自己发布。
+
+```text
+{ ok: true,
+  workspaces: [ { workspaceId, title, path, sessions } ],
+  note?: string }
+```
+
+数据源是 host 的 `ctx.workspaceRegistry.list()`（`dsh-workspace` 提供的 cordis 服务）。组合里没有这个服务时返回空数组 + `note`，不报错。
+
+只读：创建、改名、删除工作区仍然是人在这台机器上的本地动作。
+
+## 4. POST /api/mesh/dispatch
 
 浏览器直接投递：模型走 `mesh_dispatch` 工具，人走这条。两者是**同一份代码**——路由调 `createMeshDispatchTool(runtime).execute(...)`，所以校验、租约不变量、回复聚合与错误码不会分叉。
 
@@ -52,7 +66,8 @@
 
 | 键 | 必填 | 说明 |
 | --- | --- | --- |
-| `workspaceId` | 是 | 目标工作区 |
+| `workspaceId` | 是 | 目标工作区：对端注册表里的原生 id |
+| `nodeId` | 否 | 目标节点；工作区不在本机 assignment.yml 里时**必须**给 |
 | `objective` | 是 | 要在这台机器的这个工作区里做的事 |
 | `nodeId` / `context` / `acceptance` / `sessionMode` / `sessionId` / `maxDurationMs` / `replyMode` | 否 | 与工具同名同义 |
 
@@ -65,7 +80,7 @@
 
 和工具一样**阻塞到最终回复**（或 `dispatchTimeoutMs`），所以一次页面请求最长约两分钟。
 
-## 4. 为什么不用原生 settings 管道
+## 5. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

@@ -18,6 +18,7 @@ interface FakePeerOptions {
   cursor?: number
   token?: string
   rejectFirst?: boolean
+  nativeWorkspaces?: Array<{ workspaceId: string; title?: string; path?: string }>
 }
 
 function fakePeer(options: FakePeerOptions = {}) {
@@ -37,6 +38,11 @@ function fakePeer(options: FakePeerOptions = {}) {
       const headers = new Headers()
       headers.append('set-cookie', 'dsh-auth-abc=1; Path=/; HttpOnly')
       return new Response(null, { status: 302, headers })
+    }
+    if (url.endsWith('/api/mesh/workspaces')) {
+      const cookieHeader = String((init?.headers as Record<string, string> | undefined)?.cookie ?? '')
+      if (!issuedCookie || !cookieHeader.includes('dsh-auth')) return new Response('', { status: 401 })
+      return new Response(JSON.stringify({ ok: true, workspaces: options.nativeWorkspaces ?? [] }), { status: 200 })
     }
     const method = url.split('/api/')[1] ?? ''
     const body = JSON.parse(String(init?.body ?? '{}')) as { payload?: { args?: Record<string, unknown> } }
@@ -78,8 +84,8 @@ function fakePeer(options: FakePeerOptions = {}) {
 
 const peers = [{ nodeId: 'peer-a', baseUrl: 'https://peer.example.com', token: 'tok' }]
 
-test('listNodes reports the peer online and projects its assigned workspaces', async () => {
-  const peer = fakePeer({ sessions: [{ sessionId: 's1' }] })
+test('listNodes reports the peer online and projects its native workspaces', async () => {
+  const peer = fakePeer({ sessions: [{ sessionId: 's1' }], nativeWorkspaces: [{ workspaceId: 'workspace-abc', title: 'Blog', path: '/data/blog' }] })
   const transport = createTypertTransport({
     peers,
     fetchImpl: peer.fetchImpl,
@@ -91,6 +97,19 @@ test('listNodes reports the peer online and projects its assigned workspaces', a
   assert.equal(nodes[0]?.nodeId, 'peer-a')
   assert.equal(nodes[0]?.online, true)
   assert.equal(nodes[0]?.lastSeenAt, 42)
+  assert.deepEqual(nodes[0]?.workspaces.map((w) => [w.workspaceId, w.path]), [['workspace-abc', '/data/blog']])
+})
+
+test('listNodes falls back to assignment aliases when the peer cannot report its registry', async () => {
+  // No nativeWorkspaces: the fake answers the route with an empty list, which is
+  // still a successful answer — so use a peer that rejects the route instead.
+  const transport = createTypertTransport({
+    peers: [{ nodeId: 'peer-a', baseUrl: 'https://peer.example.com', token: 'tok' }],
+    fetchImpl: fakePeer({ sessions: [{ sessionId: 's1' }], nativeWorkspaces: undefined }).fetchImpl,
+    listAssigned: () => [{ workspaceId: 'ws-a', cwd: '/data/ws-a' }],
+    workspacesPath: '/api/mesh/nonexistent',
+  })
+  const nodes = await transport.listNodes()
   assert.deepEqual(nodes[0]?.workspaces.map((w) => [w.workspaceId, w.path]), [['ws-a', '/data/ws-a']])
 })
 
@@ -166,6 +185,29 @@ test('follow delivers history as a baseline, then only new events after the boun
   const countAfterStop = seen.length
   await new Promise((resolve) => setTimeout(resolve, 40))
   assert.equal(seen.length, countAfterStop, 'no events after unsubscribe')
+})
+
+test('listWorkspaces prefers the peer native registry over assignment aliases', async () => {
+  const peer = fakePeer({ sessions: [{ sessionId: 's1' }], nativeWorkspaces: [{ workspaceId: 'workspace-abc', title: 'Blog', path: '/data/blog' }] })
+  const transport = createTypertTransport({
+    peers,
+    fetchImpl: peer.fetchImpl,
+    listAssigned: () => [{ workspaceId: 'ws-blog', cwd: '/data/workspace' }],
+  })
+  const workspaces = await transport.listWorkspaces('peer-a')
+  assert.deepEqual(workspaces.map((w) => [w.workspaceId, w.name, w.path]), [['workspace-abc', 'Blog', '/data/blog']])
+})
+
+test('createSession targets the peer native workspace id, not a cwd alias', async () => {
+  const peer = fakePeer({ sessions: [{ sessionId: 's1' }], nativeWorkspaces: [{ workspaceId: 'workspace-abc', title: 'Blog', path: '/data/blog' }] })
+  const transport = createTypertTransport({
+    peers,
+    fetchImpl: peer.fetchImpl,
+    resolveWorkspace: () => ({ nodeId: 'peer-a', cwd: '/data/workspace' }),
+  })
+  assert.equal(await transport.createSession('peer-a', 'workspace-abc'), 'session-new')
+  const create = peer.calls.find((call) => call.method === 'session/create')
+  assert.deepEqual(create?.args, { request: { workspaceId: 'workspace-abc' } })
 })
 
 test('a stale cookie is refreshed once instead of surfacing as a failure', async () => {

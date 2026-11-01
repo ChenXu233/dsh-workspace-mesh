@@ -449,7 +449,7 @@ window.__ModuleLoader__.load({
           method: "POST",
           credentials: "same-origin",
           headers: { "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ workspaceId: row.workspaceId, objective: text })
+          body: JSON.stringify({ workspaceId: row.workspaceId, nodeId: row.nodeId, objective: text })
         })
           .then(function (response) { return response.json(); })
           .then(function (data) {
@@ -482,7 +482,7 @@ window.__ModuleLoader__.load({
             children: options.map(function (row) {
               return jsx.jsx("option", {
                 value: row.nodeId + "/" + row.workspaceId,
-                children: row.workspaceId + " · " + (row.nodeLabel || row.nodeId) + (row.status === "online" ? "" : " (" + t("离线", "offline") + ")")
+                children: (row.label || row.workspaceId) + " · " + (row.nodeLabel || row.nodeId) + (row.path ? " · " + row.path : "") + (row.status === "online" ? "" : " (" + t("离线", "offline") + ")")
               }, row.nodeId + "/" + row.workspaceId);
             })
           })

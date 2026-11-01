@@ -52,7 +52,7 @@ POST /api/<namespace>/<method>  {type:'client-request', rpcId, method, payload:{
 | `typert` | 配了 `peers` | 跨机真传输 |
 | `mock` | 测试构造 | 运行期不会选中 |
 
-`session/create` 需要远端目录，所以 assignment 的每条路由要有 `cwd`：
+对端会发布自己的原生工作区（`GET /api/mesh/workspaces`），投递时优先用那个原生 id，`cwd` 只是对端读不到注册表时的回退。要让某个 workspaceId 走回退路径，assignment 的每条路由要有 `cwd`：
 
 ```yaml
 assignments:
