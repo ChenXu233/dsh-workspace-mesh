@@ -103,6 +103,10 @@ function checkLinks(root, path, findings) {
   for (const match of text.matchAll(linkPattern)) {
     const target = match[1]
     if (target.startsWith('http')) continue
+    // A link to a private note is optional by definition: the file is git-ignored,
+    // so a clean checkout (CI, the npm tarball) never has one. Requiring it here
+    // would fail every build that does not happen to be the maintainer's machine.
+    if (target.endsWith(SKIP_SUFFIX)) continue
     if (!existsSync(resolve(base, target))) findings.push(`${path}: 断链 -> ${target}`)
   }
 }
