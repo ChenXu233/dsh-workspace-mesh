@@ -278,9 +278,15 @@ test('an empty assignment file is rejected at line 1', () => {
 
 // -------------------------------------------------------------- registration
 
-test("the plugin exports inject = ['tools'] and registers four mesh tools with raw JSON Schema", () => {
-  assert.deepEqual(plugin.inject, ['tools'])
+test('the plugin requires the tools service and optionally the web server', () => {
+  // cordis reads inject as a service map: a nullable value means optional.
+  // webServer is optional because the peer handshake/relay routes need a raw HTTP
+  // seat, and a headless composition has none.
+  assert.deepEqual(plugin.inject, { tools: true, webServer: null })
   assert.equal(plugin.name, PLUGIN_NAME, 'cordis name and mesh_status must agree (F-10)')
+})
+
+test('four mesh tools are registered with raw JSON Schema', () => {
 
   const definitions = capture(makeRuntime())
   assert.deepEqual(

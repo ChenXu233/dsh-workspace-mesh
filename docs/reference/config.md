@@ -24,6 +24,7 @@ $DSH_HOME/mesh-config.json（设置页 POST 写入的补丁）
 | --- | --- | --- | --- | --- |
 | `transport` | `auto` | `auto` | 重启 | 传输选择，见 §3；目前只有 `auto` |
 | `peers` | 数组 `{ nodeId, baseUrl, token }` | `[]` | 重启 | 跨机传输的对端；空 = 不启用传输，见 §3 |
+| `meshSecret` | string | `''` | 重启 | 与对端共享的握手密钥；配置后走 relay 模式，不再依赖会轮换的登录 token |
 | `assignmentFile` | string | `''` | 立即 | assignment.yml 路径，相对宿主进程 cwd；留空 = 不加载 |
 | `leaseMs` | 整数（毫秒） | `900000` | 立即 | 任务租约时长；必须大于 `dispatchTimeoutMs` |
 | `dispatchTimeoutMs` | 整数（毫秒） | `120000` | 立即 | `mesh_dispatch` 等待最终回复的上限，同时是 `maxDurationMs` 的上限 |
@@ -44,6 +45,15 @@ POST /api/<namespace>/<method>  {type:'client-request', rpcId, method, payload:{
 `session/follow` 是 stream-carrier 方法（"must be opened through the stream carrier"），所以 `follow()` 用**轮询**实现：`session/list` 取游标、`session/page` 取事件，延迟等于 `pollMs`（默认 1000ms）。事件形状与真流一致，reply 聚合逻辑不变。
 
 **对端 token 每次重启轮换**：`mesh-config.json` 里的 `token` 要跟着更新，失效时工具报 `denied` 并提示刷新。真正的凭据层在 SPEC §17，尚未实现。
+
+**两种凭证模式**：
+
+| 模式 | 触发 | 用什么认证 | 对端重启后 |
+| --- | --- | --- | --- |
+| token | 只配 `peers[].token` | 对端 web 登录 token（`/connect`） | token 轮换，必须人工更新 |
+| relay | 同时配 `meshSecret` | HMAC 握手换短期 mesh token | **自动重新握手**，无需人工 |
+
+relay 模式的握手（`POST /api/mesh/handshake`）与执行（`POST /api/mesh/relay`）**挂在 webServer 上，不在 Connection 的鉴权栅栏内**——调用方还没有 cookie，挂在栅栏内会先被 401 挡掉。这两条路由只认 mesh token，只服务 `list/create/prompt/page/workspaces` 五个操作。
 
 **失败退避**：同一个 peer 连续失败 2 次后进入冷却（`failureCooldownMs`，默认 60s），之后每失败一次冷却翻倍（60s → 120s → 240s …，上限 16 倍）。冷却期间不发任何请求。
 

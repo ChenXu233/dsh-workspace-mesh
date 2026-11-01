@@ -27,6 +27,9 @@ const schema = z.object({
       .default([])
       .description('跨机传输的对端清单; 为空 = 不启用跨机传输; 保存后重启生效'),
   ),
+  meshSecret: live(
+    z.string().default('').description('对端握手共享密钥; 配置后走 relay 模式, 不再依赖会轮换的登录 token'),
+  ),
   assignmentFile: live(
     z.string().default('').description('assignment.yml 路径, 相对宿主进程 cwd (容器内为 /data/workspace); 留空 = 不加载'),
   ),

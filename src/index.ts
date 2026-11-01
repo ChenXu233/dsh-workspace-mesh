@@ -13,6 +13,9 @@ import { registerMeshConfigRoute } from './api/config.js'
 import { registerMeshDispatchRoute } from './api/dispatch.js'
 import { registerMeshWorkspacesRoute } from './api/workspaces.js'
 import { registerMeshSessionRoute } from './api/session.js'
+import { registerMeshHandshakeRoute } from './api/handshake.js'
+import { registerMeshRelayRoute } from './api/relay.js'
+import { buildWorkspacesPayload, readWorkspaceRegistry } from './api/workspaces.js'
 import { meshConfigPath, readConfigOverride } from './config/store.js'
 import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
 import type { MeshToolConfig, MeshToolRegistry, MeshToolRuntime } from './tools/index.js'
@@ -21,14 +24,21 @@ import { readLive } from './config.js'
 /** Cordis registration name; mesh_status reports the same string (F-10). */
 export const name = PLUGIN_NAME
 
-/** Without this export cordis never injects the tool runtime (spike §2.1). */
-export const inject = ['tools']
+/**
+ * `tools` is required (without it cordis never injects the tool runtime, spike §2.1);
+ * `webServer` is optional — the peer handshake/relay routes need a raw HTTP seat
+ * below the browser fence, and a headless composition simply does not have one.
+ */
+// cordis reads this as a service map: a nullable value means optional.
+export const inject = { tools: true, webServer: null }
 
 export interface MeshConfig {
   /** Reserved for transport selection; 'auto' is the only value until an adapter ships. */
   transport?: 'auto'
   /** Peers reachable over their web API; empty = no cross-machine transport. */
   peers?: MeshPeerConfig[]
+  /** Shared secret for peer handshakes; enables relay mode (no login token needed). */
+  meshSecret?: string
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -74,6 +84,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     ...entryConfig,
     ...(override.transport !== undefined ? { transport: override.transport } : {}),
     ...(override.peers !== undefined ? { peers: override.peers } : {}),
+    ...(override.meshSecret !== undefined ? { meshSecret: override.meshSecret } : {}),
     ...(override.leaseMs !== undefined ? { leaseMs: override.leaseMs } : {}),
     ...(override.dispatchTimeoutMs !== undefined ? { dispatchTimeoutMs: override.dispatchTimeoutMs } : {}),
     ...(override.leaseOwner !== undefined ? { leaseOwner: override.leaseOwner } : {}),
@@ -112,6 +123,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
         (assignment?.assignments ?? [])
           .filter((route) => route.nodeId === nodeId && typeof route.cwd === 'string' && route.cwd !== '')
           .map((route) => ({ workspaceId: route.workspaceId, cwd: route.cwd as string })),
+      ...(config.meshSecret === undefined || config.meshSecret === '' ? {} : { meshSecret: config.meshSecret }),
       resolveWorkspace: (workspaceId) => {
         const route = assignment?.assignments.find((item) => item.workspaceId === workspaceId)
         if (route?.cwd === undefined || route.cwd === '') return undefined
@@ -160,6 +172,15 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Peers list this node's native workspaces; nothing is created or mutated here.
   registerMeshWorkspacesRoute(ctx, ctx)
   registerMeshSessionRoute(ctx, toolRuntime)
+  // Self-healing peer credential: handshake mints a short-lived mesh token, the
+  // relay executes session operations locally. Neither touches the login token.
+  const meshSecret = () => config.meshSecret ?? ''
+  const peerRoutes = meshSecret() !== ''
+  if (peerRoutes) {
+    registerMeshHandshakeRoute(ctx, meshSecret)
+    registerMeshRelayRoute(ctx, ctx, meshSecret, () => buildWorkspacesPayload(readWorkspaceRegistry(ctx)))
+    console.info('[mesh] peer handshake + relay mounted (meshSecret configured)')
+  }
 
   if (!transport) {
     console.info('[mesh] loaded without a transport: mesh_* tools will report "no transport configured"')
@@ -179,6 +200,8 @@ export { handleConfigSave, HOT_CONFIG_KEYS, MESH_CONFIG_PATH, registerMeshConfig
 export { handleDispatch, MESH_DISPATCH_PATH, registerMeshDispatchRoute } from './api/dispatch.js'
 export { buildWorkspacesPayload, MESH_WORKSPACES_PATH, readWorkspaceRegistry, registerMeshWorkspacesRoute } from './api/workspaces.js'
 export { handleSessionRead, MESH_SESSION_PATH, registerMeshSessionRoute } from './api/session.js'
+export { handleHandshake, MESH_HANDSHAKE_PATH, registerMeshHandshakeRoute } from './api/handshake.js'
+export { handleRelay, MESH_RELAY_PATH, readSessionController, registerMeshRelayRoute } from './api/relay.js'
 export type { MeshConfigControl } from './api/config.js'
 export { meshConfigPath, readConfigOverride, sanitizeOverride, writeConfigOverride } from './config/store.js'
 export type { MeshConfigOverride } from './config/store.js'

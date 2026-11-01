@@ -1,3 +1,4 @@
+import { signHandshake } from '../api/mesh-auth.js'
 import type { NodeDescriptor, WorkspaceSummary } from '../types.js'
 import type { MeshSessionMessage, MeshTransport } from './types.js'
 
@@ -39,6 +40,11 @@ export interface TypertTransportOptions {
   listAssigned?: (nodeId: string) => readonly TypertWorkspaceRoute[]
   /** Resolve one workspaceId to the node that hosts it and its remote cwd. */
   resolveWorkspace?: (workspaceId: string) => { nodeId: string; cwd: string } | undefined
+  /**
+   * Shared secret with the peer. When set, every call goes through the peer's
+   * relay with a short-lived mesh token instead of the rotating login token.
+   */
+  meshSecret?: string
   /** Path the peer serves its native workspace list on (default /api/mesh/workspaces). */
   workspacesPath?: string
   /**
@@ -120,8 +126,17 @@ function mapGatewayCode(code: string | undefined, message: string): string {
   return 'remote-failure'
 }
 
+/** RPC method → relay op. Relay mode serves exactly these. */
+const METHOD_TO_OP: Record<string, string> = {
+  'session/list': 'list',
+  'session/create': 'create',
+  'session/prompt': 'prompt',
+  'session/page': 'page',
+}
+
 class TypertClient {
   private cookie: string | undefined
+  private meshToken: { token: string; expiresAt: number } | undefined
   constructor(
     private readonly peer: TypertPeer,
     private readonly fetchImpl: typeof fetch,
@@ -129,7 +144,68 @@ class TypertClient {
     private readonly onFailure: () => void = () => {},
     /** True while the peer is cooling down: no network call is attempted. */
     private readonly coolingDown: () => boolean = () => false,
+    /** Shared secret; set means relay mode. */
+    private readonly meshSecret: string = '',
   ) {}
+
+  get relayMode(): boolean {
+    return this.meshSecret !== ''
+  }
+
+  /** Ask the peer for a mesh token, reusing it until shortly before expiry. */
+  private async ensureMeshToken(): Promise<string> {
+    const current = this.meshToken
+    if (current !== undefined && current.expiresAt - 30_000 > Date.now()) return current.token
+    const ts = Date.now()
+    const nonce = `${ts}-${Math.random().toString(36).slice(2, 10)}`
+    const hmac = signHandshake(this.meshSecret, { nodeId: this.peer.nodeId, ts, nonce })
+    const res = await this.fetchImpl(this.url('/api/mesh/handshake'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ nodeId: this.peer.nodeId, ts, nonce, hmac }),
+    })
+    if (!res.ok) {
+      throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: handshake refused (HTTP ${res.status}); check meshSecret`)
+    }
+    const body = (await res.json()) as { token?: unknown; expiresAt?: unknown }
+    if (typeof body.token !== 'string' || body.token === '') {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: handshake returned no token`)
+    }
+    this.meshToken = {
+      token: body.token,
+      expiresAt: typeof body.expiresAt === 'number' ? body.expiresAt : Date.now() + 600_000,
+    }
+    return body.token
+  }
+
+  /** One relay round trip; a 401 means the token expired, so renew once. */
+  async relayOp<T = unknown>(op: string, args: unknown): Promise<T> {
+    this.assertNotCoolingDown(op)
+    const send = async (): Promise<Response> => {
+      const token = await this.ensureMeshToken()
+      return this.fetchImpl(this.url('/api/mesh/relay'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token, op, args }),
+      })
+    }
+    let res = await send()
+    if (res.status === 401) {
+      this.meshToken = undefined
+      res = await send()
+    }
+    if (res.status === 401) {
+      throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: relay rejected the mesh token`)
+    }
+    if (!res.ok) {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: relay ${op} returned HTTP ${res.status}`)
+    }
+    const envelope = (await res.json()) as { ok?: boolean; value?: unknown; error?: string; code?: string }
+    if (envelope.ok !== true) {
+      throw new TypertRpcError(mapGatewayCode(envelope.code, envelope.error ?? 'relay failed'), `peer ${this.peer.nodeId}: ${envelope.error ?? 'relay failed'}`)
+    }
+    return envelope.value as T
+  }
 
   private assertNotCoolingDown(path: string): void {
     if (this.coolingDown()) {
@@ -184,6 +260,13 @@ class TypertClient {
   }
 
   async call<T = unknown>(method: string, args: unknown): Promise<T> {
+    if (this.relayMode) {
+      const op = METHOD_TO_OP[method]
+      if (op === undefined) {
+        throw new TypertRpcError('remote-failure', `relay mode cannot serve "${method}"`)
+      }
+      return this.relayOp<T>(op, args)
+    }
     this.assertNotCoolingDown(method)
     const attempt = async (): Promise<T> => {
       const cookie = await this.connect()
@@ -264,7 +347,13 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
   for (const peer of options.peers) {
     clients.set(
       peer.nodeId,
-      new TypertClient(peer, fetchImpl, () => noteFailure(peer.nodeId), () => coolingDown(peer.nodeId)),
+      new TypertClient(
+        peer,
+        fetchImpl,
+        () => noteFailure(peer.nodeId),
+        () => coolingDown(peer.nodeId),
+        options.meshSecret ?? '',
+      ),
     )
   }
 
@@ -289,9 +378,13 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
 
   const fetchNativeWorkspaces = async (client: TypertClient, nodeId: string): Promise<WorkspaceSummary[] | undefined> => {
     try {
-      const payload = await client.get<{
-        workspaces?: Array<{ workspaceId?: string; title?: string; path?: string; sessionIds?: string[] }>
-      }>(workspacesPath)
+      const payload = client.relayMode
+        ? await client.relayOp<{
+            workspaces?: Array<{ workspaceId?: string; title?: string; path?: string; sessionIds?: string[] }>
+          }>('workspaces', {})
+        : await client.get<{
+            workspaces?: Array<{ workspaceId?: string; title?: string; path?: string; sessionIds?: string[] }>
+          }>(workspacesPath)
       const items = payload.workspaces
       if (!Array.isArray(items)) return undefined
       // Titles and busy flags live on the session log, not on the registry entry.

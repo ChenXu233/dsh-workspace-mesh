@@ -19,6 +19,8 @@ interface FakePeerOptions {
   token?: string
   rejectFirst?: boolean
   nativeWorkspaces?: Array<{ workspaceId: string; title?: string; path?: string; sessionIds?: string[] }>
+  /** Secret the peer requires on /api/mesh/handshake; enables relay mode. */
+  meshSecret?: string
 }
 
 function fakePeer(options: FakePeerOptions = {}) {
@@ -40,6 +42,23 @@ function fakePeer(options: FakePeerOptions = {}) {
       const headers = new Headers()
       headers.append('set-cookie', 'dsh-auth-abc=1; Path=/; HttpOnly')
       return new Response(null, { status: 302, headers })
+    }
+    if (url.endsWith('/api/mesh/handshake')) {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { hmac?: string }
+      if (options.meshSecret === undefined || body.hmac === undefined) return new Response('', { status: 401 })
+      return new Response(JSON.stringify({ ok: true, token: 'mesh-token', expiresAt: Date.now() + 600_000 }), { status: 200 })
+    }
+    if (url.endsWith('/api/mesh/relay')) {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { token?: string; op?: string; args?: Record<string, unknown> }
+      if (body.token !== 'mesh-token') return new Response('', { status: 401 })
+      if (body.op === 'workspaces') {
+        return new Response(JSON.stringify({ ok: true, value: { workspaces: options.nativeWorkspaces ?? [] } }), { status: 200 })
+      }
+      if (body.op === 'list') {
+        return new Response(JSON.stringify({ ok: true, value: { items: options.sessions ?? [] } }), { status: 200 })
+      }
+      if (body.op === 'create') return new Response(JSON.stringify({ ok: true, value: { sessionId: 'session-relay' } }), { status: 200 })
+      return new Response(JSON.stringify({ ok: false, error: 'unsupported op' }), { status: 200 })
     }
     if (url.endsWith('/api/mesh/workspaces')) {
       const cookieHeader = String((init?.headers as Record<string, string> | undefined)?.cookie ?? '')
@@ -250,6 +269,23 @@ test('readSession projects the peer log into user and assistant lines', async ()
   const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })
   const messages = await transport.readSession?.('peer-a', 'session-1', 10)
   assert.deepEqual(messages?.map((message) => [message.role, message.text]), [['user', 'hello'], ['assistant', 'hi']])
+})
+
+test('relay mode works with a stale login token: the handshake replaces it', async () => {
+  const peer = fakePeer({
+    sessions: [{ sessionId: 's1', updatedAt: 5, projections: { values: { title: 'Blog' } } }],
+    nativeWorkspaces: [{ workspaceId: 'workspace-abc', title: 'Blog', path: '/data/blog', sessionIds: ['s1'] }],
+    meshSecret: 'shared',
+  })
+  const transport = createTypertTransport({
+    peers: [{ nodeId: 'peer-a', baseUrl: 'https://peer.example.com', token: 'STALE-TOKEN' }],
+    fetchImpl: peer.fetchImpl,
+    meshSecret: 'shared',
+  })
+  const workspaces = await transport.listWorkspaces('peer-a')
+  assert.deepEqual(workspaces.map((w) => [w.workspaceId, w.name]), [['workspace-abc', 'Blog']])
+  assert.equal(peer.connectAttempts(), 0, 'relay mode never touches the login surface')
+  assert.equal(await transport.createSession('peer-a', 'workspace-abc'), 'session-relay')
 })
 
 test('a failing peer is left alone for the cooldown instead of being hammered', async () => {

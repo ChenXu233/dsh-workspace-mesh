@@ -20,6 +20,7 @@ import { dirname, join } from 'node:path'
 export interface MeshConfigOverride {
   transport?: 'auto'
   peers?: Array<{ nodeId: string; baseUrl: string; token: string }>
+  meshSecret?: string
   assignmentFile?: string
   leaseMs?: number
   dispatchTimeoutMs?: number
@@ -30,6 +31,7 @@ export const MESH_CONFIG_FILE_NAME = 'mesh-config.json'
 export const MESH_CONFIG_KEYS = [
   'transport',
   'peers',
+  'meshSecret',
   'assignmentFile',
   'leaseMs',
   'dispatchTimeoutMs',
@@ -97,6 +99,10 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
         if (!bad) value.peers = peers
         break
       }
+      case 'meshSecret':
+        if (!isString(entry)) problems.push('meshSecret must be a string')
+        else value.meshSecret = entry.trim()
+        break
       case 'assignmentFile':
         if (!isString(entry)) problems.push('assignmentFile must be a string')
         else value.assignmentFile = entry.trim()

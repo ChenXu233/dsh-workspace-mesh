@@ -30,6 +30,8 @@ export interface Config {
   transport?: 'auto'
   /** Peers reachable over their web API; empty = no cross-machine transport. */
   peers?: MeshPeerConfig[]
+  /** Shared secret for peer handshakes; enables self-healing relay mode. */
+  meshSecret?: string
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -69,6 +71,7 @@ interface ValidationResult {
 /** Field specs mirrored from scripts/gen-config-schema.mjs (single source of truth lives there). */
 const FIELDS = {
   transport: { type: 'enum', values: TRANSPORT_VALUES, fallback: 'auto' as const },
+  meshSecret: { type: 'string', fallback: '' },
   assignmentFile: { type: 'string', fallback: '' },
   leaseMs: { type: 'integer', fallback: 900000 },
   dispatchTimeoutMs: { type: 'integer', fallback: 120000 },
@@ -156,6 +159,7 @@ function validate(input: unknown): ValidationResult {
  */
 const HINTS: Record<string, { label: string }> = {
   transport: { label: 'transport: 目前只有 auto（尚无跨机传输实现）; 保存后重启生效' },
+  meshSecret: { label: '对端握手共享密钥; 配置后走 relay 模式, 不再依赖会轮换的登录 token' },
   assignmentFile: { label: 'assignment.yml 路径, 相对宿主进程 cwd; 留空 = 不加载' },
   leaseMs: { label: '任务租约时长 (毫秒)' },
   dispatchTimeoutMs: { label: 'mesh_dispatch 等待最终回复的超时 (毫秒)' },
