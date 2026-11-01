@@ -1,7 +1,20 @@
-# DSH Workspace Mesh — 期望形态（SPEC, draft v0.2）
+# DSH Workspace Mesh — 期望形态（SPEC）
 
-> 状态：设计草案，未实现。日期 2026-10-21。
+> **状态**：设计意图（design intent）。本文描述 v1 要长成什么样，**不描述当前实现**。
+> **日期**：2026-10-21（设计基线）
+> **读者**：判断「这件事该不该做、做成什么样」的人；改架构之前先读本文
+> **实现契约**：[docs/reference/tools.md](docs/reference/tools.md) —— 本文写意图，reference 写现状；两者不一致是偏差信号，按 [AGENTS.md](AGENTS.md) §2 裁决
+> **取证**：[docs/evidence/](docs/evidence/README.md)
+>
 > 一句话：**不是资源远程访问，是工作区联邦。**
+
+## 目录
+
+- **目标与边界**：§1 问题 · §2 目标/非目标 · §3 术语
+- **模型**：§4 拓扑与信任边界 · §5 核心数据结构 · §6 协议三平面 · §7 生命周期与失败语义
+- **安全**：§8 安全模型 · §16 服务网格与授权矩阵 · §17 信任、通道与动态凭据
+- **插件**：§9 插件拆分 · §14 生命周期控制 · §15 工作区上下文与插件供给
+- **落地**：§10 与既有组件映射 · §11 生态现状 · §12 里程碑 · §13 未核实 · §18 工具面
 
 ---
 
@@ -43,7 +56,7 @@
 
 ## 4. 拓扑与信任边界
 
-```
+```text
 本机 ──┐
 上海 ──┼── Sidecar(hub) ── 任务板 / roster / 分配表
 腾讯云 ┘
@@ -109,9 +122,9 @@ interface Task {
 
 ### 5.4 Registry（由广播派生，不是配置）
 
-> **修订**：初稿要求手写 `assignment.yml` 维护 workspace → node 的映射。
-> 评审后改为**节点自报**——工作区本来就长在某台机器上，让它自己说就行。
+> **注册表由节点自报派生，不是配置。** 工作区本来就长在某台机器上，让它自己说就行。
 > 手工维护的映射表只会漂移，而且会形成「用 mesh 同步 mesh 自己的配置」的自举依赖。
+> 当前实现没有 hub，暂用静态 `assignment.yml` 作归属来源——取舍见 [decisions.md](docs/explanation/decisions.md) D3。
 
 **节点连上即广播（§6.1）**，hub 据此构建注册表：
 
@@ -184,7 +197,7 @@ overrides:
 
 | 方法 | 用途 | 资源 |
 |---|---|---|
-| workspace/list | 列出归属机工作区 | global |
+| workspace/follow（首帧基线）或 session/list | 枚举归属机工作区——DSH 没有一次性 list 端点 | global |
 | workspace/follow | 订阅工作区变更 | global |
 | session/create | 在指定工作区建会话 | workspace:<id> |
 | session/prompt | 投递用户消息 | session:<id> |
@@ -195,7 +208,7 @@ overrides:
 实现方式：为 principal kind **mesh-peer** 注册 policy，只绑定上述 action。
 依赖 dsh-api-remote-access 的 registerPolicy(kind, policy)，粒度到 ns/method + 资源。
 
-> ⚠ 待验证：非 owner Peer 的创建入口是否对外开放。这是唯一的真实风险点。
+> 已核实（[s0](docs/evidence/s0-typert-cross-machine.md)）：host 侧插件可以自造 peer；注册 `mesh-peer` policy 后放行；跨机 `/connect` + `/api` 实测通过。
 
 ### 6.3 协作面（任务板）
 - 权威存储在 hub（SQLite 即可，单机量级）
@@ -275,7 +288,8 @@ follow() 重连发出的是**替换 baseline**，不补发断线期间增量。
 | 依赖 | 类型 | 必要性 | 退路 |
 |---|---|---|---|
 | `@deepseek-ai/dsh`、`@deepseek-ai/cordis` | peerDependency | 必须 | 无（这是宿主） |
-| `@deepseek-ai/dsh-tools` / `schemastery` | peerDependency | 必须 | 无（注册工具要用） |
+| `@deepseek-ai/dsh-tools` | peerDependency | **可选** | 仅 `defineTool` 路线需要；零依赖手写 definition 不需要（profile 内插件解析不到宿主 asar 里的该包） |
+| `@deepseek-ai/schemastery` | peerDependency | **可选** | 原生设置表单需要；解析不到时退化为纯 JSON Schema 面 |
 | cordis 服务 `remoteWebUiPairing` | **运行期探测** | 可选 | 探测不到 → 走直连模式 |
 | `@linxin666/dsh-remote-web-ui` | **不依赖** | — | 只探测它的服务 |
 | `@njjpro/dsh-remote-workspace` | **不依赖** | — | 它是 UI 层，我们不需要 |
@@ -295,12 +309,15 @@ interface MeshTransport {
 }
 ```
 
-两种实现，按探测结果选：
+三种实现，按探测结果选：
 
 | 实现 | 触发条件 | 依赖 |
 |---|---|---|
-| `PairingTransport` | 探测到 `remoteWebUiPairing` 服务 | 零包依赖 |
-| `LoopbackTransport` | 未探测到，但配置了 `peerBaseUrl` | 零包依赖（fetch 回环代理） |
+| `TypertTransport` | 配置了 peer（`/connect` 凭据） | 零包依赖，走 `ctx.typertGateway` + `mesh-peer` policy |
+| `LoopbackTransport` | 配置了 `peerBaseUrl`，且只需要 list / create 两个能力 | 零包依赖（社区 `/pair-remote/*`，仅 2/5 能力，只作诊断通道） |
+| `MockTransport` | 测试与冒烟 | 零 |
+
+`PairingTransport` 这一行不成立：`remoteWebUiPairing` 只有一个 `isPairedDevice(request)` 鉴权谓词，没有任何资源枚举或会话投递能力（[p1](docs/evidence/p1-transport.md) §2.2），构不成传输接缝。
 
 **都探测不到** → 插件仍能加载，工具返回明确错误「未配置任何传输」，
 而不是启动失败。这是浅依赖的关键：**依赖缺失是降级，不是崩溃**。
@@ -323,15 +340,14 @@ interface MeshTransport {
 | 方法级鉴权 | dsh-api-remote-access | 注册 mesh-peer policy |
 | 工作区枚举与变更流 | dsh-api-workspace-controller | workspace namespace |
 | 会话创建 / prompt / follow | dsh-api-session-controller | session namespace |
-| 本机多角色协作 | dsh-experimental-agent-team | 仅本机内，与 swarm 叠加 |
-| 传输层 / 配对 | `@linxin666/dsh-remote-web-ui`（npm 0.4.8） | 现成：扫码配对、一次性令牌、设备凭据、可撤销 |
-| 远端工作区呈现在本机 | `@njjpro/dsh-remote-workspace`（npm 0.3.22） | 现成：侧栏列远端工作区、中列回环嵌入远端会话 |
+| 本机多角色协作 | dsh-experimental-agent-team | 仅本机内，与 mesh 叠加 |
+| 配对身份 | `@linxin666/dsh-remote-web-ui`（npm 0.4.8） | 现成：扫码配对、一次性令牌、设备凭据、可撤销。**只给身份，不是数据面** |
+| 远端工作区呈现在本机 | `@njjpro/dsh-remote-workspace`（npm 0.3.22） | 现成：侧栏列远端工作区、中列回环嵌入远端会话。`/pair-remote/*` 三端点属于它，只覆盖五能力中的两个 |
 | 任务投递 API | — | **这才是要写的部分** |
 
 ## 11. 生态现状
 
-> **勘误**：本 SPEC 初稿曾断言「无现成实现」。那是只查了 GitHub 通用检索与本地发行包得出的**错误结论**。
-> 正确查法：npm 搜 `dsh-plugin` 关键词（共 9451 个包）+ GitHub `topic:dsh-plugin`。以下为修正后的结论。
+> 查法：npm 搜 `dsh-plugin` 关键词 + GitHub `topic:dsh-plugin`。只查 GitHub 通用检索或本地发行包会得出「无现成实现」的错误结论。
 
 ### 11.1 DSH 生态内：底座已经存在
 
@@ -369,22 +385,29 @@ interface MeshTransport {
 
 ## 12. 里程碑
 
+进度与顺序不在本文维护——本文只定义「做完是什么样」。当前进展、下一个增量与验收判据见 [roadmap](docs/explanation/roadmap.md)。
+
 | 阶段 | 交付 | 验收 |
 |---|---|---|
 | P0 | 装两个现成插件，三机配对 | 本机侧栏能看到三台机器的工作区，并打开远端会话 |
 | P1 | 摸清现有插件的 host 路由能否被复用（`/pair-remote/*`、回环嵌入代理） | 得出「直接调用」还是「需薄适配层」的结论 |
-| P2 | 任务板 + 租约 + `swarm_*` 工具面 | Lead 能 mesh_dispatch 并拿到最终回复 |
+| P2 | 任务板 + 租约 + `mesh_*` 工具面 | Lead 能 `mesh_dispatch` 并拿到最终回复 |
 | P3 | 调度子插件 | 未分组工作区可按负载自动分配；卸载后无副作用 |
 
-## 13. 未决问题
+## 13. 未核实
 
-1. **`@njjpro/dsh-remote-workspace` 的 host 控制路由能否被 agent 工具直接调用？** 还是必须自建薄适配层（走回环代理发 HTTP）。这是现在最关键的一条，取代了初稿的「peer 创建入口」问题。
-2. 现有配对插件是否支持 **3 台以上**节点（本 SPEC 需要 3 台）。
-2. session/follow 的 seq 语义能否支撑精确 offset 与去重？
-3. 同一 session 并发 prompt 的真实行为？
-4. workspace 的 path 跨机是否有意义（同一仓库不同路径）？
-5. 任务成果（artifacts）如何回传：只回消息摘要，还是也要文件引用？
-6. 三机的 DSH 版本是否必须一致？
+只保留**还没有证据**的问题。已经有答案的写进了正文，不再列在这里。
+
+| # | 问题 | 现状 | 需要什么才能定 |
+|---|---|---|---|
+| 1 | 现有配对插件是否支持 3 台以上节点 | 静态分析倾向否定：`@njjpro/dsh-remote-workspace` 0.3.22 是 1:1 单 peer | 三台机器实测；不影响主路径，跨机走 Typert 而不是配对插件 |
+| 2 | `session/follow` 的 seq 语义能否支撑精确 offset 与去重 | 未核实：缺首帧与断线帧的真实样本 | 真机读首帧与断线重连帧 |
+| 3 | 同一 session 并发 prompt 的真实行为 | 未核实 | 同一 session 连发两条 prompt，观察是否串行、是否丢事件；§7.3 的 session 级互斥使它不阻塞任何近期交付 |
+| 4 | workspace 的 path 跨机是否有意义 | 展示语义问题；实现按「仅展示」处理 | 真机呈现时由使用者判断 |
+| 5 | 任务成果（artifacts）如何回传 | 未核实 | 明确「只回消息摘要」是否够用，不够再设计文件引用 |
+| 6 | 三机的 DSH 版本是否必须一致 | 未核实 | 跨版本的两台真机组合验证 |
+
+已答的两条：host 控制路由能否被 agent 工具直接调用（**能，但只覆盖五能力中的两个**，落点见 §6.2、§9.4.2）；`remoteWebUiPairing` 能否当传输接缝（**不能**，见 §9.4.2）。
 
 ## 14. 生命周期控制（实例运维 + 插件开发闭环）
 
@@ -433,7 +456,7 @@ RestartSec=2
 
 ### 14.3 状态机与任务安全
 
-```
+```text
 running ──restart──▶ draining ──exit──▶ offline ──supervisor──▶ starting ──hello──▶ running
 ```
 
@@ -466,8 +489,7 @@ mesh_dev({
 
 ## 15. 工作区上下文与插件供给
 
-> **修订说明**：本章初稿写的是「配置同步」。评审后判定方向错了——
-> **配置不该同步，插件也不该在节点级同步，而应按工作区供给。**
+> **配置不同步，插件按工作区供给。** 同步必然漂移，写入会污染宿主；改成任务参数之后，一切都变成无状态的。
 
 ### 15.1 配置：不同步，随任务传递
 
@@ -511,7 +533,7 @@ DSH 的客户端模块机制（`dsh-client-modules`）是：
 
 ### 15.3 供给流程（复用 plugin-manager + lifecycle）
 
-```
+```text
 inspect(spec) → installBundle(requestId) → enable → [restart] → verify(listBundles)
 ```
 
@@ -544,8 +566,7 @@ inspect(spec) → installBundle(requestId) → enable → [restart] → verify(l
 
 ## 16. 服务网格与授权矩阵
 
-> **方向修正**：初稿把跨机交互设计成「hub → node 单向投递」。
-> 评审后判定过窄——分布式系统里服务天然对等，A 能给 B 投消息，B 同样能给 A 投。
+> **服务对等，不是单向投递。** 分布式系统里 A 能给 B 投消息，B 同样能给 A 投。
 > agent loop 仍在归属机，但**服务是可被对等调用的**。
 
 ### 16.1 服务分级（这是整个安全模型的地基）
@@ -562,7 +583,7 @@ inspect(spec) → installBundle(requestId) → enable → [restart] → verify(l
 
 ### 16.2 寻址与调用路径
 
-```
+```text
 服务地址： mesh://<nodeId>/<service>/<method>#<scope>
 例：      mesh://shanghai/session/prompt#ws-blog
 ```
@@ -663,6 +684,7 @@ grants:
 - 执行一律走归属机自己的沙箱与审批策略
 
 所以矩阵保留 T1–T3 三级即可。`T4` 从设计里删除——不是因为禁止，而是因为**不存在**。
+
 ## 17. 信任、通道与动态凭据
 
 > 安全边界不建立在「禁止能力」上，而建立在 **身份、通道、时效** 上。
@@ -680,7 +702,7 @@ grants:
 
 ### 17.2 配对：人是唯一授权源
 
-```
+```text
 ① 节点 B 打开「配对」→ 显示二维码（含 nodeId + 一次性 pairToken + 6 位校验码）
 ② 节点 A 扫码 → 双方各显示 6 位码 → **人眼比对** → A 侧确认
 ③ A 用 pairToken 换取 B 签发的设备证书（绑定 A 的 Ed25519 公钥）
@@ -692,7 +714,7 @@ grants:
 
 ### 17.3 动态密码（不传输的口令）
 
-```
+```text
 epoch       = floor(unixNow / 600)              // 每 10 分钟一轮
 sharedKey   = X25519(localSk, remotePk)         // 配对时建立，永不上网
 epochKey_n  = HKDF-SHA256(sharedKey, salt=epoch_n, info='mesh-v1')
@@ -746,7 +768,10 @@ token       = HMAC-SHA256(epochKey_n, requestId || method || bodyHash)[0..16]
 - 消息标注（untrusted content）+ 人类确认保证**意图不被冒充**
 
 缺任何一层，另外两层都会被绕过。
-## 18. 附录：工具面草案（给模型用）
+## 18. 附录：工具面设计（给模型用）
+
+> 本节是**设计面**：v1 最终要暴露哪些工具、各自负责什么。
+> 当前实现的名称、入参、返回形状、错误码与逐条偏差见 [docs/reference/tools.md](docs/reference/tools.md)——那里才是模型真正看到的东西。
 
 ```ts
 mesh_list_nodes(): NodeDescriptor[]

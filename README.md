@@ -12,9 +12,10 @@ Workspace **mesh** for [DeepSeek Harness](https://github.com/deepseek-ai/deepsee
 ## What it does
 
 - Declares which workspace lives on which machine (`assignment.yml`).
+- Exposes four tools to the model: `mesh_list_nodes`, `mesh_status`, `mesh_dispatch`,
+  `mesh_task_status` (contract: [docs/reference/tools.md](./docs/reference/tools.md)).
 - Dispatches a task to the session of the owning workspace and collects the result.
-- Keeps execution local: only `workspace/list`, `workspace/follow`, `session/create`,
-  `session/prompt`, `session/follow` are ever used. No bash, no file access.
+- Keeps execution local: only `workspace/*` and `session/*` methods are ever used. No bash, no file access.
 
 ## Requirements
 
@@ -34,7 +35,7 @@ Or load without installing, using an overlay patch (`--patch`):
 
 ```yaml
 - insert:
-    - id: swarm
+    - id: mesh
       name: dsh-workspace-mesh
 ```
 
@@ -47,77 +48,39 @@ dsh plugin --profile web add file:$(pwd)
 ```
 
 `pnpm verify` runs the same gate as CI: build + typecheck + tests.
-
-See [DEVELOPMENT.md](./DEVELOPMENT.md) for the full picture: the pack cloud dev
-chain we use (own dev server + `sync-plugin.ps1`), the local install, and the
-released-package install — plus what has to be configured once before the cloud
-chain works.
+The full picture — the pack cloud dev chain, the local install, the released-package install —
+is in [docs/how-to/development.md](./docs/how-to/development.md).
 
 ## Settings page
 
-The browser half registers a read-only dashboard into the native settings
-navigation (`settings.section`, id `mesh`) and a live-configuration card on the
-plugin's own detail page (`plugins.detail.section`). The dashboard renders the
-transport state, the peer roster, workspace placement and recent tasks.
-
-Data comes from two authenticated Fetch routes registered inside Connection's
-fence (the same seat the shipped `/api/present.host` route uses):
+The browser half registers a read-only dashboard into the native settings navigation
+(`settings.section`, id `mesh`) and a live-configuration card on the plugin's own detail page
+(`plugins.detail.section`). It renders transport state, the peer roster, workspace placement and
+recent tasks, and writes configuration through two routes registered inside Connection's fence:
 
 | Route | Method | Purpose |
 | --- | --- | --- |
-| `/api/mesh/state` | GET | Read-only snapshot: transport, config, peers, counts, recent tasks |
+| `/api/mesh/state` | GET | Read-only snapshot |
 | `/api/mesh/config` | POST | Validate + persist a config patch, apply the hot subset |
 
-Configuration writes land in `$DSH_HOME/mesh-config.json` and are layered over
-the cordis entry config at apply time. `leaseMs`, `dispatchTimeoutMs`,
-`leaseOwner` and `assignmentFile` apply immediately; `transport` and
-`peerBaseUrl` are persisted now and take effect on the next container restart.
-The file lives under `$DSH_HOME` because a profile-patch mounted entry is not
-projected into this DSH version's settings document, so the native settings
-pipe cannot edit it.
+Payloads, error codes and the hot/restart split: [docs/reference/http-api.md](./docs/reference/http-api.md).
+Configuration keys and their defaults: [docs/reference/config.md](./docs/reference/config.md).
 
 ## Status
 
-Skeleton. Transport adapters are stubs that fail loudly rather than silently
-(see SPEC §13). The Typert transport is the next increment — see
-[docs/roadmap.md](./docs/roadmap.md) and the spikes under `docs/`.
+The tool surface, task board, roster derivation, settings page and config layering work and are
+covered by tests.
+
+There is **no working cross-machine transport yet**: `pairing` and `loopback` are stubs that fail
+loudly, and `mock` is test-only. In a real host `mesh_dispatch` therefore returns `unavailable`
+while `mesh_list_nodes` / `mesh_status` / `mesh_task_status` stay usable. The next increment is
+the Typert transport — see [docs/explanation/roadmap.md](./docs/explanation/roadmap.md).
 
 ## Docs
 
-- [SPEC.md](./SPEC.md) — the contract: what "mesh" means, tool surface, failure modes
-- [DEVELOPMENT.md](./DEVELOPMENT.md) — build, install, cloud dev chain
-- [docs/roadmap.md](./docs/roadmap.md) — increments and current state
-
-## Why Apache-2.0?
-
-The mesh is only useful when many DSH instances speak the same thing, so
-adoption beats code ownership. Apache-2.0 maximises both without giving up the
-parts that matter:
-
-- **Enterprises can actually use it.** Apache-2.0 is on nearly every corporate
-  allow-list, so the plugin can be installed into a profile or baked into a
-  pre-built image without a licence review. Copyleft would end that
-  conversation before it starts, while buying almost nothing in return: the
-  typical deployment is internal, and internal use never triggers copyleft.
-- **Patents are explicit, not implied.** Section 3 grants a patent licence from
-  every contributor and terminates it for anyone who sues over patents. MIT
-  only implies this; GPLv3 has the same grant but brings distribution
-  obligations that do not match how a plugin is actually shipped.
-- **It fits the ecosystem.** dsh and cordis are MIT; Apache-2.0 combines with
-  them cleanly.
-- **It is honest about what it cannot do.** No open-source licence stops a fork
-  that is never distributed. What protects the mesh is the [SPEC](./SPEC.md),
-  the package name and the reference implementation staying ahead — not a
-  licence clause.
-
-If your organisation needs different terms, open an issue.
+[docs/README.md](./docs/README.md) is the only index. Start there.
 
 ## License
 
-Apache License 2.0 (`Apache-2.0`) — see [LICENSE](./LICENSE) and
-[NOTICE](./NOTICE).
-
-You may use, modify and redistribute this plugin, including inside closed
-products, provided you keep the copyright and licence notices. The plugin
-contains no code from dsh itself; it talks to dsh only through its public
-cordis interfaces.
+Apache License 2.0 (`Apache-2.0`) — see [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+The reasoning behind that choice is in [docs/explanation/decisions.md](./docs/explanation/decisions.md) D11.

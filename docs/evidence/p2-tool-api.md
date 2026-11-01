@@ -149,7 +149,7 @@ export function apply(ctx: Context, config: MeshConfig): void {
 
 ### 3.1 从 cordis.patch.yml 到 `apply(ctx, config)` 的完整链路 ⭐
 
-```
+```text
 ~/.dsh/profiles/<profile>/cordis.patch.yml   (用户层)
         + 已安装 bundle 的 dsh.bundle.patch   (bundle 层)
         + dsh <profile> --patch x.yml         (临时叠加层)
@@ -206,7 +206,7 @@ Entry.init()  →  tree.import(entry.name) → import() 拿模块
 
 **CLI 形态**（`dsh/lib/bin.js:104-129`，commander 定义）：
 
-```
+```text
 dsh --profile <name> [options] [app-args...]     # 启动某个 profile（dsh <name> 是 --profile <name> 的缩写）
 dsh plugin --profile <name> <pnpm-args...>       # 把剩余参数原样转发给 profile 目录里的 pnpm
 dsh <name> --patch <path>                        # 启动时叠加一个 patch 层（可重复）
@@ -436,7 +436,7 @@ export function registerMeshTools(ctx: Context): void {
 | U7 | `dsh-tools` 的 `0.2.1-rc.3` 是否与本仓库 peer 范围兼容 | 未安装 | `pnpm add -D @deepseek-ai/dsh-tools@0.2.1-rc.3` 后 `pnpm typecheck` |
 | U8 | 官网上是否有更权威的插件开发文档 | 未联网检索（本任务以本机源码为准） | 检索 DSH 官方文档站 `docs/user/develop/` 下的 basic/config 与 plugin 章节，与本文结论交叉印证 |
 
-**另外说明**：本文所有"DSH 内部机制"结论都来自 **本机 asar 内的发布代码**（版本 `0.2.1-rc.3`），未使用任何外部文档；因此不存在"文档说的 vs 代码实际的分歧"——**只有代码实际**。若官方文档后续更新，以代码为准。
+**另外说明**：本文所有"DSH 内部机制"结论都来自 **本机 asar 内的发布代码**（版本 `0.2.1-rc.3`），未使用任何外部文档；因此本文记录的是**该版本的实际行为**，不存在"官方文档 vs 代码实际"的对照。若官方文档后来更新，两者不一致时要重新判定是哪一方过时，不默认任何一方为准（[AGENTS.md](../../AGENTS.md) §2）。
 
 ---
 

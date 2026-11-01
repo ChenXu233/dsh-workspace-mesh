@@ -12,8 +12,7 @@
     "LICENSE",
     "NOTICE",
     "README.md",
-    "SPEC.md",
-    "DEVELOPMENT.md"
+    "SPEC.md"
   ],
   "keywords": [
     "dsh",
@@ -49,7 +48,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test \"lib-test/test/*.test.js\"",
     "clean": "node -e \"for (const d of ['lib','lib-test']) require('fs').rmSync(d,{recursive:true,force:true})\"",
-    "verify": "pnpm build && pnpm typecheck && pnpm test",
+    "verify": "pnpm build && pnpm typecheck && pnpm test && pnpm check:docs",
+    "check:docs": "node scripts/check-docs.mjs",
     "prepublishOnly": "pnpm build",
     "gen:schema": "node scripts/gen-config-schema.mjs"
   },

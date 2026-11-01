@@ -206,7 +206,7 @@ const hasAny = ['listPeers', 'peers', 'listWorkspaces'].some((k) => typeof probe
 
 **B3. 官方插件 `RWUI` 自己的路由**（`RWUI/src/routes.ts:444-469`，注册于 :1170-1190）：
 
-```
+```text
 /api/pair/issue  /api/pair/accept  /api/pair/stop  /api/pair/revoke
 /api/pair/heartbeat  /api/pair/status  /api/pair/events  /api/pair/lan-bind
 /pair-accept（QR 链接落地页）  /pair-app（配对设备的无 cookie 应用外壳）
