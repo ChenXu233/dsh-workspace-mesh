@@ -15,6 +15,8 @@ window.__ModuleLoader__.load({
     var CONFIG_PATH = "/api/mesh/config";
     // Browser-triggered dispatch: same code path as the mesh_dispatch tool (src/api/dispatch.ts).
     var DISPATCH_PATH = "/api/mesh/dispatch";
+    // Remote session history: the peer is the only authority, this route proxies.
+    var SESSION_PATH = "/api/mesh/session";
     var AUTO_REFRESH_MS = 5000;
 
     var FIELDS = [
@@ -441,6 +443,27 @@ window.__ModuleLoader__.load({
         if (options[ci].nodeId + "/" + options[ci].workspaceId === selected) current = options[ci];
       }
       var sessions = (current && current.sessions) || [];
+      var histState = React.useState({ phase: "idle", messages: [], error: "" });
+      var history = histState[0];
+      var setHistory = histState[1];
+
+      React.useEffect(function () {
+        if (sessionId === "") {
+          setHistory({ phase: "idle", messages: [], error: "" });
+          return;
+        }
+        var nodeId = current ? current.nodeId : "";
+        if (nodeId === "") return;
+        setHistory({ phase: "loading", messages: [], error: "" });
+        fetch(SESSION_PATH + "?nodeId=" + encodeURIComponent(nodeId) + "&sessionId=" + encodeURIComponent(sessionId) + "&limit=50",
+          { credentials: "same-origin", headers: { accept: "application/json" } })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            if (data && data.ok === true) setHistory({ phase: "ready", messages: data.messages || [], error: "" });
+            else setHistory({ phase: "error", messages: [], error: String((data && (data.code || data.error)) || "read failed") });
+          })
+          .catch(function (error) { setHistory({ phase: "error", messages: [], error: String((error && error.message) || error) }); });
+      }, [sessionId, selected]);
 
       if (rows.length === 0) {
         return jsx.jsxs("div", { className: "dwm-form", children: [
@@ -516,6 +539,23 @@ window.__ModuleLoader__.load({
             }))
           })
         ] }, "sess"),
+        sessionId === "" ? null : jsx.jsxs("div", { className: "dwm-row", children: [
+          jsx.jsx("label", { className: "dwm-label", children: t("会话历史", "History") + (history.phase === "loading" ? " · " + t("读取中…", "loading...") : "") }),
+          history.phase === "error"
+            ? jsx.jsx("p", { className: "dwm-note", children: history.error })
+            : jsx.jsx("div", {
+                className: "dwm-mono",
+                style: { maxHeight: "240px", overflowY: "auto", fontSize: "12px", lineHeight: "18px", border: "1px solid var(--dsw-alias-border-l2)", borderRadius: "6px", padding: "8px" },
+                children: history.messages.length === 0
+                  ? t("（这个会话还没有消息）", "(no messages yet)")
+                  : history.messages.map(function (item) {
+                      return jsx.jsxs("div", { style: { marginBottom: "6px" }, children: [
+                        jsx.jsx("span", { style: { opacity: 0.6 }, children: (item.role === "user" ? t("我", "user") : item.role === "assistant" ? t("助手", "assistant") : item.role) + " #" + item.seq + "  " }),
+                        jsx.jsx("span", { children: item.text })
+                      ] }, item.seq);
+                    })
+              })
+        ] }, "hist"),
         jsx.jsx("div", { className: "dwm-row", children: [
           jsx.jsx("label", { className: "dwm-label", children: t("消息", "Message") }),
           jsx.jsx("textarea", {

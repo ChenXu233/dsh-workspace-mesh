@@ -62,7 +62,24 @@
 
 只读：创建、改名、删除工作区仍然是人在这台机器上的本地动作。
 
-## 4. POST /api/mesh/dispatch
+## 4. GET /api/mesh/session
+
+读远端会话的尾部（页面里的「会话历史」）。
+
+```text
+GET /api/mesh/session?nodeId=<peer>&sessionId=<id>&limit=50
+
+{ ok: true, messages: [ { seq, role: "user" | "assistant", text, time? } ] }
+```
+
+数据来自对端的 `session/page`（一元方法）：先读 `session/list` 拿游标 `asOfSeq`，再用它做 `throughSeq` 读一页。**不缓存**——对端是唯一权威，页面按需重读。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 400 | 缺 `nodeId` 或 `sessionId` |
+| 200 | 其余；读不到时 `ok: false` + `code`（`unavailable` / `unknown-session` 等） |
+
+## 5. POST /api/mesh/dispatch
 
 浏览器直接投递：模型走 `mesh_dispatch` 工具，人走这条。两者是**同一份代码**——路由调 `createMeshDispatchTool(runtime).execute(...)`，所以校验、租约不变量、回复聚合与错误码不会分叉。
 
@@ -84,7 +101,7 @@
 
 和工具一样**阻塞到最终回复**（或 `dispatchTimeoutMs`），所以一次页面请求最长约两分钟。
 
-## 5. 为什么不用原生 settings 管道
+## 6. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

@@ -12,6 +12,7 @@ import { registerMeshStateRoute } from './api/index.js'
 import { registerMeshConfigRoute } from './api/config.js'
 import { registerMeshDispatchRoute } from './api/dispatch.js'
 import { registerMeshWorkspacesRoute } from './api/workspaces.js'
+import { registerMeshSessionRoute } from './api/session.js'
 import { meshConfigPath, readConfigOverride } from './config/store.js'
 import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
 import type { MeshToolConfig, MeshToolRegistry, MeshToolRuntime } from './tools/index.js'
@@ -158,6 +159,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   registerMeshDispatchRoute(ctx, toolRuntime)
   // Peers list this node's native workspaces; nothing is created or mutated here.
   registerMeshWorkspacesRoute(ctx, ctx)
+  registerMeshSessionRoute(ctx, toolRuntime)
 
   if (!transport) {
     console.info('[mesh] loaded without a transport: mesh_* tools will report "no transport configured"')
@@ -176,6 +178,7 @@ export { MESH_STATE_PATH, registerMeshStateRoute } from './api/index.js'
 export { handleConfigSave, HOT_CONFIG_KEYS, MESH_CONFIG_PATH, registerMeshConfigRoute, RESTART_CONFIG_KEYS } from './api/config.js'
 export { handleDispatch, MESH_DISPATCH_PATH, registerMeshDispatchRoute } from './api/dispatch.js'
 export { buildWorkspacesPayload, MESH_WORKSPACES_PATH, readWorkspaceRegistry, registerMeshWorkspacesRoute } from './api/workspaces.js'
+export { handleSessionRead, MESH_SESSION_PATH, registerMeshSessionRoute } from './api/session.js'
 export type { MeshConfigControl } from './api/config.js'
 export { meshConfigPath, readConfigOverride, sanitizeOverride, writeConfigOverride } from './config/store.js'
 export type { MeshConfigOverride } from './config/store.js'

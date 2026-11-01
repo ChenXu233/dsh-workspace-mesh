@@ -232,6 +232,23 @@ test('createSession targets the peer native workspace id, not a cwd alias', asyn
   assert.deepEqual(create?.args, { request: { workspaceId: 'workspace-abc' } })
 })
 
+test('readSession projects the peer log into user and assistant lines', async () => {
+  const peer = fakePeer({
+    sessions: [{ sessionId: 'session-1' }],
+    cursor: 5,
+    events: {
+      5: [
+        { type: 'user/message', seq: 1, data: { content: [{ type: 'text', text: 'hello' }] } },
+        { type: 'assistant/message', seq: 2, data: { message: { content: [{ type: 'text', text: 'hi' }] } } },
+        { type: 'turn/end', seq: 3, data: { reason: { kind: 'completed' } } },
+      ],
+    },
+  })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })
+  const messages = await transport.readSession?.('peer-a', 'session-1', 10)
+  assert.deepEqual(messages?.map((message) => [message.role, message.text]), [['user', 'hello'], ['assistant', 'hi']])
+})
+
 test('a stale cookie is refreshed once instead of surfacing as a failure', async () => {
   const peer = fakePeer({ rejectFirst: true })
   const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })

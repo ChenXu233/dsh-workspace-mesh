@@ -1,5 +1,5 @@
 import type { NodeDescriptor, WorkspaceSummary } from '../types.js'
-import type { MeshTransport } from './types.js'
+import type { MeshSessionMessage, MeshTransport } from './types.js'
 
 /**
  * Cross-machine transport over DSH's own Typert RPC surface (roadmap increment 1).
@@ -80,6 +80,19 @@ interface PageRecord {
 }
 
 const MAX_PAGE_WALK = 20
+
+/** Concatenate the text parts of a message payload, ignoring images and files. */
+function partsToText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  const parts: string[] = []
+  for (const block of content) {
+    if (typeof block !== 'object' || block === null) continue
+    const record = block as { type?: unknown; text?: unknown }
+    if (record.type === 'text' && typeof record.text === 'string') parts.push(record.text)
+  }
+  return parts.join('').trim()
+}
 
 let requestCounter = 0
 
@@ -429,6 +442,38 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
           content: [{ type: 'text', text }],
         },
       })
+    },
+
+    async readSession(nodeId: string, sessionId: string, limit = 50): Promise<MeshSessionMessage[]> {
+      const client = requireClient(nodeId)
+      const rows = await listSessions(client)
+      const row = findRow(rows, sessionId)
+      if (row === undefined) {
+        throw new TypertRpcError('unknown-session', `peer ${nodeId}: session "${sessionId}" is not on this node`)
+      }
+      const cursor = row.projections?.asOfSeq ?? 0
+      if (cursor === 0) return []
+      const value = await client.call<{ records?: PageRecord[] }>('session/page', {
+        request: { address: { kind: 'session', sessionId }, throughSeq: cursor, maxMessages: Math.max(1, Math.min(limit, 200)) },
+      })
+      const messages: MeshSessionMessage[] = []
+      for (const record of value.records ?? []) {
+        const event = record.event ?? record
+        const type = typeof event.type === 'string' ? event.type : ''
+        const seq = typeof event.seq === 'number' ? event.seq : -1
+        if (seq < 0) continue
+        const data = (event as { data?: unknown }).data as Record<string, unknown> | undefined
+        const time = typeof (event as { time?: unknown }).time === 'number' ? (event as { time: number }).time : undefined
+        if (type === 'user/message') {
+          const text = partsToText(data?.content)
+          if (text !== '') messages.push({ seq, role: 'user', text, ...(time === undefined ? {} : { time }) })
+        } else if (type === 'assistant/message') {
+          const message = data?.message as Record<string, unknown> | undefined
+          const text = partsToText(message?.content)
+          if (text !== '') messages.push({ seq, role: 'assistant', text, ...(time === undefined ? {} : { time }) })
+        }
+      }
+      return messages.sort((a, b) => a.seq - b.seq)
     },
 
     async follow(nodeId: string, sessionId: string, onEvent: (event: unknown) => void): Promise<() => void> {
