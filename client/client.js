@@ -17,7 +17,7 @@ window.__ModuleLoader__.load({
 
     var FIELDS = [
       { key: "transport", label: "传输模式", kind: "select", options: ["auto"],
-        hint: "目前只有 auto（尚无跨机传输实现）；保存后重启生效" },
+        hint: "配了 peers 时走 typert；保存后重启生效" },
       { key: "assignmentFile", label: "assignment.yml 路径", kind: "text",
         hint: "相对宿主进程 cwd（容器内为 /data/workspace）；留空 = 不加载" },
       { key: "leaseMs", label: "任务租约时长 (ms)", kind: "number", hint: "默认 900000" },
@@ -28,7 +28,7 @@ window.__ModuleLoader__.load({
     /** Settings-page form: same five fields, saved through POST /api/mesh/config. */
     var CONFIG_FIELDS = [
       { key: "transport", label: "传输模式", kind: "select", options: ["auto"],
-        hint: "目前只有 auto（尚无跨机传输实现）；修改后重启容器生效" },
+        hint: "配了 peers 时走 typert；修改后重启容器生效" },
       { key: "assignmentFile", label: "assignment.yml 路径", kind: "text",
         hint: "相对宿主进程 cwd（容器内 /data/workspace）；保存即热加载" },
       { key: "leaseMs", label: "租约时长 (ms)", kind: "number", hint: "保存后立即生效" },
@@ -302,25 +302,43 @@ window.__ModuleLoader__.load({
       ] });
     }
 
-    /** Workspaces seen per node: assignment routes plus transport-reported workspaces. */
+    /**
+     * One row per (server, workspace): "this workspace lives on that machine".
+     * assignment.yml routes and transport receipts are merged, so a workspace
+     * declared and confirmed shows up once with source "both" — never twice.
+     */
     function workspaceRows(peers) {
       var rows = [];
-      var seen = {};
-      for (var i = 0; i < peers.length; i++) {
+      var byKey = {};
+      for (var i = 0; i < peers.length; i += 1) {
         var peer = peers[i];
+        var add = function (workspaceId, label, path, source) {
+          var key = peer.nodeId + "/" + workspaceId;
+          var row = byKey[key];
+          if (row) {
+            if (row.source !== source) row.source = "both";
+            if (!row.label && label) row.label = label;
+            if (!row.path && path) row.path = path;
+            return;
+          }
+          row = {
+            workspaceId: workspaceId,
+            nodeId: peer.nodeId,
+            nodeLabel: peer.label || "",
+            endpoint: peer.endpoint || "",
+            status: peer.status || "unknown",
+            label: label || "",
+            path: path || "",
+            source: source
+          };
+          byKey[key] = row;
+          rows.push(row);
+        };
         var assigned = peer.assignedWorkspaceIds || [];
-        for (var a = 0; a < assigned.length; a++) {
-          var keyA = peer.nodeId + "/" + assigned[a];
-          if (seen[keyA]) continue;
-          seen[keyA] = true;
-          rows.push({ workspaceId: assigned[a], nodeId: peer.nodeId, label: "", source: "assignment" });
-        }
+        for (var a = 0; a < assigned.length; a += 1) add(assigned[a], "", "", "assignment");
         var known = peer.workspaces || [];
-        for (var w = 0; w < known.length; w++) {
-          var keyW = peer.nodeId + "/" + known[w].workspaceId;
-          if (seen[keyW]) continue;
-          seen[keyW] = true;
-          rows.push({ workspaceId: known[w].workspaceId, nodeId: peer.nodeId, label: known[w].name || "", source: "transport" });
+        for (var w = 0; w < known.length; w += 1) {
+          add(known[w].workspaceId, known[w].name || "", known[w].path || "", "transport");
         }
       }
       return rows;
@@ -509,7 +527,7 @@ window.__ModuleLoader__.load({
       blocks.push(jsx.jsxs("div", { className: "dwm-form", children: [
         jsx.jsx("h3", { className: "dwm-h3", children: t("插件配置", "Plugin configuration") }),
         jsx.jsx("p", { className: "dwm-note", children: t(
-          "写入 " + ((data && data.configFile) || "mesh-config.json") + "，覆盖 profile patch 的默认值；租约与 assignment 立即生效，传输与对端 URL 需重启。",
+          "写入 " + ((data && data.configFile) || "mesh-config.json") + "，覆盖 profile patch 的默认值；租约与 assignment 立即生效，传输与 peers 需重启。",
           "Saved to " + ((data && data.configFile) || "mesh-config.json") + ", overriding the profile patch defaults. Lease fields and the assignment table apply immediately; transport and peer URL need a restart."
         ) }),
         jsx.jsx("div", { className: "dwm-fields", children: configRows }),
@@ -569,8 +587,10 @@ window.__ModuleLoader__.load({
         blocks.push(jsx.jsx("table", { className: "dwm-table", children: [
           jsx.jsx("thead", { children: jsx.jsxs("tr", { children: [
             jsx.jsx("th", { children: t("工作区", "Workspace") }, "1"),
-            jsx.jsx("th", { children: t("节点", "Peer") }, "2"),
-            jsx.jsx("th", { children: t("来源", "Source") }, "3")
+            jsx.jsx("th", { children: t("所在服务器", "Server") }, "2"),
+            jsx.jsx("th", { children: t("状态", "Status") }, "3"),
+            jsx.jsx("th", { children: t("远端目录", "Remote path") }, "4"),
+            jsx.jsx("th", { children: t("来源", "Source") }, "5")
           ] }) }),
           jsx.jsx("tbody", { children: ws.map(function (row, index) {
             return jsx.jsxs("tr", { children: [
@@ -578,8 +598,14 @@ window.__ModuleLoader__.load({
                 jsx.jsx("span", { children: row.label || row.workspaceId }),
                 row.label ? jsx.jsx("span", { className: "dwm-mono", style: { marginLeft: "6px", opacity: .7 }, children: row.workspaceId }) : null
               ] }, "w"),
-              jsx.jsx("td", { children: row.nodeId }, "n"),
-              jsx.jsx("td", { children: row.source === "assignment" ? "assignment.yml" : t("传输回执", "transport") }, "s")
+              jsx.jsxs("td", { children: [
+                jsx.jsx("span", { children: row.nodeLabel || row.nodeId }),
+                jsx.jsx("span", { className: "dwm-mono", style: { marginLeft: "6px", opacity: .7 }, children: row.nodeId }),
+                row.endpoint ? jsx.jsx("div", { className: "dwm-mono", style: { opacity: .55, fontSize: "11px" }, children: row.endpoint }) : null
+              ] }, "n"),
+              jsx.jsx("td", { children: jsx.jsx(Badge, { tone: peerTone(row.status), children: row.status === "online" ? t("在线", "online") : row.status === "offline" ? t("离线", "offline") : t("未知", "unknown") }) }, "s"),
+              jsx.jsx("td", { className: "dwm-mono", children: row.path || "—" }, "p"),
+              jsx.jsx("td", { children: sourceText(row.source) }, "src")
             ] }, row.nodeId + "/" + row.workspaceId + "/" + index);
           }) })
         ] }, "wsTable"));
