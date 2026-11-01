@@ -212,20 +212,40 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
 
   const fetchNativeWorkspaces = async (client: TypertClient, nodeId: string): Promise<WorkspaceSummary[] | undefined> => {
     try {
-      const payload = await client.get<{ workspaces?: Array<{ workspaceId?: string; title?: string; path?: string; sessions?: number }> }>(workspacesPath)
+      const payload = await client.get<{
+        workspaces?: Array<{ workspaceId?: string; title?: string; path?: string; sessionIds?: string[] }>
+      }>(workspacesPath)
       const items = payload.workspaces
       if (!Array.isArray(items)) return undefined
+      // Titles and busy flags live on the session log, not on the registry entry.
+      let rows: SessionListRow[] = []
+      try {
+        rows = await listSessions(client)
+      } catch {
+        rows = []
+      }
+      const byId = new Map<string, SessionListRow>()
+      for (const row of rows) if (typeof row.sessionId === 'string') byId.set(row.sessionId, row)
       const ids = new Set<string>()
       const workspaces = items
         .filter((item) => typeof item.workspaceId === 'string' && item.workspaceId !== '')
         .map((item) => {
           const workspaceId = String(item.workspaceId)
           ids.add(workspaceId)
+          const sessionIds = Array.isArray(item.sessionIds) ? item.sessionIds.map(String) : []
           return {
             workspaceId,
             name: item.title !== undefined && item.title !== '' ? item.title : workspaceId,
             path: item.path ?? '',
-            sessions: [],
+            sessions: sessionIds.map((sessionId) => {
+              const row = byId.get(sessionId)
+              return {
+                sessionId,
+                title: row?.projections?.values?.title ?? '',
+                updatedAt: typeof row?.updatedAt === 'number' ? row.updatedAt : 0,
+                busy: row?.running === true,
+              }
+            }),
           }
         })
       nativeIds.set(nodeId, ids)

@@ -27,7 +27,7 @@ export interface WorkspaceRegistryLike {
 
 export interface MeshWorkspacesPayload {
   ok: true
-  workspaces: Array<{ workspaceId: string; title: string; path: string; sessions: number }>
+  workspaces: Array<{ workspaceId: string; title: string; path: string; sessions: number; sessionIds: string[] }>
   note?: string
 }
 
@@ -43,6 +43,9 @@ export function buildWorkspacesPayload(registry: WorkspaceRegistryLike | undefin
       title: typeof item.title === 'string' ? item.title : '',
       path: typeof item.path === 'string' ? item.path : '',
       sessions: Array.isArray(item.sessionIds) ? item.sessionIds.length : 0,
+      // A workspace is a set of conversations, not a mailbox: peers need the ids
+      // to list (and resume) the sessions that live in it.
+      sessionIds: Array.isArray(item.sessionIds) ? item.sessionIds.map(String) : [],
     })),
   }
 }

@@ -15,8 +15,8 @@ test('the payload projects the registry without inventing ids', () => {
   })
   assert.equal(payload.ok, true)
   assert.deepEqual(payload.workspaces, [
-    { workspaceId: 'workspace-abc', title: 'Blog', path: '/data/blog', sessions: 2 },
-    { workspaceId: 'workspace-def', title: '', path: '/data/other', sessions: 0 },
+    { workspaceId: 'workspace-abc', title: 'Blog', path: '/data/blog', sessions: 2, sessionIds: ['s1', 's2'] },
+    { workspaceId: 'workspace-def', title: '', path: '/data/other', sessions: 0, sessionIds: [] },
   ])
 })
 

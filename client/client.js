@@ -369,13 +369,14 @@ window.__ModuleLoader__.load({
       var byKey = {};
       for (var i = 0; i < peers.length; i += 1) {
         var peer = peers[i];
-        var add = function (workspaceId, label, path, source) {
+        var add = function (workspaceId, label, path, source, sessions) {
           var key = peer.nodeId + "/" + workspaceId;
           var row = byKey[key];
           if (row) {
             if (row.source !== source) row.source = "both";
             if (!row.label && label) row.label = label;
             if (!row.path && path) row.path = path;
+            if (sessions && sessions.length > 0 && row.sessions.length === 0) row.sessions = sessions;
             return;
           }
           row = {
@@ -386,16 +387,17 @@ window.__ModuleLoader__.load({
             status: peer.status || "unknown",
             label: label || "",
             path: path || "",
-            source: source
+            source: source,
+            sessions: sessions || []
           };
           byKey[key] = row;
           rows.push(row);
         };
         var assigned = peer.assignedWorkspaceIds || [];
-        for (var a = 0; a < assigned.length; a += 1) add(assigned[a], "", "", "assignment");
+        for (var a = 0; a < assigned.length; a += 1) add(assigned[a], "", "", "assignment", []);
         var known = peer.workspaces || [];
         for (var w = 0; w < known.length; w += 1) {
-          add(known[w].workspaceId, known[w].name || "", known[w].path || "", "transport");
+          add(known[w].workspaceId, known[w].name || "", known[w].path || "", "transport", known[w].sessionList || []);
         }
       }
       return rows;
@@ -416,6 +418,9 @@ window.__ModuleLoader__.load({
       var selState = React.useState("");
       var selected = selState[0];
       var setSelected = selState[1];
+      var sessState = React.useState("");
+      var sessionId = sessState[0];
+      var setSessionId = sessState[1];
       var textState = React.useState("");
       var text = textState[0];
       var setText = textState[1];
@@ -428,6 +433,14 @@ window.__ModuleLoader__.load({
         if (options.length === 0) return;
         setSelected(options[0].nodeId + "/" + options[0].workspaceId);
       }, [selected, options]);
+      // Switching workspace switches its session list: start on "new session".
+      React.useEffect(function () { setSessionId(""); }, [selected]);
+
+      var current = null;
+      for (var ci = 0; ci < options.length; ci += 1) {
+        if (options[ci].nodeId + "/" + options[ci].workspaceId === selected) current = options[ci];
+      }
+      var sessions = (current && current.sessions) || [];
 
       if (rows.length === 0) {
         return jsx.jsxs("div", { className: "dwm-form", children: [
@@ -449,7 +462,9 @@ window.__ModuleLoader__.load({
           method: "POST",
           credentials: "same-origin",
           headers: { "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ workspaceId: row.workspaceId, nodeId: row.nodeId, objective: text })
+          body: JSON.stringify(sessionId === ""
+            ? { workspaceId: row.workspaceId, nodeId: row.nodeId, objective: text, sessionMode: "new" }
+            : { workspaceId: row.workspaceId, nodeId: row.nodeId, objective: text, sessionMode: "resume", sessionId: sessionId })
         })
           .then(function (response) { return response.json(); })
           .then(function (data) {
@@ -487,6 +502,20 @@ window.__ModuleLoader__.load({
             })
           })
         ] }, "pick"),
+        jsx.jsx("div", { className: "dwm-row", children: [
+          jsx.jsx("label", { className: "dwm-label", children: t("会话", "Session") }),
+          jsx.jsx("select", {
+            className: "dwm-select",
+            value: sessionId,
+            onChange: function (event) { setSessionId(event.target.value); },
+            children: [
+              jsx.jsx("option", { value: "", children: t("新会话", "New session") }, "new")
+            ].concat(sessions.map(function (item) {
+              var label = (item.title || item.sessionId) + (item.busy ? " · " + t("运行中", "running") : "");
+              return jsx.jsx("option", { value: item.sessionId, children: label }, item.sessionId);
+            }))
+          })
+        ] }, "sess"),
         jsx.jsx("div", { className: "dwm-row", children: [
           jsx.jsx("label", { className: "dwm-label", children: t("消息", "Message") }),
           jsx.jsx("textarea", {

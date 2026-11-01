@@ -107,6 +107,18 @@ export const TRANSPORT_REPORT_SCHEMA: Record<string, unknown> = {
   required: ['configured', 'mode', 'kind', 'reason'],
 }
 
+export const SESSION_VIEW_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    sessionId: { type: 'string' },
+    title: { type: 'string' },
+    updatedAt: { type: 'number' },
+    busy: { type: 'boolean', description: 'True while a turn is running in that session.' },
+  },
+  required: ['sessionId', 'title', 'updatedAt', 'busy'],
+}
+
 export const WORKSPACE_VIEW_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
@@ -115,8 +127,11 @@ export const WORKSPACE_VIEW_SCHEMA: Record<string, unknown> = {
     name: { type: 'string' },
     path: { type: 'string' },
     sessions: { type: 'integer', description: 'Number of sessions in the workspace (metadata only).' },
+    // A workspace is a set of conversations: the list lets a caller resume one
+    // instead of always starting a new session.
+    sessionList: { type: 'array', items: SESSION_VIEW_SCHEMA },
   },
-  required: ['workspaceId', 'name', 'path', 'sessions'],
+  required: ['workspaceId', 'name', 'path', 'sessions', 'sessionList'],
 }
 
 export interface TransportReport {
@@ -142,12 +157,19 @@ export function workspaceViews(workspaces: readonly WorkspaceSummary[]): Array<{
   name: string
   path: string
   sessions: number
+  sessionList: Array<{ sessionId: string; title: string; updatedAt: number; busy: boolean }>
 }> {
   return workspaces.map((workspace) => ({
     workspaceId: workspace.workspaceId,
     name: workspace.name,
     path: workspace.path,
     sessions: workspace.sessions.length,
+    sessionList: workspace.sessions.map((session) => ({
+      sessionId: session.sessionId,
+      title: session.title,
+      updatedAt: session.updatedAt,
+      busy: session.busy,
+    })),
   }))
 }
 

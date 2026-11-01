@@ -18,7 +18,7 @@ interface FakePeerOptions {
   cursor?: number
   token?: string
   rejectFirst?: boolean
-  nativeWorkspaces?: Array<{ workspaceId: string; title?: string; path?: string }>
+  nativeWorkspaces?: Array<{ workspaceId: string; title?: string; path?: string; sessionIds?: string[] }>
 }
 
 function fakePeer(options: FakePeerOptions = {}) {
@@ -58,7 +58,10 @@ function fakePeer(options: FakePeerOptions = {}) {
       new Response(JSON.stringify({ type: 'server-response', rpcId: 'x', result }), { status: 200 })
 
     if (method === 'session/list') {
-      return reply({ ok: true, value: { items: (options.sessions ?? []).map((row) => ({ ...row, projections: { asOfSeq: cursor, values: {} } })) } })
+      return reply({ ok: true, value: { items: (options.sessions ?? []).map((row) => {
+        const projections = (row.projections ?? {}) as Record<string, unknown>
+        return { ...row, projections: { ...projections, asOfSeq: cursor, values: projections.values ?? {} } }
+      }) } })
     }
     if (method === 'session/create') {
       return reply({ ok: true, value: { sessionId: 'session-new' } })
@@ -196,6 +199,22 @@ test('listWorkspaces prefers the peer native registry over assignment aliases', 
   })
   const workspaces = await transport.listWorkspaces('peer-a')
   assert.deepEqual(workspaces.map((w) => [w.workspaceId, w.name, w.path]), [['workspace-abc', 'Blog', '/data/blog']])
+})
+
+test('a workspace carries its sessions, joined from the peer session log', async () => {
+  const peer = fakePeer({
+    sessions: [
+      { sessionId: 's1', updatedAt: 11, running: false, projections: { values: { title: 'Blog rewrite' } } },
+      { sessionId: 's2', updatedAt: 22, running: true, projections: { values: { title: 'Deploy' } } },
+    ],
+    nativeWorkspaces: [{ workspaceId: 'workspace-abc', title: 'Blog', path: '/data/blog', sessionIds: ['s1', 's2'] }],
+  })
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })
+  const workspaces = await transport.listWorkspaces('peer-a')
+  assert.deepEqual(workspaces[0]?.sessions, [
+    { sessionId: 's1', title: 'Blog rewrite', updatedAt: 11, busy: false },
+    { sessionId: 's2', title: 'Deploy', updatedAt: 22, busy: true },
+  ])
 })
 
 test('createSession targets the peer native workspace id, not a cwd alias', async () => {

@@ -57,6 +57,7 @@
 ```
 
 - `status` 取 `online` / `offline` / `unknown`，只来自传输回执；没有回执就是 `unknown`，**绝不伪造 online**。
+- 每个 peer 的 `workspaces[]` 带 `sessions`（数量）与 `sessionList`（`{sessionId, title, updatedAt, busy}`）；对端是 typert 时这些来自对端注册表与会话日志，不是猜的。
 - `transport.kind` 是 `typert`（配了 `peers`）或 `mock`（测试构造）；没配 `peers` 时为空字符串，`configured: false` 且 `reason` 说明原因。
 - `source` 取 `assignment` / `transport` / `both`，说明这条记录从哪来。
 - DSH 没有核心 roster 服务（[p1-transport.md](../evidence/p1-transport.md) §2.3），所以这里不调任何 `ctx.*`；节点清单由 assignment.yml 派生。

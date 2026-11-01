@@ -50,9 +50,11 @@
 
 ```text
 { ok: true,
-  workspaces: [ { workspaceId, title, path, sessions } ],
+  workspaces: [ { workspaceId, title, path, sessions, sessionIds } ],
   note?: string }
 ```
+
+`sessions` 是数量，`sessionIds` 是**该工作区里的会话 id 列表**——工作区是一组会话，不是投递口；调用方拿这些 id 去 `session/list` 取标题与运行状态，再决定新建还是续用（`sessionMode: "resume"`）。
 
 数据源是 host 的 `ctx.workspaceRegistry.list()`（`dsh-workspace` 提供的 cordis 服务）。组合里没有这个服务时返回空数组 + `note`，不报错。
 
