@@ -41,6 +41,14 @@ export interface TypertTransportOptions {
   resolveWorkspace?: (workspaceId: string) => { nodeId: string; cwd: string } | undefined
   /** Path the peer serves its native workspace list on (default /api/mesh/workspaces). */
   workspacesPath?: string
+  /**
+   * How long one peer is left alone after a failed call (default 60s).
+   *
+   * The page polls state every few seconds; without a cooldown a stale token
+   * turns into a steady stream of 401s, which is exactly what host intrusion
+   * filters (fail2ban) ban an IP for.
+   */
+  failureCooldownMs?: number
   /** Poll interval for follow(), milliseconds. */
   pollMs?: number
   fetchImpl?: typeof fetch
@@ -117,7 +125,17 @@ class TypertClient {
   constructor(
     private readonly peer: TypertPeer,
     private readonly fetchImpl: typeof fetch,
+    /** Called after any failure so the transport can stop hammering this peer. */
+    private readonly onFailure: () => void = () => {},
+    /** True while the peer is cooling down: no network call is attempted. */
+    private readonly coolingDown: () => boolean = () => false,
   ) {}
+
+  private assertNotCoolingDown(path: string): void {
+    if (this.coolingDown()) {
+      throw new TypertRpcError('node-offline', `peer ${this.peer.nodeId}: cooling down after a failure, ${path} skipped`)
+    }
+  }
 
   private url(path: string): string {
     const base = this.peer.baseUrl.replace(/\/+$/, '')
@@ -127,6 +145,7 @@ class TypertClient {
   /** Exchange the login token for a signed API cookie (cached per client). */
   private async connect(): Promise<string> {
     if (this.cookie !== undefined) return this.cookie
+    this.assertNotCoolingDown('/connect')
     const target = `${this.url('/connect')}?token=${encodeURIComponent(this.peer.token)}&interactions=none`
     const res = await this.fetchImpl(target, { redirect: 'manual' })
     const cookies = typeof res.headers.getSetCookie === 'function'
@@ -134,6 +153,7 @@ class TypertClient {
       : [res.headers.get('set-cookie')].filter((value): value is string => typeof value === 'string' && value !== '')
     const cookie = cookies.map((value) => value.split(';')[0]).join('; ')
     if (cookie === '') {
+      this.onFailure()
       throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: /connect returned no credential (token stale?)`)
     }
     this.cookie = cookie
@@ -142,10 +162,12 @@ class TypertClient {
 
   /** Authenticated GET against the peer's own routes (not the Typert RPC surface). */
   async get<T = unknown>(path: string): Promise<T> {
+    this.assertNotCoolingDown(path)
     const cookie = await this.connect()
     const res = await this.fetchImpl(this.url(path), { headers: { cookie, accept: 'application/json' } })
     if (res.status === 401 || res.status === 403) {
       this.cookie = undefined
+      this.onFailure()
       throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: ${path} was rejected (HTTP ${res.status}); refresh the peer token`)
     }
     if (!res.ok) {
@@ -155,6 +177,7 @@ class TypertClient {
   }
 
   async call<T = unknown>(method: string, args: unknown): Promise<T> {
+    this.assertNotCoolingDown(method)
     const attempt = async (): Promise<T> => {
       const cookie = await this.connect()
       const res = await this.fetchImpl(this.url(`/api/${method}`), {
@@ -164,6 +187,7 @@ class TypertClient {
       })
       if (res.status === 401 || res.status === 403) {
         this.cookie = undefined
+        this.onFailure()
         throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: ${method} was rejected (HTTP ${res.status}); refresh the peer token`)
       }
       if (!res.ok) {
@@ -201,8 +225,29 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
   const fetchImpl = options.fetchImpl ?? fetch
   const pollMs = options.pollMs ?? 1000
   const now = options.now ?? Date.now
+  const cooldownMs = options.failureCooldownMs ?? 60_000
+  /** Consecutive failures before a peer is left alone; one 401 may just be a stale cookie. */
+  const FAILURES_BEFORE_COOLDOWN = 2
+  const blockedUntil = new Map<string, number>()
+  const failureCount = new Map<string, number>()
+  const coolingDown = (nodeId: string): boolean => (blockedUntil.get(nodeId) ?? 0) > now()
+  const noteFailure = (nodeId: string): void => {
+    const next = (failureCount.get(nodeId) ?? 0) + 1
+    failureCount.set(nodeId, next)
+    if (next >= FAILURES_BEFORE_COOLDOWN) blockedUntil.set(nodeId, now() + cooldownMs)
+  }
+  const noteSuccess = (nodeId: string): void => {
+    failureCount.delete(nodeId)
+    blockedUntil.delete(nodeId)
+  }
+
   const clients = new Map<string, TypertClient>()
-  for (const peer of options.peers) clients.set(peer.nodeId, new TypertClient(peer, fetchImpl))
+  for (const peer of options.peers) {
+    clients.set(
+      peer.nodeId,
+      new TypertClient(peer, fetchImpl, () => noteFailure(peer.nodeId), () => coolingDown(peer.nodeId)),
+    )
+  }
 
   const requireClient = (nodeId: string): TypertClient => {
     const client = clients.get(nodeId)
@@ -300,6 +345,7 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
         workspace.sessions.sort((a, b) => b.updatedAt - a.updatedAt)
       }
       nativeIds.set(nodeId, ids)
+      noteSuccess(nodeId)
       return workspaces
     } catch {
       return undefined

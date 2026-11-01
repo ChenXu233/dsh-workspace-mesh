@@ -9,9 +9,9 @@
 
 | 口径名称 | 值 | 范围 | 测量日期 | 复现 |
 | --- | --- | --- | --- | --- |
-| 用例数 | 109 | `lib-test/test/*.test.js` 全部用例 | 2026-11-01 | `pnpm test` |
+| 用例数 | 110 | `lib-test/test/*.test.js` 全部用例 | 2026-11-01 | `pnpm test` |
 | 测试文件数 | 10 | `test/*.ts` | 2026-11-01 | `ls test/*.ts` |
-| host 半区 TS 行数 | 5222 | `src/**/*.ts`，含生成文件 `config-envelope.gen.ts` | 2026-11-01 | `find src -name '*.ts' \| xargs wc -l` |
+| host 半区 TS 行数 | 5268 | `src/**/*.ts`，含生成文件 `config-envelope.gen.ts` | 2026-11-01 | `find src -name '*.ts' \| xargs wc -l` |
 | client bundle 行数 | 992 | `client/client.js` | 2026-11-01 | `wc -l < client/client.js` |
 
 使用规则：

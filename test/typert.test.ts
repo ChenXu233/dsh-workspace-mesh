@@ -249,6 +249,18 @@ test('readSession projects the peer log into user and assistant lines', async ()
   assert.deepEqual(messages?.map((message) => [message.role, message.text]), [['user', 'hello'], ['assistant', 'hi']])
 })
 
+test('a failing peer is left alone for the cooldown instead of being hammered', async () => {
+  const peer = fakePeer({ token: 'other' }) // every /connect answers 401
+  const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl, failureCooldownMs: 60_000, now: () => 1_000 })
+  // One failure may be a stale cookie (the client retries once); two in a row
+  // mean the peer is unusable, and from then on it is left alone.
+  assert.equal((await transport.listNodes())[0]?.online, false)
+  assert.equal((await transport.listNodes())[0]?.online, false)
+  const callsAfterCooldown = peer.calls.length
+  assert.equal((await transport.listNodes())[0]?.online, false)
+  assert.equal(peer.calls.length, callsAfterCooldown, 'no extra network calls while cooling down')
+})
+
 test('a stale cookie is refreshed once instead of surfacing as a failure', async () => {
   const peer = fakePeer({ rejectFirst: true })
   const transport = createTypertTransport({ peers, fetchImpl: peer.fetchImpl })
