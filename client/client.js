@@ -13,6 +13,8 @@ window.__ModuleLoader__.load({
     var STATE_PATH = "/api/mesh/state";
     // Config writes land in the plugin's own override file (src/api/config.ts).
     var CONFIG_PATH = "/api/mesh/config";
+    // Browser-triggered dispatch: same code path as the mesh_dispatch tool (src/api/dispatch.ts).
+    var DISPATCH_PATH = "/api/mesh/dispatch";
     var AUTO_REFRESH_MS = 5000;
 
     var FIELDS = [
@@ -242,59 +244,114 @@ window.__ModuleLoader__.load({
      * the hub, solid when the transport reports the peer online, dashed when
      * the peer is static (assignment only) or offline.
      */
+    /** Status colour for a peer, shared by the topology and the tables. */
+    function statusColor(status) {
+      if (status === "online") return "var(--dsw-alias-state-success, currentColor)";
+      if (status === "offline") return "var(--dsw-alias-state-danger, currentColor)";
+      return "var(--dsw-alias-label-tertiary)";
+    }
+
+    /**
+     * Topology layout, derived from the roster instead of hard-coded rows:
+     * the hub sits on the vertical centre line, peers fan out on the right.
+     * Coordinates are fractions of the viewBox, so the drawing stays correct
+     * when the card is narrow.
+     */
+    function useTopologyLayout(peers) {
+      return React.useMemo(function () {
+        var rowHeight = 52;
+        var top = 30;
+        var height = Math.max(120, peers.length * rowHeight + top + 20);
+        var nodes = peers.map(function (peer, index) {
+          return { peer: peer, key: peer.nodeId || "peer-" + index, y: top + index * rowHeight };
+        });
+        return { height: height, nodes: nodes, hubX: 0.2, peerX: 0.74, hubY: 0.5 };
+      }, [peers]);
+    }
+
+    /** One hub→peer link; solid when the transport says online, dashed otherwise. */
+    function TopoEdge(props) {
+      var online = props.online;
+      var active = props.active;
+      return jsx.jsx("line", {
+        x1: props.x1, y1: props.y1, x2: props.x2, y2: props.y2,
+        stroke: online ? "var(--dsw-alias-state-success, currentColor)" : "var(--dsw-alias-label-tertiary)",
+        strokeWidth: active ? 2.2 : online ? 1.6 : 1,
+        strokeDasharray: online ? undefined : "4 4",
+        opacity: active ? 1 : online ? 0.8 : 0.55
+      });
+    }
+
+    /** The instance serving this page: board + lease owner. */
+    function TopoHub(props) {
+      return jsx.jsxs("g", { children: [
+        jsx.jsx("circle", { cx: props.x, cy: props.y, r: 17, fill: "var(--dsw-alias-state-business-primary, currentColor)", opacity: 0.16 }),
+        jsx.jsx("circle", { cx: props.x, cy: props.y, r: 9, fill: "var(--dsw-alias-state-business-primary, currentColor)" }),
+        jsx.jsx("text", { x: props.x, y: props.y - 30, textAnchor: "middle", fontSize: 12, fontWeight: 600, children: topoLabel(props.label, 18) }),
+        jsx.jsx("text", { x: props.x, y: props.y + 34, textAnchor: "middle", fontSize: 10, opacity: 0.7, children: t("leader · 任务板/租约", "leader · board/leases") })
+      ] });
+    }
+
+    /** One peer node, hoverable; hovering highlights its edge. */
+    function TopoNode(props) {
+      var peer = props.peer;
+      var online = peer.status === "online";
+      var color = statusColor(peer.status);
+      return jsx.jsxs("g", {
+        style: { cursor: "default" },
+        onMouseEnter: props.onEnter,
+        onMouseLeave: props.onLeave,
+        children: [
+          jsx.jsx("circle", { cx: props.x, cy: props.y, r: props.active ? 13 : 10, fill: "transparent" }),
+          jsx.jsx("circle", { cx: props.x, cy: props.y, r: 5, fill: online ? color : "transparent", stroke: color, strokeWidth: 1.5 }),
+          jsx.jsx("text", { x: props.x + 14, y: props.y + 4, fontSize: 12, fontWeight: props.active ? 600 : 400, children: topoLabel(peer.label || peer.nodeId, 13) }),
+          jsx.jsx("title", { children: (peer.nodeId || "") + (peer.endpoint ? " · " + peer.endpoint : "") + " · " + (peer.status || "unknown") + " · " + sourceText(peer.source) })
+        ]
+      });
+    }
+
     function MeshTopology(props) {
       var peers = props.peers;
       var selfLabel = props.selfLabel;
-      var count = peers.length;
-      var height = Math.max(96, count * 46 + 34);
+      var layout = useTopologyLayout(peers);
+      var hoverState = React.useState(null);
+      var hovered = hoverState[0];
+      var setHovered = hoverState[1];
       var width = 560;
-      var selfY = height / 2;
+      var height = layout.height;
+      var hubX = width * layout.hubX;
+      var hubY = height * layout.hubY;
+      var peerX = width * layout.peerX;
       var children = [];
 
       // Edges first so nodes render on top.
-      for (var i = 0; i < count; i++) {
-        var peer = peers[i];
-        var py = 26 + i * 46;
-        var online = peer.status === "online";
-        children.push(jsx.jsx("line", {
-          x1: 148, y1: selfY, x2: 402, y2: py,
-          stroke: online ? "var(--dsw-alias-state-success, currentColor)" : "var(--dsw-alias-label-tertiary)",
-          strokeWidth: online ? 1.6 : 1,
-          strokeDasharray: online ? undefined : "4 4",
-          opacity: online ? 0.8 : 0.55,
-          children: undefined
+      for (var i = 0; i < layout.nodes.length; i += 1) {
+        var node = layout.nodes[i];
+        children.push(jsx.jsx(TopoEdge, {
+          x1: hubX + 20, y1: hubY, x2: peerX - 8, y2: node.y,
+          online: node.peer.status === "online",
+          active: hovered === i
         }, "edge" + i));
       }
-      // Hub node: the board/lease owner on this instance.
-      children.push(jsx.jsxs("g", { children: [
-        jsx.jsx("circle", { cx: 112, cy: selfY, r: 17, fill: "var(--dsw-alias-state-business-primary, currentColor)", opacity: 0.16 }),
-        jsx.jsx("circle", { cx: 112, cy: selfY, r: 9, fill: "var(--dsw-alias-state-business-primary, currentColor)" }),
-        jsx.jsx("text", { x: 112, y: selfY - 30, textAnchor: "middle", fontSize: 12, fontWeight: 600, children: topoLabel(selfLabel, 18) }),
-        jsx.jsx("text", { x: 112, y: selfY + 34, textAnchor: "middle", fontSize: 10, opacity: 0.7, children: t("leader · 任务板/租约", "leader · board/leases") })
-      ] }, "hub"));
-      // Peer nodes column.
-      for (var j = 0; j < count; j++) {
-        var p = peers[j];
-        var yy = 26 + j * 46;
-        var ok = p.status === "online";
-        var dot = ok ? "var(--dsw-alias-state-success, currentColor)" : p.status === "offline" ? "var(--dsw-alias-state-danger, currentColor)" : "var(--dsw-alias-label-tertiary)";
-        children.push(jsx.jsxs("g", { children: [
-          jsx.jsx("line", { x1: 402, y1: yy, x2: 418, y2: yy, stroke: dot, strokeWidth: 1.2 }),
-          jsx.jsx("circle", { cx: 426, cy: yy, r: 5, fill: ok ? dot : "transparent", stroke: dot, strokeWidth: 1.5 }),
-          jsx.jsx("text", { x: 440, y: yy + 4, fontSize: 12, children: topoLabel(p.label || p.nodeId, 13) }),
-          jsx.jsx("title", { children: (p.nodeId || "") + (p.endpoint ? " · " + p.endpoint : "") + " · " + (p.status || "unknown") + " · " + sourceText(p.source) })
-        ] }, "peer" + j));
+      children.push(jsx.jsx(TopoHub, { x: hubX, y: hubY, label: selfLabel }, "hub"));
+      for (var j = 0; j < layout.nodes.length; j += 1) {
+        var entry = layout.nodes[j];
+        children.push(jsx.jsx(TopoNode, {
+          peer: entry.peer, x: peerX, y: entry.y, active: hovered === j,
+          onEnter: (function (index) { return function () { setHovered(index); }; })(j),
+          onLeave: function () { setHovered(null); }
+        }, entry.key));
       }
 
+      var focused = hovered === null ? null : layout.nodes[hovered].peer;
       return jsx.jsxs("div", { className: "dwm-form", children: [
         jsx.jsx("h3", { className: "dwm-h3", children: t("互联拓扑", "Connectivity topology") }),
-        count === 0
+        layout.nodes.length === 0
           ? jsx.jsx("p", { className: "dwm-empty", children: t("还没有可绘制的节点。", "No peers to draw yet.") })
           : jsx.jsx("svg", { className: "dwm-topo", viewBox: "0 0 " + width + " " + height, role: "img", children: children }),
-        count > 0 ? jsx.jsx("p", { className: "dwm-note", children: t(
-          "实线 = 传输回执在线；虚线 = 仅 assignment.yml 静态登记或离线。悬停节点看 endpoint。",
-          "Solid = online per transport receipt; dashed = assignment-only or offline. Hover a node for its endpoint."
-        ) }) : null,
+        layout.nodes.length > 0 ? jsx.jsx("p", { className: "dwm-note", children: focused === null
+          ? t("实线 = 传输回执在线；虚线 = 仅 assignment.yml 静态登记或离线。悬停节点看 endpoint。", "Solid = online per transport receipt; dashed = assignment-only or offline. Hover a node for its endpoint.")
+          : (focused.label || focused.nodeId) + " · " + (focused.endpoint || t("无 endpoint", "no endpoint")) + " · " + focused.status }) : null,
         jsx.jsx("p", { className: "dwm-note", children: t(
           "发现链（v1 单跳）：所有节点由本机经 assignment.yml / 传输直接发现；多跳中继属后续增量，届时此卡会画出中继路径。",
           "Discovery (v1, single hop): every peer is discovered by this node via assignment.yml / the transport. Multi-hop relays arrive with a later increment and will be drawn here."
@@ -342,6 +399,110 @@ window.__ModuleLoader__.load({
         }
       }
       return rows;
+    }
+
+    /**
+     * Send one message to a workspace that lives on another machine.
+     *
+     * A remote workspace is virtual here: nothing is copied, the page only knows
+     * its id, owner and status. Sending posts to /api/mesh/dispatch, which runs
+     * the same code as the mesh_dispatch tool — the agent loop stays on the
+     * owning machine and only the final text comes back.
+     */
+    function RemoteWorkspacePanel(props) {
+      var rows = props.rows;
+      var online = rows.filter(function (row) { return row.status === "online"; });
+      var options = online.length > 0 ? online : rows;
+      var selState = React.useState("");
+      var selected = selState[0];
+      var setSelected = selState[1];
+      var textState = React.useState("");
+      var text = textState[0];
+      var setText = textState[1];
+      var sendState = React.useState({ phase: "idle", tone: "", message: "", summary: "", code: "" });
+      var send = sendState[0];
+      var setSend = sendState[1];
+
+      React.useEffect(function () {
+        if (selected !== "") return;
+        if (options.length === 0) return;
+        setSelected(options[0].nodeId + "/" + options[0].workspaceId);
+      }, [selected, options]);
+
+      if (rows.length === 0) {
+        return jsx.jsxs("div", { className: "dwm-form", children: [
+          jsx.jsx("h3", { className: "dwm-h3", children: t("远程工作区", "Remote workspaces") }),
+          jsx.jsx("p", { className: "dwm-empty", children: t("还没有远端工作区：配置 assignment.yml 与 peers 后出现。", "No remote workspaces yet: add assignment.yml and peers.") })
+        ] });
+      }
+
+      var sending = send.phase === "sending";
+      var disabled = sending || selected === "" || text.trim() === "";
+      function submit() {
+        var row = null;
+        for (var i = 0; i < options.length; i += 1) {
+          if (options[i].nodeId + "/" + options[i].workspaceId === selected) row = options[i];
+        }
+        if (row === null) return;
+        setSend({ phase: "sending", tone: "", message: t("已投递，等待远端回复…", "Dispatched, waiting for the remote reply…"), summary: "", code: "" });
+        fetch(DISPATCH_PATH, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ workspaceId: row.workspaceId, objective: text })
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            if (data && data.ok === true) {
+              var summary = (data.result && data.result.summary) || "";
+              setSend({ phase: "done", tone: "ok", message: t("完成", "done") + (data.state ? " · " + data.state : ""), summary: summary, code: "" });
+              setText("");
+            } else {
+              var err = (data && data.error) || {};
+              setSend({ phase: "done", tone: "err", message: (err.code || "error") + (err.message ? " · " + err.message : ""), summary: "", code: err.code || "" });
+            }
+          })
+          .catch(function (error) {
+            setSend({ phase: "done", tone: "err", message: String((error && error.message) || error), summary: "", code: "" });
+          });
+      }
+
+      return jsx.jsxs("div", { className: "dwm-form", children: [
+        jsx.jsx("h3", { className: "dwm-h3", children: t("远程工作区", "Remote workspaces") }),
+        jsx.jsx("p", { className: "dwm-note", children: t(
+          "这些工作区在别的机器上：文件、shell、模型调用都在那台机器执行，这里只发一条消息并取回最终回复。断网或对端离线时状态为离线，发送会直接报错。",
+          "These workspaces live on other machines: files, shell and model calls run there. This page only sends a message and reads the final reply; when the peer is unreachable the status is offline and sending fails fast."
+        ) }),
+        jsx.jsx("div", { className: "dwm-row", children: [
+          jsx.jsx("label", { className: "dwm-label", children: t("目标工作区", "Workspace") }),
+          jsx.jsx("select", {
+            className: "dwm-select",
+            value: selected,
+            onChange: function (event) { setSelected(event.target.value); },
+            children: options.map(function (row) {
+              return jsx.jsx("option", {
+                value: row.nodeId + "/" + row.workspaceId,
+                children: row.workspaceId + " · " + (row.nodeLabel || row.nodeId) + (row.status === "online" ? "" : " (" + t("离线", "offline") + ")")
+              }, row.nodeId + "/" + row.workspaceId);
+            })
+          })
+        ] }, "pick"),
+        jsx.jsx("div", { className: "dwm-row", children: [
+          jsx.jsx("label", { className: "dwm-label", children: t("消息", "Message") }),
+          jsx.jsx("textarea", {
+            className: "dwm-input",
+            rows: 3,
+            value: text,
+            placeholder: t("要在这台机器的这个工作区里做的事…", "What should run in that workspace on that machine..."),
+            onChange: function (event) { setText(event.target.value); }
+          })
+        ] }, "msg"),
+        jsx.jsx("div", { className: "dwm-actions", children: [
+          jsx.jsx("button", { className: "dwm-btn", disabled: disabled, onClick: submit, children: sending ? t("发送中…", "Sending...") : t("发送", "Send") }),
+          send.message ? jsx.jsx("span", { className: "dwm-status", "data-tone": send.tone, children: send.message }) : null
+        ] }, "act"),
+        send.summary ? jsx.jsx("pre", { className: "dwm-mono", style: { whiteSpace: "pre-wrap", margin: 0, fontSize: "12px" }, children: send.summary }, "sum") : null
+      ] });
     }
 
     /**
@@ -611,6 +772,8 @@ window.__ModuleLoader__.load({
         ] }, "wsTable"));
       }
 
+      blocks.push(jsx.jsx(RemoteWorkspacePanel, { rows: ws }, "remoteWs"));
+
       blocks.push(jsx.jsx("h3", { className: "dwm-h3", children: t("近期任务", "Recent tasks") }, "taskTitle"));
       if (tasks.length === 0) {
         blocks.push(jsx.jsx("p", { className: "dwm-empty", children: t(
@@ -663,6 +826,23 @@ window.__ModuleLoader__.load({
           return ConfigSection(Object.assign({}, props, { ctx: ctx }));
         });
       });
+      // Left-rail entry + full page: reachable without opening settings.
+      ctx.slots.inject("sidebar.panellist", function () {
+        return ctx.slots.register({
+          name: "sidebar.panellist",
+          id: "mesh",
+          order: 15,
+          label: function () { return t("工作区网格", "Workspace mesh"); }
+        }, MeshPanelIcon);
+      });
+      ctx.slots.inject("main", function () {
+        return ctx.slots.register({
+          name: "main",
+          key: "mesh",
+          label: function () { return t("工作区网格", "Workspace mesh"); }
+        }, MeshWorkspacePage);
+      });
+
       ctx.slots.inject("settings.section", function () {
         return ctx.slots.register({
           name: "settings.section",
@@ -673,6 +853,67 @@ window.__ModuleLoader__.load({
           return MeshSection(Object.assign({}, props, { ctx: ctx }));
         });
       });
+    }
+
+    /** Left-rail icon: a hub with two peers. */
+    function MeshPanelIcon() {
+      return jsx.jsxs("svg", {
+        width: 20, height: 20, viewBox: "0 0 20 20", fill: "none", "aria-hidden": "true",
+        children: [
+          jsx.jsx("circle", { cx: 4.5, cy: 10, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
+          jsx.jsx("circle", { cx: 15.5, cy: 5, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
+          jsx.jsx("circle", { cx: 15.5, cy: 15, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
+          jsx.jsx("path", { d: "M6.6 9.2 L13.4 5.8 M6.6 10.8 L13.4 14.2", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round" })
+        ]
+      });
+    }
+
+    /**
+     * Full-page panel: every workspace this instance can reach, which machine
+     * owns it, and a box to send that workspace a message. A remote workspace is
+     * virtual here — the page never touches its files, it only posts a message
+     * and shows the reply the owning machine produced.
+     */
+    function MeshWorkspacePage() {
+      var st = React.useState({ phase: "loading", data: null, error: "" });
+      var state = st[0];
+      var set = st[1];
+      var load = React.useCallback(function () {
+        fetch(STATE_PATH, { method: "GET", credentials: "same-origin", headers: { accept: "application/json" } })
+          .then(function (response) {
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            return response.json();
+          })
+          .then(function (data) { set({ phase: "ready", data: data, error: "" }); })
+          .catch(function (err) { set({ phase: "error", data: null, error: String((err && err.message) || err) }); });
+      }, []);
+      React.useEffect(function () {
+        load();
+        var timer = setInterval(load, 10000);
+        return function () { clearInterval(timer); };
+      }, [load]);
+
+      var data = state.data || {};
+      var peers = data.peers || [];
+      var rows = workspaceRows(peers);
+      var online = 0;
+      for (var i = 0; i < rows.length; i += 1) if (rows[i].status === "online") online += 1;
+
+      return jsx.jsxs("div", { className: "dwm-page", children: [
+        jsx.jsx("h2", { className: "dwm-h2", children: t("工作区网格", "Workspace mesh") }),
+        jsx.jsx("p", { className: "dwm-intro", children: state.phase === "error"
+          ? t("读取 mesh 状态失败：", "Failed to read mesh state: ") + state.error
+          : t("每个工作区都属于某台机器：消息传过去，执行留在那台机器上。", "Each workspace belongs to one machine: the message travels, the work stays there.") }),
+        jsx.jsxs("div", { className: "dwm-grid", children: [
+          jsx.jsx(Stat, { label: t("在线工作区", "Online"), value: String(online) }, "s1"),
+          jsx.jsx(Stat, { label: t("工作区总数", "Total"), value: String(rows.length) }, "s2")
+        ] }, "stats"),
+        jsx.jsx(RemoteWorkspacePanel, { rows: rows }, "remote"),
+        jsx.jsx("p", { className: "dwm-note", children: t(
+          "断网或对端离线时，工作区状态变离线，发送会直接失败——不会留下半截任务。",
+          "When the network or the peer is down the workspace turns offline and sending fails fast; nothing is left half-queued."
+        ) })
+      ] });
     }
 
     exports.apply = apply;

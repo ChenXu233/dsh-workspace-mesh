@@ -10,6 +10,7 @@ import type { MeshPeerConfig } from './config.js'
 import type { MeshTransport } from './transport/types.js'
 import { registerMeshStateRoute } from './api/index.js'
 import { registerMeshConfigRoute } from './api/config.js'
+import { registerMeshDispatchRoute } from './api/dispatch.js'
 import { meshConfigPath, readConfigOverride } from './config/store.js'
 import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
 import type { MeshToolConfig, MeshToolRegistry, MeshToolRuntime } from './tools/index.js'
@@ -153,6 +154,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   })
   registerMeshStateRoute(ctx, toolRuntime, stateExtras)
   registerMeshConfigRoute(ctx, { runtime: toolRuntime, file: overrideFile, extras: stateExtras })
+  registerMeshDispatchRoute(ctx, toolRuntime)
 
   if (!transport) {
     console.info('[mesh] loaded without a transport: mesh_* tools will report "no transport configured"')
@@ -169,6 +171,7 @@ export { buildMeshState, MESH_STATE_VERSION, MAX_TASK_ROWS, recentTasks } from '
 export type { MeshStateCounts, MeshStatePayload, MeshStateTaskView } from './api/state.js'
 export { MESH_STATE_PATH, registerMeshStateRoute } from './api/index.js'
 export { handleConfigSave, HOT_CONFIG_KEYS, MESH_CONFIG_PATH, registerMeshConfigRoute, RESTART_CONFIG_KEYS } from './api/config.js'
+export { handleDispatch, MESH_DISPATCH_PATH, registerMeshDispatchRoute } from './api/dispatch.js'
 export type { MeshConfigControl } from './api/config.js'
 export { meshConfigPath, readConfigOverride, sanitizeOverride, writeConfigOverride } from './config/store.js'
 export type { MeshConfigOverride } from './config/store.js'

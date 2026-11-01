@@ -25,6 +25,7 @@
 | 传输接缝 + mock 适配器 | `src/transport/` | `test/transport.test.ts`；`pairing` / `loopback` 已删除（[decisions](decisions.md) D12） |
 | 跨机传输 TypertTransport | `src/transport/typert.ts` | `test/typert.test.ts`；阿里云 → 腾讯云实测 `mesh_dispatch` 拿到真实回复（4.4s） |
 | 模型可见的工具面（真机） | — | 云端实例里模型调用 `mesh_list_nodes`，返回 `transport.kind = "typert"` |
+| 浏览器直发 + 侧栏「工作区网格」面板 | `src/api/dispatch.ts`、`client/client.js` | `test/dispatch-route.test.ts`；页面上给 ws-blog 发消息拿到「收到」 |
 | 自重启控制器 | `src/lifecycle/` | `test/lifecycle.test.ts`（未接线：默认不启用） |
 | 身份原语（epoch key / token / 防重放） | `src/identity/` | `test/identity.test.ts`（纯函数库，未接请求路径） |
 

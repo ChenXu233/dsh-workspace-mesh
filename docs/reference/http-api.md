@@ -44,7 +44,28 @@
 
 热字段（`leaseMs` / `dispatchTimeoutMs` / `leaseOwner` / `assignmentFile`）当场生效；`transport` 先落盘，下次 `apply()` 才生效。
 
-## 3. 为什么不用原生 settings 管道
+## 3. POST /api/mesh/dispatch
+
+浏览器直接投递：模型走 `mesh_dispatch` 工具，人走这条。两者是**同一份代码**——路由调 `createMeshDispatchTool(runtime).execute(...)`，所以校验、租约不变量、回复聚合与错误码不会分叉。
+
+请求体只接受下表这些键，其余字段丢弃：
+
+| 键 | 必填 | 说明 |
+| --- | --- | --- |
+| `workspaceId` | 是 | 目标工作区 |
+| `objective` | 是 | 要在这台机器的这个工作区里做的事 |
+| `nodeId` / `context` / `acceptance` / `sessionMode` / `sessionId` / `maxDurationMs` / `replyMode` | 否 | 与工具同名同义 |
+
+返回 `mesh_dispatch` 的输出原样：`{ ok, taskId, state, target, result | error }`，HTTP 200。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 400 | 请求体不是 JSON、缺 `workspaceId`/`objective`、或工具抛参数错误 |
+| 200 | 其余情况；业务失败也是 200 + `ok: false` + `error.code` |
+
+和工具一样**阻塞到最终回复**（或 `dispatchTimeoutMs`），所以一次页面请求最长约两分钟。
+
+## 4. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

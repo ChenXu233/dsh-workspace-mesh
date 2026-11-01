@@ -63,6 +63,11 @@ recent tasks, and writes configuration through two routes registered inside Conn
 | `/api/mesh/state` | GET | Read-only snapshot |
 | `/api/mesh/config` | POST | Validate + persist a config patch, apply the hot subset |
 
+The same browser half also registers a **Workspace mesh** entry in the left rail: it lists every
+workspace this instance can reach, which machine owns it and whether that machine is online, and it
+can send that workspace a message. Remote workspaces are virtual there — nothing is copied, the
+agent loop runs on the owning machine.
+
 Payloads, error codes and the hot/restart split: [docs/reference/http-api.md](./docs/reference/http-api.md).
 Configuration keys and their defaults: [docs/reference/config.md](./docs/reference/config.md).
 
