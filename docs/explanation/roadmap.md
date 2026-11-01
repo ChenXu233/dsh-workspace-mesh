@@ -24,22 +24,13 @@
 | 配置分层与热更新 | `src/config*.ts` | `test/config.test.ts` |
 | 传输接缝 + mock 适配器 | `src/transport/` | `test/transport.test.ts`；`pairing` / `loopback` 已删除（[decisions](decisions.md) D12） |
 | 跨机传输 TypertTransport | `src/transport/typert.ts` | `test/typert.test.ts`；阿里云 → 腾讯云实测 `mesh_dispatch` 拿到真实回复（4.4s） |
+| 模型可见的工具面（真机） | — | 云端实例里模型调用 `mesh_list_nodes`，返回 `transport.kind = "typert"` |
 | 自重启控制器 | `src/lifecycle/` | `test/lifecycle.test.ts`（未接线：默认不启用） |
 | 身份原语（epoch key / token / 防重放） | `src/identity/` | `test/identity.test.ts`（纯函数库，未接请求路径） |
 
 ## 2. 下一步
 
-### 增量 1：真机冒烟（模型真的看得见 mesh_*）
-
-profile 里挂 `id: tools` 行 → `dsh plugin --profile <name> add file:<repo>` → 新会话让模型调 `mesh_list_nodes`。步骤与判据见 [how-to/development.md](../how-to/development.md) §1.3。
-
-已完成的部分：插件在云端 dev 机加载、四个工具注册成功、`/api/mesh/state` 报 `transport.kind = "typert"`。
-
-还差的部分：**让模型真的调用一次**。调用方那台机器需要有可用的模型路由，否则连 `mesh_list_nodes` 都不会被触发。
-
-验收：新会话出现工具调用卡片，返回的 roster 与 `assignment.yml` 一致。
-
-### 增量 2（提案，未批准）：消息总线平面
+### 增量 1（提案，未批准）：消息总线平面
 
 依据 [p3-bus-plane.md](../evidence/p3-bus-plane.md)：给插件用的跨节点原语，只传指针不传内容，topic 首段由 mesh 校验。
 
