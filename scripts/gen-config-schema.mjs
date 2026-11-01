@@ -18,6 +18,15 @@ const schema = z.object({
       .default('auto')
       .description('transport: 目前只有 auto（尚无跨机传输实现）; 保存后重启生效'),
   ),
+  peers: live(
+    z.array(z.object({
+      nodeId: z.string().description('节点 id, 与 assignment.yml 一致'),
+      baseUrl: z.string().description("对端 web host 的 HTTP(S) 根, 如 https://peer.example.com:3211"),
+      token: z.string().description('对端当前登录 token (?token= 的值); 对端重启后会轮换'),
+    }))
+      .default([])
+      .description('跨机传输的对端清单; 为空 = 不启用跨机传输; 保存后重启生效'),
+  ),
   assignmentFile: live(
     z.string().default('').description('assignment.yml 路径, 相对宿主进程 cwd (容器内为 /data/workspace); 留空 = 不加载'),
   ),

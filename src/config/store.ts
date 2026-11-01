@@ -19,6 +19,7 @@ import { dirname, join } from 'node:path'
 
 export interface MeshConfigOverride {
   transport?: 'auto'
+  peers?: Array<{ nodeId: string; baseUrl: string; token: string }>
   assignmentFile?: string
   leaseMs?: number
   dispatchTimeoutMs?: number
@@ -28,6 +29,7 @@ export interface MeshConfigOverride {
 export const MESH_CONFIG_FILE_NAME = 'mesh-config.json'
 export const MESH_CONFIG_KEYS = [
   'transport',
+  'peers',
   'assignmentFile',
   'leaseMs',
   'dispatchTimeoutMs',
@@ -74,6 +76,27 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
         if (isString(entry) && TRANSPORTS.includes(entry)) value.transport = entry as MeshConfigOverride['transport']
         else problems.push('transport must be auto')
         break
+      case 'peers': {
+        if (!Array.isArray(entry)) {
+          problems.push('peers must be an array')
+          break
+        }
+        const peers: Array<{ nodeId: string; baseUrl: string; token: string }> = []
+        let bad = false
+        for (let index = 0; index < entry.length; index += 1) {
+          const item: unknown = entry[index]
+          const record = typeof item === 'object' && item !== null && !Array.isArray(item) ? (item as Record<string, unknown>) : undefined
+          const nodeId = record?.nodeId
+          const baseUrl = record?.baseUrl
+          const token = record?.token
+          if (typeof nodeId !== 'string' || nodeId.trim() === '') { problems.push(`peers[${index}].nodeId must be a non-empty string`); bad = true; break }
+          if (typeof baseUrl !== 'string' || !/^https?:\/\//u.test(baseUrl.trim())) { problems.push(`peers[${index}].baseUrl must start with http:// or https://`); bad = true; break }
+          if (typeof token !== 'string' || token.trim() === '') { problems.push(`peers[${index}].token must be a non-empty string`); bad = true; break }
+          peers.push({ nodeId: nodeId.trim(), baseUrl: baseUrl.trim(), token: token.trim() })
+        }
+        if (!bad) value.peers = peers
+        break
+      }
       case 'assignmentFile':
         if (!isString(entry)) problems.push('assignmentFile must be a string')
         else value.assignmentFile = entry.trim()

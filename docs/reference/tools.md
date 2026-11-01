@@ -57,7 +57,7 @@
 ```
 
 - `status` 取 `online` / `offline` / `unknown`，只来自传输回执；没有回执就是 `unknown`，**绝不伪造 online**。
-- `transport.kind` 目前只可能是 `mock`（仅测试构造）或空字符串；`configured: false` 时 `reason` 说明原因。
+- `transport.kind` 是 `typert`（配了 `peers`）或 `mock`（测试构造）；没配 `peers` 时为空字符串，`configured: false` 且 `reason` 说明原因。
 - `source` 取 `assignment` / `transport` / `both`，说明这条记录从哪来。
 - DSH 没有核心 roster 服务（[p1-transport.md](../evidence/p1-transport.md) §2.3），所以这里不调任何 `ctx.*`；节点清单由 assignment.yml 派生。
 - SPEC §18 的 `mesh_list_workspaces(nodeId?)` 折进 `peers[].workspaces`，没有独立工具。

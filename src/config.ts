@@ -16,9 +16,20 @@ import { CONFIG_ENVELOPE } from './config-envelope.gen.js'
  * validation and form rendering working without the dependency.
  */
 
+export interface MeshPeerConfig {
+  /** Node id used by assignment.yml and the tools. */
+  nodeId: string
+  /** HTTP(S) root of the peer's web host. */
+  baseUrl: string
+  /** The peer's current login token; rotates when the peer restarts. */
+  token: string
+}
+
 export interface Config {
   /** Reserved for transport selection; 'auto' is the only value until an adapter ships. */
   transport?: 'auto'
+  /** Peers reachable over their web API; empty = no cross-machine transport. */
+  peers?: MeshPeerConfig[]
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -66,13 +77,42 @@ const FIELDS = {
 
 type FieldName = keyof typeof FIELDS
 
+interface PeerIssue {
+  value?: Array<{ nodeId: string; baseUrl: string; token: string }>
+  issue?: string
+}
+
+function validatePeers(raw: unknown): PeerIssue {
+  if (!Array.isArray(raw)) return { issue: '"peers" must be an array' }
+  const value: Array<{ nodeId: string; baseUrl: string; token: string }> = []
+  const keys = ['nodeId', 'baseUrl', 'token'] as const
+  for (let index = 0; index < raw.length; index += 1) {
+    const entry: unknown = raw[index]
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      return { issue: `"peers[${index}]" must be an object` }
+    }
+    const record = entry as Record<string, unknown>
+    for (const key of Object.keys(record)) {
+      if (!(keys as readonly string[]).includes(key)) return { issue: `"peers[${index}]" has unknown field "${key}"` }
+    }
+    for (const key of keys) {
+      const field = record[key]
+      if (typeof field !== 'string' || field.trim() === '') {
+        return { issue: `"peers[${index}].${key}" must be a non-empty string` }
+      }
+    }
+    value.push({ nodeId: String(record.nodeId).trim(), baseUrl: String(record.baseUrl).trim(), token: String(record.token) })
+  }
+  return { value }
+}
+
 function validate(input: unknown): ValidationResult {
   if (input === undefined || input === null) input = {}
   if (typeof input !== 'object' || Array.isArray(input)) {
     return { issues: [{ message: 'expected an object' }] }
   }
   const source = input as Record<string, unknown>
-  const known = new Set(Object.keys(FIELDS))
+  const known = new Set([...Object.keys(FIELDS), 'peers'])
   for (const key of Object.keys(source)) {
     if (!known.has(key)) return { issues: [{ message: `unknown field "${key}"`, path: [key] }] }
   }
@@ -100,6 +140,11 @@ function validate(input: unknown): ValidationResult {
       }
       value[key] = raw
     }
+  }
+  if (source.peers !== undefined) {
+    const peers = validatePeers(source.peers)
+    if (peers.issue !== undefined) return { issues: [{ message: peers.issue, path: ['peers'] }] }
+    value.peers = peers.value
   }
   return { value }
 }

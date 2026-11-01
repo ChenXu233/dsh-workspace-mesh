@@ -23,57 +23,36 @@
 | 设置页 + 两条 HTTP 路由 | `src/api/`、`client/client.js` | `test/config-route.test.ts`、`test/state.test.ts` |
 | 配置分层与热更新 | `src/config*.ts` | `test/config.test.ts` |
 | 传输接缝 + mock 适配器 | `src/transport/` | `test/transport.test.ts`；`pairing` / `loopback` 已删除（[decisions](decisions.md) D12） |
+| 跨机传输 TypertTransport | `src/transport/typert.ts` | `test/typert.test.ts`；阿里云 → 腾讯云实测 `mesh_dispatch` 拿到真实回复（4.4s） |
 | 自重启控制器 | `src/lifecycle/` | `test/lifecycle.test.ts`（未接线：默认不启用） |
 | 身份原语（epoch key / token / 防重放） | `src/identity/` | `test/identity.test.ts`（纯函数库，未接请求路径） |
 
 ## 2. 下一步
 
-### 增量 1：TypertTransport（跨机真传输）
-
-前置已解除：跨机 Typert 可达性实测通过（[s0](../evidence/s0-typert-cross-machine.md)：可自造 peer、`mesh-peer` 注册 policy 后放行、`principal.kind` 由创建者自定、公网 `/connect` + `/api` 全通）。
-
-交付：
-
-1. `src/transport/typert.ts`：`listNodes` 由 roster 自建；`listWorkspaces` 用 `workspace/follow` 首帧或 `session/list`；`createSession` / `prompt` / `follow` 映射到 `session/*`。
-2. `mesh-peer` policy 注册：只放行 SPEC §6.2 白名单（每节点注册一次，进程重启需重注册）。
-3. `pickTransport` 增加分支与对应配置值；`transport` 枚举随之扩展。
-
-调用线（实测形状，不要再猜）：
-
-```text
-GET /connect?token=…&interactions=none  → 302 + 签名 API cookie
-POST /api/<namespace>/<method>
-  { "type": "client-request", "rpcId", "method", "payload": { "args": { …, "_request": … } } }
-invoke 入参：{ peer, namespace: 'session', method: 'list', args }
-```
-
-验收：
-
-- 本机会话里 `mesh_dispatch` 投到真对端的工作区，拿到**非 mock** 的最终回复。
-- 对端 `remoteAccess` 审计里能看到 `mesh-peer` principal 的 `session/prompt` 记录。
-
-风险与回退：没有社区回退路——`/pair-remote/*` 只覆盖五能力中的两个，缺 prompt/follow（[p1](../evidence/p1-transport.md) §5）。若 Typert 侧出现未预料的拦截，只能等上游开放非 owner peer 入口，或另评 sidecar 自建隧道。
-
-### 增量 2：真机加载冒烟
+### 增量 1：真机冒烟（模型真的看得见 mesh_*）
 
 profile 里挂 `id: tools` 行 → `dsh plugin --profile <name> add file:<repo>` → 新会话让模型调 `mesh_list_nodes`。步骤与判据见 [how-to/development.md](../how-to/development.md) §1.3。
 
-验收：宿主日志四条 `register` 全成功；新会话出现工具调用卡片，返回的 roster 与 `assignment.yml` 一致；`mesh_status.transport.reason` 说明当前没有传输实现。
+已完成的部分：插件在云端 dev 机加载、四个工具注册成功、`/api/mesh/state` 报 `transport.kind = "typert"`。
 
-### 增量 3（提案，未批准）：消息总线平面
+还差的部分：**让模型真的调用一次**。调用方那台机器需要有可用的模型路由，否则连 `mesh_list_nodes` 都不会被触发。
+
+验收：新会话出现工具调用卡片，返回的 roster 与 `assignment.yml` 一致。
+
+### 增量 2（提案，未批准）：消息总线平面
 
 依据 [p3-bus-plane.md](../evidence/p3-bus-plane.md)：给插件用的跨节点原语，只传指针不传内容，topic 首段由 mesh 校验。
 
-尚未决定：第四平面是否成立（a2）、传输落点用原生 publish/subscribe 还是先组合现有五方法（a9）。**先决条件是增量 1 完成**——没有传输时 bus 无处可走。
+尚未决定：第四平面是否成立（a2）、传输落点用原生 publish/subscribe 还是先组合现有五方法（a9）。跨机传输已可用，前置解除。
 
 ## 3. 风险
 
 | # | 风险 | 触发条件 | 卡住什么 | 缓解 |
 | --- | --- | --- | --- | --- |
 | R1 | 工具注册 API 随 DSH 升级漂移（rc 通道可能 breaking） | DSH 升级后插件挂载失败或工具消失 | 全部工具面 | 零依赖手写 definition，依赖面只有 `ctx.tools.register` 与 `output` 形状；`dsh.engines` 钉版本；升级后先用「故意非法注册」反证链路 |
-| R2 | 跨机调用的信任头不匹配 | 对端 `DSH_TRUSTED_HOST` / `DSH_PUBLIC_URL` 与实际访问地址不一致 | 增量 1 的跨机腿 | 部署时把两者对齐；`/connect` token 每次重启轮换 |
-| R3 | 两端 DSH 版本组合未验证 | 节点版本不一致 | 增量 1 | 先用同版本验证，再逐台升 |
-| R4 | 断线重连的 offset 语义未定（SPEC §7.2） | 想要 `stream` 或异步模型 | 增量 1 之后的推进语义 | 先按「替换 baseline + seq 单调」实现，真机观察后再定 |
+| R2 | 跨机调用的信任头不匹配 | 对端 `DSH_TRUSTED_HOST` / `DSH_PUBLIC_URL` 与实际访问地址不一致 | 跨机 dispatch | 部署时把两者对齐；`/connect` token 每次重启轮换，配置里的 `peers[].token` 要同步更新（[decisions](decisions.md) D13） |
+| R3 | 两端 DSH 版本组合未验证 | 节点版本不一致 | 跨机 dispatch | 先用同版本验证（已用 0.2.1-rc.4 ↔ rc.4 跑通），再逐台升 |
+| R4 | 断线重连的 offset 语义未定（SPEC §7.2） | 想要 `stream` 或异步模型 | 推进语义 | 先按「替换 baseline + seq 单调」实现（typert 已按此做），真机观察后再定 |
 
 ## 4. 不做（近期不碰）
 

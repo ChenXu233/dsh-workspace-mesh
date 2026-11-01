@@ -5,6 +5,8 @@ import { createInMemoryBoard } from './board/index.js'
 import type { TaskBoard } from './board/index.js'
 import { createSelfRestartController } from './lifecycle/index.js'
 import type { LifecycleController } from './lifecycle/index.js'
+import { createTypertTransport } from './transport/typert.js'
+import type { MeshPeerConfig } from './config.js'
 import type { MeshTransport } from './transport/types.js'
 import { registerMeshStateRoute } from './api/index.js'
 import { registerMeshConfigRoute } from './api/config.js'
@@ -22,6 +24,8 @@ export const inject = ['tools']
 export interface MeshConfig {
   /** Reserved for transport selection; 'auto' is the only value until an adapter ships. */
   transport?: 'auto'
+  /** Peers reachable over their web API; empty = no cross-machine transport. */
+  peers?: MeshPeerConfig[]
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -66,19 +70,18 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   const config: ResolvedMeshConfig = {
     ...entryConfig,
     ...(override.transport !== undefined ? { transport: override.transport } : {}),
+    ...(override.peers !== undefined ? { peers: override.peers } : {}),
     ...(override.leaseMs !== undefined ? { leaseMs: override.leaseMs } : {}),
     ...(override.dispatchTimeoutMs !== undefined ? { dispatchTimeoutMs: override.dispatchTimeoutMs } : {}),
     ...(override.leaseOwner !== undefined ? { leaseOwner: override.leaseOwner } : {}),
   }
   const board = createInMemoryBoard()
 
-  // No cross-machine adapter ships yet. The pairing probe was disproved by
-  // evidence and the loopback stub never had real request shapes, so both were
-  // deleted instead of kept as dead code. A missing transport is a degradation,
-  // never a startup failure (SPEC §9.4.2): the plugin loads and the tools report
-  // unavailable with this reason.
-  const transport: MeshTransport | undefined = undefined
-  const transportError = 'no transport implementation ships yet; see docs/explanation/roadmap.md increment 1'
+  // Cross-machine transport is opt-in: it needs at least one configured peer.
+  // A missing transport is a degradation, never a startup failure (SPEC §9.4.2):
+  // the plugin loads and the tools report `unavailable` with this reason.
+  let transport: MeshTransport | undefined
+  let transportError: string | undefined
 
   // A configured assignment file is configuration, not an optional dependency:
   // a missing or malformed file fails loudly with its path and line (SPEC §8).
@@ -96,6 +99,24 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   let assignment: AssignmentTable | undefined
   if (assignmentFile !== '') {
     assignment = loadAssignmentTable(assignmentFile)
+  }
+
+  const peers = config.peers ?? []
+  if (peers.length > 0) {
+    transport = createTypertTransport({
+      peers,
+      listAssigned: (nodeId) =>
+        (assignment?.assignments ?? [])
+          .filter((route) => route.nodeId === nodeId && typeof route.cwd === 'string' && route.cwd !== '')
+          .map((route) => ({ workspaceId: route.workspaceId, cwd: route.cwd as string })),
+      resolveWorkspace: (workspaceId) => {
+        const route = assignment?.assignments.find((item) => item.workspaceId === workspaceId)
+        if (route?.cwd === undefined || route.cwd === '') return undefined
+        return { nodeId: route.nodeId, cwd: route.cwd }
+      },
+    })
+  } else {
+    transportError = 'no peers configured; add peers to the mesh config (docs/reference/config.md §2)'
   }
 
   // Lifecycle is opt-in (SPEC §14.5): the controller exists, but nothing calls

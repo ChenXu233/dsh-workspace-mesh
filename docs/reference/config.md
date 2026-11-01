@@ -23,6 +23,7 @@ $DSH_HOME/mesh-config.json（设置页 POST 写入的补丁）
 | 字段 | 类型 | 默认 | 生效时机 | 说明 |
 | --- | --- | --- | --- | --- |
 | `transport` | `auto` | `auto` | 重启 | 传输选择，见 §3；目前只有 `auto` |
+| `peers` | 数组 `{ nodeId, baseUrl, token }` | `[]` | 重启 | 跨机传输的对端；空 = 不启用传输，见 §3 |
 | `assignmentFile` | string | `''` | 立即 | assignment.yml 路径，相对宿主进程 cwd；留空 = 不加载 |
 | `leaseMs` | 整数（毫秒） | `900000` | 立即 | 任务租约时长；必须大于 `dispatchTimeoutMs` |
 | `dispatchTimeoutMs` | 整数（毫秒） | `120000` | 立即 | `mesh_dispatch` 等待最终回复的上限，同时是 `maxDurationMs` 的上限 |
@@ -32,20 +33,33 @@ $DSH_HOME/mesh-config.json（设置页 POST 写入的补丁）
 
 ## 3. 传输
 
-本版本**没有跨机传输实现**。`pairing` 与 `loopback` 两个适配器已删除：前者的探测方法名在社区插件里根本不存在（[p1](../evidence/p1-transport.md) §2.2），后者从未有过真实请求形状（[p1](../evidence/p1-transport.md) §3.2）。`transport` 因此只剩 `auto` 一个值，等 TypertTransport 落地后再增加第二个。
+配了 `peers` 就启用 **TypertTransport**（`kind: 'typert'`），走对端自己的 web API：
 
 ```text
-transport = auto
-  └─ 没有可用适配器 → 不启用传输
+GET  /connect?token=<对端 token>&interactions=none    → 302 + 签名 cookie
+POST /api/<namespace>/<method>  {type:'client-request', rpcId, method, payload:{args}}
 ```
 
-**没有传输不是启动失败**（SPEC §9.4.2）：插件照常加载，`transportError` 记成「no transport implementation ships yet」，`mesh_*` 工具返回 `unavailable`，`mesh_status.transport.reason` 带同一句原因。`mesh_list_nodes` / `mesh_status` / `mesh_task_status` 仍然可用。
+只用到一元方法：`session/list`、`session/create`、`session/prompt`、`session/page`。
+`session/follow` 是 stream-carrier 方法（"must be opened through the stream carrier"），所以 `follow()` 用**轮询**实现：`session/list` 取游标、`session/page` 取事件，延迟等于 `pollMs`（默认 1000ms）。事件形状与真流一致，reply 聚合逻辑不变。
 
-| kind | 状态 | 说明 |
+**对端 token 每次重启轮换**：`mesh-config.json` 里的 `token` 要跟着更新，失效时工具报 `denied` 并提示刷新。真正的凭据层在 SPEC §17，尚未实现。
+
+**没有传输不是启动失败**（SPEC §9.4.2）：没配 `peers` 时插件照常加载，`mesh_status.transport.reason` 说明原因，`mesh_dispatch` 返回 `unavailable`，其余三个工具照常可用。
+
+| kind | 何时 | 说明 |
 | --- | --- | --- |
-| `mock` | 可用，仅测试 | 测试直接构造，运行期不会选中 |
+| `typert` | 配了 `peers` | 跨机真传输 |
+| `mock` | 测试构造 | 运行期不会选中 |
 
-下一步见 [roadmap](../explanation/roadmap.md) 增量 1。
+`session/create` 需要远端目录，所以 assignment 的每条路由要有 `cwd`：
+
+```yaml
+assignments:
+  - { workspaceId: ws-blog, nodeId: tencent, cwd: /data/workspace }
+```
+
+没有 `cwd` 的 workspace 只能本地使用；跨机 dispatch 会报 `invalid-target`。
 
 ## 4. 三个文件的归属
 

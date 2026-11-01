@@ -43,6 +43,8 @@ export interface AssignmentNode {
 export interface AssignmentRoute {
   workspaceId: string
   nodeId: string
+  /** Directory the remote session owns; required for cross-machine dispatch. */
+  cwd?: string
   /** 1-based source line, kept for diagnostics. */
   line: number
 }
@@ -56,7 +58,7 @@ export interface AssignmentTable {
 
 const KNOWN_SECTIONS = new Set(['nodes', 'assignments'])
 const NODE_KEYS = new Set(['label', 'endpoint'])
-const ASSIGNMENT_KEYS = new Set(['workspaceId', 'nodeId'])
+const ASSIGNMENT_KEYS = new Set(['workspaceId', 'nodeId', 'cwd'])
 
 interface SourceLine {
   number: number
@@ -314,7 +316,7 @@ function parseAssignments(
           file,
           itemLine,
           'schema',
-          `unknown assignment key "${entry.key}" (supported: workspaceId, nodeId)`,
+          `unknown assignment key "${entry.key}" (supported: workspaceId, nodeId, cwd)`,
         )
       }
       if (entry.value === '') {
@@ -374,7 +376,8 @@ function parseAssignments(
       )
     }
     workspaceLines.set(workspaceId, itemLine)
-    assignments.push({ workspaceId, nodeId, line: itemLine })
+    const cwd = attrs.cwd
+    assignments.push({ workspaceId, nodeId, ...(cwd === undefined || cwd === '' ? {} : { cwd }), line: itemLine })
   }
 
   return index

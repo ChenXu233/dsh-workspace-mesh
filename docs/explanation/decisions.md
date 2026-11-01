@@ -27,7 +27,7 @@
 | D2 | 跨机只允许 5 个数据面方法，白名单硬编码 | accepted | 未开始（无传输） | SPEC §6.2、[p1](../evidence/p1-transport.md) §2.3 |
 | D3 | v1 用静态 `assignment.yml` 作归属来源，不做 hub 广播注册表 | accepted | 已实施 | 见 §3 D3 |
 | D4 | 传输缺失是降级不是崩溃：插件照常加载，工具返回 `unavailable` | accepted | 已实施 | SPEC §9.4.2 |
-| D5 | 跨机传输落点是 DSH 核心 Typert 面 + `mesh-peer` policy，不用回环 HTTP 代理 | accepted | 未开始 | [p1](../evidence/p1-transport.md) §5、[s0](../evidence/s0-typert-cross-machine.md) |
+| D5 | 跨机传输落点是 DSH 核心 Typert 面，不用回环 HTTP 代理 | accepted | 已实施 | [p1](../evidence/p1-transport.md) §5、[s0](../evidence/s0-typert-cross-machine.md) |
 | D6 | 配置不同步，作为任务参数随任务传递 | accepted | 未开始 | SPEC §15.1 |
 | D7 | 设置页配置走插件自己的 HTTP 路由 + `$DSH_HOME/mesh-config.json` | accepted | 已实施 | 见 §3 D7 |
 | D8 | 「执行」不作为网格服务暴露（没有 T4） | accepted | 已实施（架构上不存在） | SPEC §16.6 |
@@ -35,6 +35,7 @@
 | D10 | `mesh_dispatch` 阻塞到最终回复；`taskId` + `mesh_task_wait` 的异步模型推迟 | accepted | 已实施 | 见 §3 D10 |
 | D11 | 许可证 Apache-2.0 | accepted | 已实施 | 见 §3 D11 |
 | D12 | 删除 `pairing` / `loopback` 适配器，跨机传输只做 Typert | accepted | 已实施 | 见 §3 D12 |
+| D13 | 跨机调用复用对端的 owner 登录 token（`/connect` 换 cookie），不实现 mesh-peer 凭据 | accepted | 已实施 | 见 §3 D13 |
 
 ## 3. 需要展开的几条
 
@@ -68,6 +69,20 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 - **对管不住的事说实话**：没有哪个开源许可证能阻止「fork 了但不分发」。真正保护 mesh 的是 SPEC、包名和参考实现保持领先，不是许可证条款。
 
 需要别的条款请开 issue。
+
+### D13：为什么跨机调用先用 owner token，而不是 mesh-peer 凭据
+
+0.2.1-rc.4 对外开放的入口只有 `GET /connect?token=…&interactions=none` → 签名 cookie，拿到的就是 owner 身份。没有设备凭据、没有长期 token、也没有「非 owner peer 自注册」的通道（SPEC §17 描述的凭据层在宿主里还不存在）。
+
+所以 v1 直接用它：能立刻验证传输本身（事件流、turn 结束、错误映射），而凭据设计可以后置。
+
+代价，三条都要记住：
+
+- **token 每次重启轮换**，配置里的 `peers[].token` 必须人工同步，否则工具报 `denied`；
+- **权限是 owner 全权**：对端不会按 SPEC §6.2 的白名单拦方法，白名单目前只是设计约束；
+- 谁拿到这个 token 就等于拿到对端登录态。
+
+推翻它的条件：SPEC §17 的凭据层落地，或 DSH 提供设备级长期凭据。在那之前，别把 mesh 暴露到不受信任的网络。
 
 ### D12：为什么删掉 pairing 与 loopback，而不是补实现
 

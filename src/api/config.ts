@@ -32,7 +32,7 @@ export interface MeshConfigControl {
 /** Fields that take effect without restarting the host process. */
 export const HOT_CONFIG_KEYS: readonly string[] = ['leaseMs', 'dispatchTimeoutMs', 'leaseOwner', 'assignmentFile']
 /** Fields persisted now but applied by the next plugin apply (container restart). */
-export const RESTART_CONFIG_KEYS: readonly string[] = ['transport']
+export const RESTART_CONFIG_KEYS: readonly string[] = ['transport', 'peers']
 
 /**
  * Validate and persist one config patch, then apply the hot subset.
@@ -93,6 +93,7 @@ export async function handleConfigSave(request: Request, control: MeshConfigCont
     control.runtime.assignment = nextAssignment
     applied.push('assignmentFile')
   }
+  if (patch.peers !== undefined) pendingRestart.push('peers')
   if (patch.transport !== undefined) {
     // Reported by mesh_status immediately; the transport object is rebuilt on restart.
     runtimeConfig.transportMode = patch.transport

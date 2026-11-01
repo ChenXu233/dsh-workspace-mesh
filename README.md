@@ -71,9 +71,11 @@ Configuration keys and their defaults: [docs/reference/config.md](./docs/referen
 The tool surface, task board, roster derivation, settings page and config layering work and are
 covered by tests.
 
-There is **no cross-machine transport yet**: the only adapter is the test-only `mock`, so in a real
-host `mesh_dispatch` returns `unavailable` while `mesh_list_nodes` / `mesh_status` /
-`mesh_task_status` stay usable. The next increment is the Typert transport — see
+Cross-machine dispatch works over the peer's own web API (`kind: "typert"`): configure `peers` and
+give each assignment a remote `cwd`, then `mesh_dispatch` creates a session on the owning machine
+and collects the reply. Without `peers` the plugin still loads and `mesh_dispatch` reports
+`unavailable` while the other three tools stay usable. The peer token rotates when the peer
+restarts — see [docs/reference/config.md](./docs/reference/config.md) §3 and
 [docs/explanation/roadmap.md](./docs/explanation/roadmap.md).
 
 ## Docs
