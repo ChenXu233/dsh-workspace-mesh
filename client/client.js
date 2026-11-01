@@ -16,10 +16,8 @@ window.__ModuleLoader__.load({
     var AUTO_REFRESH_MS = 5000;
 
     var FIELDS = [
-      { key: "transport", label: "传输模式", kind: "select", options: ["auto", "pairing", "loopback"],
-        hint: "auto = pairing 优先，回落 loopback（需对端 URL）；保存后立即生效" },
-      { key: "peerBaseUrl", label: "对端基础 URL", kind: "text",
-        hint: "loopback 传输的对端 DSH 地址，如 https://peer.example.com；留空 = 不启用" },
+      { key: "transport", label: "传输模式", kind: "select", options: ["auto"],
+        hint: "目前只有 auto（尚无跨机传输实现）；保存后重启生效" },
       { key: "assignmentFile", label: "assignment.yml 路径", kind: "text",
         hint: "相对宿主进程 cwd（容器内为 /data/workspace）；留空 = 不加载" },
       { key: "leaseMs", label: "任务租约时长 (ms)", kind: "number", hint: "默认 900000" },
@@ -27,12 +25,10 @@ window.__ModuleLoader__.load({
       { key: "leaseOwner", label: "租约归属者", kind: "text", hint: "默认 mesh-lead" }
     ];
 
-    /** Settings-page form: same six fields, saved through POST /api/mesh/config. */
+    /** Settings-page form: same five fields, saved through POST /api/mesh/config. */
     var CONFIG_FIELDS = [
-      { key: "transport", label: "传输模式", kind: "select", options: ["auto", "pairing", "loopback"],
-        hint: "auto 优先 pairing；修改后重启容器生效" },
-      { key: "peerBaseUrl", label: "对端基础 URL", kind: "text",
-        hint: "loopback 传输目标，如 https://peer.example.com；重启生效" },
+      { key: "transport", label: "传输模式", kind: "select", options: ["auto"],
+        hint: "目前只有 auto（尚无跨机传输实现）；修改后重启容器生效" },
       { key: "assignmentFile", label: "assignment.yml 路径", kind: "text",
         hint: "相对宿主进程 cwd（容器内 /data/workspace）；保存即热加载" },
       { key: "leaseMs", label: "租约时长 (ms)", kind: "number", hint: "保存后立即生效" },

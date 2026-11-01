@@ -11,8 +11,8 @@
 | --- | --- | --- | --- | --- |
 | 用例数 | 83 | `lib-test/test/*.test.js` 全部用例 | 2026-11-01 | `pnpm test` |
 | 测试文件数 | 8 | `test/*.ts` | 2026-11-01 | `ls test/*.ts` |
-| host 半区 TS 行数 | 4408 | `src/**/*.ts`，含生成文件 `config-envelope.gen.ts` | 2026-11-01 | `find src -name '*.ts' \| xargs wc -l` |
-| client bundle 行数 | 660 | `client/client.js` | 2026-11-01 | `wc -l < client/client.js` |
+| host 半区 TS 行数 | 4284 | `src/**/*.ts`，含生成文件 `config-envelope.gen.ts` | 2026-11-01 | `find src -name '*.ts' \| xargs wc -l` |
+| client bundle 行数 | 656 | `client/client.js` | 2026-11-01 | `wc -l < client/client.js` |
 
 使用规则：
 

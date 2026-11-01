@@ -19,7 +19,7 @@ test('Config.toJSON returns a volatile schemastery envelope', () => {
   assert.equal(typeof envelope, 'object')
   const root: Envelope['refs'][string] | undefined = envelope.refs[String(envelope.uid)]
   assert.ok(root?.dict, 'object schema must carry a dict')
-  for (const field of ['transport', 'peerBaseUrl', 'assignmentFile', 'leaseMs', 'dispatchTimeoutMs', 'leaseOwner']) {
+  for (const field of ['transport', 'assignmentFile', 'leaseMs', 'dispatchTimeoutMs', 'leaseOwner']) {
     const ref: Envelope['refs'][string] | undefined = envelope.refs[String(root.dict?.[field])]
     assert.ok(ref, `envelope declares ${field}`)
     assert.equal(ref.meta?.volatile, true, `field ${field} is volatile (form-visible)`)
@@ -28,7 +28,7 @@ test('Config.toJSON returns a volatile schemastery envelope', () => {
   const unionRef: Envelope['refs'][string] | undefined = envelope.refs[String(root.dict?.transport)]
   assert.equal(unionRef?.type, 'union', 'transport renders as a dropdown union')
   const modes = (unionRef.list ?? []).map((refId) => envelope.refs[String(refId)]?.value)
-  assert.deepEqual([...modes].sort(), ['auto', 'loopback', 'pairing'])
+  assert.deepEqual([...modes].sort(), ['auto'])
 })
 
 test('~standard.validate applies schema defaults and rejects invalid input', () => {
@@ -39,9 +39,9 @@ test('~standard.validate applies schema defaults and rejects invalid input', () 
   const live = ok.value as Record<string, { get(): unknown }>
   assert.equal(live.transport?.get(), 'auto')
   assert.equal(live.leaseMs?.get(), 900000)
-  const given = validator.validate({ transport: 'loopback', leaseMs: 5 })
+  const given = validator.validate({ transport: 'auto', leaseMs: 5 })
   const liveGiven = given.value as Record<string, { get(): unknown }>
-  assert.equal(liveGiven.transport?.get(), 'loopback')
+  assert.equal(liveGiven.transport?.get(), 'auto')
   assert.equal(liveGiven.leaseMs?.get(), 5)
   assert.ok(validator.validate({ transport: 'bogus' }).issues, 'bad enum rejected')
   assert.ok(validator.validate({ leaseMs: -1 }).issues, 'negative rejected')
@@ -58,7 +58,7 @@ test('the schema face is a rehydrated schemastery object when the peer resolves'
   assert.ok((Config as Record<string, unknown>)['~standard'], '~standard face present')
   const { default: Schema } = await import('@deepseek-ai/schemastery')
   const twin = Schema(Config as never)
-  const resolved = twin({ transport: 'pairing' }) as Record<string, { get(): unknown }>
-  assert.equal(resolved.transport?.get(), 'pairing')
+  const resolved = twin({ transport: 'auto' }) as Record<string, { get(): unknown }>
+  assert.equal(resolved.transport?.get(), 'auto')
   assert.equal(resolved.leaseMs?.get(), 900000)
 })

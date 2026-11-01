@@ -5,9 +5,6 @@ import { createInMemoryBoard } from './board/index.js'
 import type { TaskBoard } from './board/index.js'
 import { createSelfRestartController } from './lifecycle/index.js'
 import type { LifecycleController } from './lifecycle/index.js'
-import { createLoopbackTransport } from './transport/loopback.js'
-import { createPairingTransport, detectPairingService } from './transport/pairing.js'
-import { TransportUnavailableError } from './transport/types.js'
 import type { MeshTransport } from './transport/types.js'
 import { registerMeshStateRoute } from './api/index.js'
 import { registerMeshConfigRoute } from './api/config.js'
@@ -23,10 +20,8 @@ export const name = PLUGIN_NAME
 export const inject = ['tools']
 
 export interface MeshConfig {
-  /** auto = pairing when detected, otherwise loopback when baseUrl is set. */
-  transport?: 'auto' | 'pairing' | 'loopback'
-  /** Peer base URL used by the loopback transport. */
-  peerBaseUrl?: string
+  /** Reserved for transport selection; 'auto' is the only value until an adapter ships. */
+  transport?: 'auto'
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -38,7 +33,7 @@ export interface MeshConfig {
 }
 
 export interface ResolvedMeshConfig extends MeshConfig {
-  transport: 'auto' | 'pairing' | 'loopback'
+  transport: 'auto'
   leaseMs: number
   dispatchTimeoutMs: number
   leaseOwner: string
@@ -54,24 +49,11 @@ export interface MeshRuntime {
   config: ResolvedMeshConfig
 }
 
-function pickTransport(ctx: Context, config: MeshConfig): MeshTransport | undefined {
-  const mode = config.transport ?? 'auto'
-  if (mode === 'pairing' || mode === 'auto') {
-    if (detectPairingService(ctx)) return createPairingTransport()
-    if (mode === 'pairing') {
-      throw new TransportUnavailableError('transport=pairing but remoteWebUiPairing was not found')
-    }
-  }
-  if (config.peerBaseUrl) return createLoopbackTransport(config.peerBaseUrl)
-  return undefined
-}
-
 export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Fields are schema-volatile: the loader hands them over as live references.
   const entryConfig: ResolvedMeshConfig = {
     ...rawConfig,
     transport: readLive(rawConfig.transport, 'auto'),
-    peerBaseUrl: readLive(rawConfig.peerBaseUrl, ''),
     leaseMs: readLive(rawConfig.leaseMs, 15 * 60_000),
     dispatchTimeoutMs: readLive(rawConfig.dispatchTimeoutMs, 120_000),
     leaseOwner: readLive(rawConfig.leaseOwner, 'mesh-lead'),
@@ -84,22 +66,19 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   const config: ResolvedMeshConfig = {
     ...entryConfig,
     ...(override.transport !== undefined ? { transport: override.transport } : {}),
-    ...(override.peerBaseUrl !== undefined ? { peerBaseUrl: override.peerBaseUrl } : {}),
     ...(override.leaseMs !== undefined ? { leaseMs: override.leaseMs } : {}),
     ...(override.dispatchTimeoutMs !== undefined ? { dispatchTimeoutMs: override.dispatchTimeoutMs } : {}),
     ...(override.leaseOwner !== undefined ? { leaseOwner: override.leaseOwner } : {}),
   }
   const board = createInMemoryBoard()
 
-  let transport: MeshTransport | undefined
-  let transportError: string | undefined
-  try {
-    transport = pickTransport(ctx, config)
-  } catch (err) {
-    // Dependency absence is a degradation, never a startup failure (SPEC §9.4.2).
-    transportError = (err as Error).message
-    console.warn('[mesh] transport unavailable:', transportError)
-  }
+  // No cross-machine adapter ships yet. The pairing probe was disproved by
+  // evidence and the loopback stub never had real request shapes, so both were
+  // deleted instead of kept as dead code. A missing transport is a degradation,
+  // never a startup failure (SPEC §9.4.2): the plugin loads and the tools report
+  // unavailable with this reason.
+  const transport: MeshTransport | undefined = undefined
+  const transportError = 'no transport implementation ships yet; see docs/explanation/roadmap.md increment 1'
 
   // A configured assignment file is configuration, not an optional dependency:
   // a missing or malformed file fails loudly with its path and line (SPEC §8).
@@ -148,7 +127,6 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Settings page surface. Absent in headless compositions (no web server):
   // the page then explains that the route is missing instead of failing silently.
   const stateExtras = () => ({
-    peerBaseUrl: config.peerBaseUrl ?? '',
     assignmentFile: toolRuntime.assignment?.file ?? '',
     configFile: overrideFile,
   })

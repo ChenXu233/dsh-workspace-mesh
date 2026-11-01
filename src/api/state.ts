@@ -40,7 +40,6 @@ export interface MeshStateAssignmentView {
 
 export interface MeshStateConfigView {
   transportMode: string
-  peerBaseUrl: string
   assignmentFile: string
   leaseMs: number
   dispatchTimeoutMs: number
@@ -49,8 +48,6 @@ export interface MeshStateConfigView {
 
 /** Values buildMeshState cannot read from the runtime itself. */
 export interface MeshStateExtras {
-  /** Effective peer base URL (loopback transport). */
-  peerBaseUrl?: string
   /** Effective assignment file path. */
   assignmentFile?: string
   /** Where browser-saved overrides live. */
@@ -156,7 +153,6 @@ export async function buildMeshState(
     },
     config: {
       transportMode: runtime.config.transportMode,
-      peerBaseUrl: extras.peerBaseUrl ?? '',
       assignmentFile: extras.assignmentFile ?? '',
       leaseMs: runtime.config.leaseMs,
       dispatchTimeoutMs: runtime.config.dispatchTimeoutMs,

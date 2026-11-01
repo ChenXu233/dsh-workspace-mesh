@@ -45,7 +45,7 @@ export interface MeshToolHost {
 }
 
 export interface MeshToolConfig {
-  transportMode: 'auto' | 'pairing' | 'loopback'
+  transportMode: 'auto'
   leaseMs: number
   leaseOwner: string
   dispatchTimeoutMs: number
@@ -100,8 +100,8 @@ export const TRANSPORT_REPORT_SCHEMA: Record<string, unknown> = {
   additionalProperties: false,
   properties: {
     configured: { type: 'boolean', description: 'Whether a MeshTransport implementation is active.' },
-    mode: { type: 'string', description: 'Configured transport selection: auto | pairing | loopback.' },
-    kind: { type: 'string', description: 'Active transport kind (pairing | loopback | mock), empty when none.' },
+    mode: { type: 'string', description: 'Configured transport selection (auto).' },
+    kind: { type: 'string', description: 'Active transport kind (mock), empty when none.' },
     reason: { type: 'string', description: 'Why no transport is active; empty when configured.' },
   },
   required: ['configured', 'mode', 'kind', 'reason'],

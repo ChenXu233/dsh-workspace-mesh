@@ -22,8 +22,7 @@ $DSH_HOME/mesh-config.json（设置页 POST 写入的补丁）
 
 | 字段 | 类型 | 默认 | 生效时机 | 说明 |
 | --- | --- | --- | --- | --- |
-| `transport` | `auto` / `pairing` / `loopback` | `auto` | 重启 | 传输选择，见 §3 |
-| `peerBaseUrl` | string | `''` | 重启 | loopback 传输的对端基础 URL；留空 = 不启用 |
+| `transport` | `auto` | `auto` | 重启 | 传输选择，见 §3；目前只有 `auto` |
 | `assignmentFile` | string | `''` | 立即 | assignment.yml 路径，相对宿主进程 cwd；留空 = 不加载 |
 | `leaseMs` | 整数（毫秒） | `900000` | 立即 | 任务租约时长；必须大于 `dispatchTimeoutMs` |
 | `dispatchTimeoutMs` | 整数（毫秒） | `120000` | 立即 | `mesh_dispatch` 等待最终回复的上限，同时是 `maxDurationMs` 的上限 |
@@ -31,28 +30,22 @@ $DSH_HOME/mesh-config.json（设置页 POST 写入的补丁）
 
 「重启」= 下一次插件 `apply()`，因为传输对象在 apply 里构造。整数必须是非负整数，非法值在写入时被 400 拒绝。
 
-## 3. 传输选择
+## 3. 传输
+
+本版本**没有跨机传输实现**。`pairing` 与 `loopback` 两个适配器已删除：前者的探测方法名在社区插件里根本不存在（[p1](../evidence/p1-transport.md) §2.2），后者从未有过真实请求形状（[p1](../evidence/p1-transport.md) §3.2）。`transport` 因此只剩 `auto` 一个值，等 TypertTransport 落地后再增加第二个。
 
 ```text
-transport = auto（默认）
-  ├─ 探测到 remoteWebUiPairing 服务 → pairing
-  ├─ 否则 peerBaseUrl 非空        → loopback
-  └─ 都没有                        → 无传输
-transport = pairing  → 探测不到就抛 TransportUnavailableError
-transport = loopback → 只按 peerBaseUrl 判断，空则无传输
+transport = auto
+  └─ 没有可用适配器 → 不启用传输
 ```
 
-**没有传输不是启动失败**：`apply()` 捕获异常，记 `transportError`，插件照常加载，`mesh_*` 工具返回 `unavailable`。这是 SPEC §9.4.2 的浅依赖原则。
-
-当前三个实现的实际状态：
+**没有传输不是启动失败**（SPEC §9.4.2）：插件照常加载，`transportError` 记成「no transport implementation ships yet」，`mesh_*` 工具返回 `unavailable`，`mesh_status.transport.reason` 带同一句原因。`mesh_list_nodes` / `mesh_status` / `mesh_task_status` 仍然可用。
 
 | kind | 状态 | 说明 |
 | --- | --- | --- |
 | `mock` | 可用，仅测试 | 测试直接构造，运行期不会选中 |
-| `loopback` | 桩 | 每个方法抛 `TransportUnavailableError`，真实请求形状未取证 |
-| `pairing` | 桩 + 探测失效 | 探测 `listPeers` / `peers` / `listWorkspaces` 三个方法名，而该社区插件没有这些方法（[p1-transport.md](../evidence/p1-transport.md) §2.2），因此实际不会命中 |
 
-结论：**当前没有可用的跨机传输**，`mesh_dispatch` 在真实宿主里返回 `unavailable`；下一步见 [roadmap](../explanation/roadmap.md)。
+下一步见 [roadmap](../explanation/roadmap.md) 增量 1。
 
 ## 4. 三个文件的归属
 

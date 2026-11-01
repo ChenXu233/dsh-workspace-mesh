@@ -290,8 +290,7 @@ follow() 重连发出的是**替换 baseline**，不补发断线期间增量。
 | `@deepseek-ai/dsh`、`@deepseek-ai/cordis` | peerDependency | 必须 | 无（这是宿主） |
 | `@deepseek-ai/dsh-tools` | peerDependency | **可选** | 仅 `defineTool` 路线需要；零依赖手写 definition 不需要（profile 内插件解析不到宿主 asar 里的该包） |
 | `@deepseek-ai/schemastery` | peerDependency | **可选** | 原生设置表单需要；解析不到时退化为纯 JSON Schema 面 |
-| cordis 服务 `remoteWebUiPairing` | **运行期探测** | 可选 | 探测不到 → 走直连模式 |
-| `@linxin666/dsh-remote-web-ui` | **不依赖** | — | 只探测它的服务 |
+| `@linxin666/dsh-remote-web-ui` | **不依赖** | — | 它只提供配对身份，不是数据面（§9.4.2） |
 | `@njjpro/dsh-remote-workspace` | **不依赖** | — | 它是 UI 层，我们不需要 |
 | `react` / `react-dom` | 不依赖 | — | 本插件只做 host 半区，不做 UI |
 
@@ -309,15 +308,14 @@ interface MeshTransport {
 }
 ```
 
-三种实现，按探测结果选：
+两种实现：
 
 | 实现 | 触发条件 | 依赖 |
 |---|---|---|
 | `TypertTransport` | 配置了 peer（`/connect` 凭据） | 零包依赖，走 `ctx.typertGateway` + `mesh-peer` policy |
-| `LoopbackTransport` | 配置了 `peerBaseUrl`，且只需要 list / create 两个能力 | 零包依赖（社区 `/pair-remote/*`，仅 2/5 能力，只作诊断通道） |
 | `MockTransport` | 测试与冒烟 | 零 |
 
-`PairingTransport` 这一行不成立：`remoteWebUiPairing` 只有一个 `isPairedDevice(request)` 鉴权谓词，没有任何资源枚举或会话投递能力（[p1](docs/evidence/p1-transport.md) §2.2），构不成传输接缝。
+被否证的两个：`PairingTransport` —— `remoteWebUiPairing` 只有一个 `isPairedDevice(request)` 鉴权谓词，没有任何资源枚举或会话投递能力（[p1](docs/evidence/p1-transport.md) §2.2）；`LoopbackTransport` —— 社区 `/pair-remote/*` 只覆盖五能力中的两个，没有 prompt 与 follow，满足不了 `MeshTransport` 接口（[p1](docs/evidence/p1-transport.md) §3.2）。两者已从实现中删除，理由见 [decisions](docs/explanation/decisions.md) D12。
 
 **都探测不到** → 插件仍能加载，工具返回明确错误「未配置任何传输」，
 而不是启动失败。这是浅依赖的关键：**依赖缺失是降级，不是崩溃**。

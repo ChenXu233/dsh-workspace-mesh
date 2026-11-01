@@ -17,10 +17,8 @@ import { CONFIG_ENVELOPE } from './config-envelope.gen.js'
  */
 
 export interface Config {
-  /** auto = pairing when detected, otherwise loopback when peerBaseUrl is set. */
-  transport?: 'auto' | 'pairing' | 'loopback'
-  /** Peer base URL used by the loopback transport. */
-  peerBaseUrl?: string
+  /** Reserved for transport selection; 'auto' is the only value until an adapter ships. */
+  transport?: 'auto'
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -45,7 +43,7 @@ export function readLive<T>(value: Volatile<T> | T | undefined, fallback: T): T 
   return value as T
 }
 
-const TRANSPORT_VALUES = new Set(['auto', 'pairing', 'loopback'])
+const TRANSPORT_VALUES = new Set(['auto'])
 
 interface SchemaIssue {
   message: string
@@ -60,7 +58,6 @@ interface ValidationResult {
 /** Field specs mirrored from scripts/gen-config-schema.mjs (single source of truth lives there). */
 const FIELDS = {
   transport: { type: 'enum', values: TRANSPORT_VALUES, fallback: 'auto' as const },
-  peerBaseUrl: { type: 'string', fallback: '' },
   assignmentFile: { type: 'string', fallback: '' },
   leaseMs: { type: 'integer', fallback: 900000 },
   dispatchTimeoutMs: { type: 'integer', fallback: 120000 },
@@ -113,8 +110,7 @@ function validate(input: unknown): ValidationResult {
  * reads node.type / node.meta.volatile / node.dict.
  */
 const HINTS: Record<string, { label: string }> = {
-  transport: { label: 'transport: auto = pairing 优先, 回落 loopback(需 peerBaseUrl); 保存后立即生效' },
-  peerBaseUrl: { label: 'loopback 传输的对端 DSH 基础 URL; 留空 = 不启用' },
+  transport: { label: 'transport: 目前只有 auto（尚无跨机传输实现）; 保存后重启生效' },
   assignmentFile: { label: 'assignment.yml 路径, 相对宿主进程 cwd; 留空 = 不加载' },
   leaseMs: { label: '任务租约时长 (毫秒)' },
   dispatchTimeoutMs: { label: 'mesh_dispatch 等待最终回复的超时 (毫秒)' },

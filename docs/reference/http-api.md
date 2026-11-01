@@ -18,7 +18,7 @@
 { ok: true, version: 1, plugin, generatedAt,
   transport: { configured, mode, kind, reason },
   assignment: { configured, file, nodes, assignments },
-  config: { transportMode, peerBaseUrl, assignmentFile, leaseMs, dispatchTimeoutMs, leaseOwner },
+  config: { transportMode, assignmentFile, leaseMs, dispatchTimeoutMs, leaseOwner },
   lifecycle: { state, supervisor, pid, startedAt },
   counts: { total, queued, dispatched, running, done, failed, expired },
   peers: [ ... ], tasks: [ ... ], notes: [ ... ], configFile }
@@ -32,7 +32,7 @@
 
 写配置补丁并应用热字段。
 
-请求体：配置补丁对象，键取自 [config.md](./config.md) §2。
+请求体：配置补丁对象，五个键取自 [config.md](./config.md) §2（`transport` / `assignmentFile` / `leaseMs` / `dispatchTimeoutMs` / `leaseOwner`）。
 
 | 状态码 | 条件 |
 | --- | --- |
@@ -42,7 +42,7 @@
 | 400 | `assignmentFile` 指向的文件读不到或语法错 |
 | 200 | 已落盘并应用，返回刷新后的完整 state（与 GET 同形） |
 
-热字段（`leaseMs` / `dispatchTimeoutMs` / `leaseOwner` / `assignmentFile`）当场生效；`transport` / `peerBaseUrl` 先落盘，下次 `apply()` 才生效。
+热字段（`leaseMs` / `dispatchTimeoutMs` / `leaseOwner` / `assignmentFile`）当场生效；`transport` 先落盘，下次 `apply()` 才生效。
 
 ## 3. 为什么不用原生 settings 管道
 

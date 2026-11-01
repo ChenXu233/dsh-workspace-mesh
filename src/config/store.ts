@@ -18,8 +18,7 @@ import { dirname, join } from 'node:path'
  */
 
 export interface MeshConfigOverride {
-  transport?: 'auto' | 'pairing' | 'loopback'
-  peerBaseUrl?: string
+  transport?: 'auto'
   assignmentFile?: string
   leaseMs?: number
   dispatchTimeoutMs?: number
@@ -29,14 +28,13 @@ export interface MeshConfigOverride {
 export const MESH_CONFIG_FILE_NAME = 'mesh-config.json'
 export const MESH_CONFIG_KEYS = [
   'transport',
-  'peerBaseUrl',
   'assignmentFile',
   'leaseMs',
   'dispatchTimeoutMs',
   'leaseOwner',
 ] as const
 
-const TRANSPORTS: readonly string[] = ['auto', 'pairing', 'loopback']
+const TRANSPORTS: readonly string[] = ['auto']
 
 /** Override file path: explicit, else $DSH_HOME, else ~/.dsh. */
 export function meshConfigPath(explicit?: string): string {
@@ -74,12 +72,7 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
     switch (key) {
       case 'transport':
         if (isString(entry) && TRANSPORTS.includes(entry)) value.transport = entry as MeshConfigOverride['transport']
-        else problems.push('transport must be one of auto | pairing | loopback')
-        break
-      case 'peerBaseUrl':
-        if (!isString(entry)) problems.push('peerBaseUrl must be a string')
-        else if (entry.trim() !== '' && !/^https?:\/\//u.test(entry.trim())) problems.push('peerBaseUrl must start with http:// or https://')
-        else value.peerBaseUrl = entry.trim()
+        else problems.push('transport must be auto')
         break
       case 'assignmentFile':
         if (!isString(entry)) problems.push('assignmentFile must be a string')

@@ -22,7 +22,7 @@
 | `assignment.yml` 解析 | `src/assignments/` | `test/config.test.ts` |
 | 设置页 + 两条 HTTP 路由 | `src/api/`、`client/client.js` | `test/config-route.test.ts`、`test/state.test.ts` |
 | 配置分层与热更新 | `src/config*.ts` | `test/config.test.ts` |
-| mock 传输（含故障注入、基线边界） | `src/transport/mock.ts` | `test/transport.test.ts` |
+| 传输接缝 + mock 适配器 | `src/transport/` | `test/transport.test.ts`；`pairing` / `loopback` 已删除（[decisions](decisions.md) D12） |
 | 自重启控制器 | `src/lifecycle/` | `test/lifecycle.test.ts`（未接线：默认不启用） |
 | 身份原语（epoch key / token / 防重放） | `src/identity/` | `test/identity.test.ts`（纯函数库，未接请求路径） |
 
@@ -54,13 +54,11 @@ invoke 入参：{ peer, namespace: 'session', method: 'list', args }
 
 风险与回退：没有社区回退路——`/pair-remote/*` 只覆盖五能力中的两个，缺 prompt/follow（[p1](../evidence/p1-transport.md) §5）。若 Typert 侧出现未预料的拦截，只能等上游开放非 owner peer 入口，或另评 sidecar 自建隧道。
 
-### 增量 2：清理死桩 + 真机加载冒烟
+### 增量 2：真机加载冒烟
 
-1. `src/transport/pairing.ts`：探测的方法名在社区插件里不存在（[p1](../evidence/p1-transport.md) §2.2），要么删掉，要么改成常返 `undefined` 并注释指向取证。
-2. `src/transport/loopback.ts`：要么按真实请求形状实现，要么删掉——留着只会让读者以为它可用。
-3. 真机加载：profile 里挂 `id: tools` 行 → `dsh plugin --profile <name> add file:<repo>` → 新会话让模型调 `mesh_list_nodes`。步骤与判据见 [how-to/development.md](../how-to/development.md) §1.3。
+profile 里挂 `id: tools` 行 → `dsh plugin --profile <name> add file:<repo>` → 新会话让模型调 `mesh_list_nodes`。步骤与判据见 [how-to/development.md](../how-to/development.md) §1.3。
 
-验收：宿主日志四条 `register` 全成功；新会话出现工具调用卡片，返回的 roster 与 `assignment.yml` 一致。
+验收：宿主日志四条 `register` 全成功；新会话出现工具调用卡片，返回的 roster 与 `assignment.yml` 一致；`mesh_status.transport.reason` 说明当前没有传输实现。
 
 ### 增量 3（提案，未批准）：消息总线平面
 

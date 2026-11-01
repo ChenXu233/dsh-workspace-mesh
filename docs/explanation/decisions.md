@@ -34,8 +34,9 @@
 | D9 | 工具前缀统一 `mesh_`，不用 `swarm_` | accepted | 已实施 | [tools.md](../reference/tools.md) §8 |
 | D10 | `mesh_dispatch` 阻塞到最终回复；`taskId` + `mesh_task_wait` 的异步模型推迟 | accepted | 已实施 | 见 §3 D10 |
 | D11 | 许可证 Apache-2.0 | accepted | 已实施 | 见 §3 D11 |
+| D12 | 删除 `pairing` / `loopback` 适配器，跨机传输只做 Typert | accepted | 已实施 | 见 §3 D12 |
 
-## 3. 需要展开的三条
+## 3. 需要展开的几条
 
 ### D3：为什么 v1 不建 hub 广播注册表
 
@@ -67,3 +68,13 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 - **对管不住的事说实话**：没有哪个开源许可证能阻止「fork 了但不分发」。真正保护 mesh 的是 SPEC、包名和参考实现保持领先，不是许可证条款。
 
 需要别的条款请开 issue。
+
+### D12：为什么删掉 pairing 与 loopback，而不是补实现
+
+`pairing` 探测 `remoteWebUiPairing` 的 `listPeers` / `peers` / `listWorkspaces` 三个方法名，而该社区插件一个都没有——它只有 `isPairedDevice(request)` 这个鉴权谓词（[p1](../evidence/p1-transport.md) §2.2）。所以那个适配器不是「待实现」，是永远命中不了。
+
+`loopback` 走社区的 `/pair-remote/*`，但只覆盖五能力中的两个，没有 prompt 与 follow；拿不到结构化事件流（[p1](../evidence/p1-transport.md) §3.2）。它满足不了 `MeshTransport` 接口，补实现也补不出来。
+
+留着它们只有一个效果：让读者以为「装上某个插件就有传输了」，让配置里出现两个选了也没用的选项。所以删掉适配器、把 `transport` 收敛到 `auto`，真实传输只做 Typert。
+
+代价：短期内没有任何跨机能力，`mesh_dispatch` 在真机上一律返回 `unavailable`。这是有意接受的——比返回一个假的成功好。

@@ -44,10 +44,9 @@ function control(dir: string, runtime = makeRuntime()): MeshConfigControl {
   return { runtime, file: join(dir, 'mesh-config.json'), extras: () => ({ configFile: join(dir, 'mesh-config.json') }) }
 }
 
-test('sanitizeOverride accepts the six known keys and rejects everything else', () => {
+test('sanitizeOverride accepts the five known keys and rejects everything else', () => {
   const good = sanitizeOverride({
-    transport: 'loopback',
-    peerBaseUrl: 'https://peer.example.com',
+    transport: 'auto',
     assignmentFile: 'assignment.yml',
     leaseMs: 60_000,
     dispatchTimeoutMs: 1_000,
@@ -55,14 +54,14 @@ test('sanitizeOverride accepts the six known keys and rejects everything else', 
   })
   assert.deepEqual(good.problems, [])
   assert.deepEqual(good.value, {
-    transport: 'loopback',
-    peerBaseUrl: 'https://peer.example.com',
+    transport: 'auto',
     assignmentFile: 'assignment.yml',
     leaseMs: 60_000,
     dispatchTimeoutMs: 1_000,
     leaseOwner: 'lead',
   })
 
+  // peerBaseUrl is no longer a key: the loopback transport it configured was removed.
   const bad = sanitizeOverride({ transport: 'carrier-pigeon', leaseMs: -1, leaseOwner: ' ', peerBaseUrl: 'ftp://x', secret: 1 })
   assert.equal(bad.problems.length, 5)
   assert.deepEqual(bad.value, {})
@@ -103,21 +102,19 @@ test('handleConfigSave applies lease fields immediately and reports restart-only
     const response = await handleConfigSave(post({
       leaseMs: 30_000,
       leaseOwner: 'ops',
-      transport: 'loopback',
-      peerBaseUrl: 'https://peer.example.com',
+      transport: 'auto',
     }), control(dir, runtime))
     assert.equal(response.status, 200)
     const body = (await response.json()) as Record<string, unknown>
     assert.equal(body.ok, true)
     assert.deepEqual(body.applied, ['leaseMs', 'leaseOwner'])
-    assert.deepEqual(body.pendingRestart, ['transport', 'peerBaseUrl'])
+    assert.deepEqual(body.pendingRestart, ['transport'])
     assert.equal(runtime.config.leaseMs, 30_000)
     assert.equal(runtime.config.leaseOwner, 'ops')
-    assert.equal(runtime.config.transportMode, 'loopback')
+    assert.equal(runtime.config.transportMode, 'auto')
     const state = body.state as Record<string, any>
     assert.equal(state.config.leaseMs, 30_000)
-    assert.equal(state.config.peerBaseUrl, '')
-    assert.equal(readConfigOverride(join(dir, 'mesh-config.json')).peerBaseUrl, 'https://peer.example.com')
+    assert.equal(readConfigOverride(join(dir, 'mesh-config.json')).transport, 'auto')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

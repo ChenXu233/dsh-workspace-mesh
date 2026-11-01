@@ -10,13 +10,13 @@ import z from '@deepseek-ai/schemastery'
 const live = (schema) => schema.volatile()
 
 const schema = z.object({
+  // One value today: no cross-machine adapter ships yet. Keeping the field (and
+  // its union shape) means existing `transport: auto` configs still validate and
+  // the form keeps its dropdown when typert lands.
   transport: live(
-    z.union([z.const('auto'), z.const('pairing'), z.const('loopback')])
+    z.union([z.const('auto')])
       .default('auto')
-      .description('transport: auto = pairing 优先, 回落 loopback(需 peerBaseUrl); 保存后立即生效'),
-  ),
-  peerBaseUrl: live(
-    z.string().default('').description('loopback 传输的对端 DSH 基础 URL (如 https://peer.example.com); 留空 = 不启用'),
+      .description('transport: 目前只有 auto（尚无跨机传输实现）; 保存后重启生效'),
   ),
   assignmentFile: live(
     z.string().default('').description('assignment.yml 路径, 相对宿主进程 cwd (容器内为 /data/workspace); 留空 = 不加载'),

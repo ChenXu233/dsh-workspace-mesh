@@ -9,7 +9,8 @@ Project invariants (zero runtime dependencies, no shell, fail loudly) live in
   code or amend the spec in a separate change with a rationale in the commit message — and update
   the affected doc in the same change. Never leave a "corrigendum" behind.
 - **Fail loudly.** A missing dependency is a documented degradation; a silently wrong answer is a
-  bug. Stubs throw `TransportUnavailableError` instead of returning fake data.
+  bug. An adapter that cannot do its job throws `TransportUnavailableError` instead of returning
+  fake data.
 
 ## Layout
 

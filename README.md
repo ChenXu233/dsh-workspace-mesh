@@ -71,10 +71,10 @@ Configuration keys and their defaults: [docs/reference/config.md](./docs/referen
 The tool surface, task board, roster derivation, settings page and config layering work and are
 covered by tests.
 
-There is **no working cross-machine transport yet**: `pairing` and `loopback` are stubs that fail
-loudly, and `mock` is test-only. In a real host `mesh_dispatch` therefore returns `unavailable`
-while `mesh_list_nodes` / `mesh_status` / `mesh_task_status` stay usable. The next increment is
-the Typert transport — see [docs/explanation/roadmap.md](./docs/explanation/roadmap.md).
+There is **no cross-machine transport yet**: the only adapter is the test-only `mock`, so in a real
+host `mesh_dispatch` returns `unavailable` while `mesh_list_nodes` / `mesh_status` /
+`mesh_task_status` stay usable. The next increment is the Typert transport — see
+[docs/explanation/roadmap.md](./docs/explanation/roadmap.md).
 
 ## Docs
 
