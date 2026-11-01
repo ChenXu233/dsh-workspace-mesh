@@ -13,6 +13,9 @@ coverage/
 # agent teams runtime state (local only, never shared)
 .agent-teams/
 
+# private environment notes (machine addresses, ops workflow; never shared)
+AGENTS.local.md
+
 # local env & secrets
 .env
 .env.*

@@ -2,6 +2,7 @@
 
 > 给编码 agent 的项目说明。人类入口见 [README.md](README.md)，文档索引见 [docs/README.md](docs/README.md)。
 > **最后核对**：2026-11-01，依据 `src/` 文件树、`package.json`、`docs/reference/`。
+> **私人环境笔记**：同目录的 [AGENTS.local.md](AGENTS.local.md)（不入库）。存在时先读它拿机器、地址与运维口径；它的内容不进任何提交。
 
 ## 元规则：本文件自己怎么演进
 

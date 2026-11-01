@@ -21,6 +21,8 @@ const BANNED = ['勘误', '变更记录', '变更日志', 'TODO', '以前是', '
 const EXEMPT_BANNED = new Set(['AGENTS.md'])
 const FROZEN_PREFIX = 'docs/evidence/'
 const SKIP_DIRS = new Set(['node_modules', '.git', 'lib', 'lib-test', 'dist'])
+// Git-ignored private notes (*.local.md) hold machine paths by design and never ship.
+const SKIP_SUFFIX = '.local.md'
 
 function listMarkdown(root) {
   const out = []
@@ -31,7 +33,7 @@ function listMarkdown(root) {
       if (statSync(full).isDirectory()) {
         if (SKIP_DIRS.has(entry)) continue
         walk(full)
-      } else if (entry.endsWith('.md')) {
+      } else if (entry.endsWith('.md') && !entry.endsWith(SKIP_SUFFIX)) {
         out.push(rel)
       }
     }
@@ -39,7 +41,7 @@ function listMarkdown(root) {
   for (const entry of readdirSync(root)) {
     const full = join(root, entry)
     if (statSync(full).isDirectory()) continue
-    if (entry.endsWith('.md')) out.push(entry)
+    if (entry.endsWith('.md') && !entry.endsWith(SKIP_SUFFIX)) out.push(entry)
   }
   const docs = join(root, 'docs')
   if (existsSync(docs)) walk(docs)
