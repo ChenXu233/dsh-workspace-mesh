@@ -12,6 +12,7 @@
 | 你想 | 读 |
 | --- | --- |
 | 装上并用起来 | [README.md](../README.md) |
+| 用中文读一遍 | [README.zh-CN.md](../README.zh-CN.md) |
 | 改代码、跑起来、看日志 | [how-to/development.md](how-to/development.md) |
 | 查工具名 / 参数 / 返回 / 错误码 | [reference/tools.md](reference/tools.md) |
 | 查配置字段、热更新边界 | [reference/config.md](reference/config.md) |
