@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>mesh topology harness</title>
+<style>
+  :root {
+    --dsw-alias-label-primary: #e8e8ea;
+    --dsw-alias-label-secondary: #b6b6bc;
+    --dsw-alias-label-tertiary: #8a8a93;
+    --dsw-alias-bg-secondary: #1b1b20;
+    --dsw-alias-bg-tertiary: #232329;
+    --dsw-alias-bg-input: #141418;
+    --dsw-alias-border-l1: #2a2a31;
+    --dsw-alias-border-l2: #3a3a44;
+    --dsw-alias-state-business-primary: #4c8dff;
+    --dsw-alias-state-success: #3fb950;
+    --dsw-alias-state-danger: #f85149;
+  }
+  html, body { margin: 0; background: #101014; color: #e8e8ea; font: 14px/1.5 system-ui, "Segoe UI", "PingFang SC", sans-serif; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.__errs = [];
+  window.addEventListener('error', function (event) {
+    window.__errs.push(String(event.message));
+    var pre = document.createElement('pre');
+    pre.id = 'boot-err';
+    pre.style.cssText = 'white-space:pre-wrap;color:#ff8080;padding:16px;font-size:12px';
+    pre.textContent = String(event.message) + '\n' + String((event.error && event.error.stack) || '');
+    document.body.appendChild(pre);
+  });
+</script>
+<script src="./demo.js"></script>
+</body>
+</html>

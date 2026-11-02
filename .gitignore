@@ -6,6 +6,9 @@ lib/
 lib-test/
 *.tsbuildinfo
 
+# local canvas harness output (demo/index.html loads it)
+demo/demo.js
+
 # test / coverage
 coverage/
 .nyc_output/
