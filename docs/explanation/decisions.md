@@ -36,6 +36,7 @@
 | D11 | 许可证 Apache-2.0 | accepted | 已实施 | 见 §3 D11 |
 | D12 | 删除 `pairing` / `loopback` 适配器，跨机传输只做 Typert | accepted | 已实施 | 见 §3 D12 |
 | D13 | 跨机调用复用对端的 owner 登录 token（`/connect` 换 cookie），不实现 mesh-peer 凭据 | accepted | 已实施 | 见 §3 D13 |
+| D14 | 浏览器半区改为 esbuild 打包产物，拓扑画布用 `@xyflow/react`（构建期内联，不进 `dependencies`） | accepted | 已实施 | 见 §3 D14 |
 
 ## 3. 需要展开的几条
 
@@ -93,3 +94,21 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 留着它们只有一个效果：让读者以为「装上某个插件就有传输了」，让配置里出现两个选了也没用的选项。所以删掉适配器、把 `transport` 收敛到 `auto`，真实传输只做 Typert。
 
 代价：短期内没有任何跨机能力，`mesh_dispatch` 在真机上一律返回 `unavailable`。这是有意接受的——比返回一个假的成功好。
+
+### D14：为什么浏览器半区要构建，且画布用 @xyflow/react
+
+「拓扑」要能拖、能缩放、能按真实 roster 自动布局，手写 SVG 撑不住：拖拽、视口变换、命中测试、fitView 都是交互框架的活。
+
+三条约束一起看：
+
+- 宿主的客户端模块加载器只解析平台模块表（`react`、`react-dom`、`zod` 等），npm 包只能在**构建时**内联进 `client/client.js`；
+- `test/tools.test.ts` 钉死 `package.json.dependencies === undefined`，所以画布库只能进 `devDependencies` 并被内联；
+- 布局算法必须可测，所以它和「payload → 节点/边」的推导放在 `src/graph/`（零依赖纯函数，node:test 直接跑），浏览器与宿主共用同一份。
+
+代价：
+
+- `client/client.js` 从手写 992 行变成约 1 万行的构建产物（484 KB，其中绝大部分是画布库），改 UI 必须先 `node scripts/build-client.mjs`；
+- 仓库第一次有前端构建依赖（esbuild + `@xyflow/react`），审计只放行 `dependencies` 为空，不再等于「零第三方代码」；
+- 打包库必须随附其许可证声明（见根目录 `NOTICE`）。
+
+推翻它的条件：平台模块表直接提供画布库，或交互需求回落到「静态图 + 表格」。

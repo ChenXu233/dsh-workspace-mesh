@@ -12,3 +12,18 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+---
+
+This product bundles the following third-party software inside the browser
+bundle (client/client.js). They are build-time dependencies; the published
+package declares no runtime dependencies.
+
+@xyflow/react — MIT License
+Copyright (c) 2019-2025 webkid GmbH
+https://github.com/xyflow/xyflow
+
+Its own bundled dependencies (zustand, classcat, d3-zoom, d3-selection,
+d3-drag, d3-interpolate, d3-transition, d3-ease and @xyflow/system) ship under
+the same MIT terms. Full license texts are reproduced at the end of
+client/client.js by the bundler.

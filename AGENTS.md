@@ -22,7 +22,7 @@
 | --- | --- | --- |
 | host 半区 | TypeScript（ESM）+ cordis | `src/` |
 | 工具面 | 裸 JSON Schema definition，零依赖 | `src/tools/` |
-| 浏览器半区 | 单文件原生 JS，无构建 | `client/client.js` |
+| 浏览器半区 | TSX/JS 源码，esbuild 打包成单文件 | `client/src/` → `client/client.js` |
 | 传输接缝 | `MeshTransport` 五方法 | `src/transport/` |
 | 设计契约 | SPEC.md（设计意图，不描述当前实现） | 根目录 |
 
@@ -70,6 +70,7 @@
 ```sh
 pnpm verify            # build + typecheck + node:test，CI 同一道闸
 pnpm check:docs        # 文档自检（H1/标题层级/围栏语言/相对链接/禁词）
+node scripts/build-client.mjs   # 只重建浏览器半区（改 client/src 后）
 node --check client/client.js   # 改过浏览器半区后必须跑
 ```
 
