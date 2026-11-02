@@ -37,6 +37,7 @@
 | D12 | 删除 `pairing` / `loopback` 适配器，跨机传输只做 Typert | accepted | 已实施 | 见 §3 D12 |
 | D13 | 跨机调用复用对端的 owner 登录 token（`/connect` 换 cookie），不实现 mesh-peer 凭据 | accepted | 已实施 | 见 §3 D13 |
 | D14 | 浏览器半区改为 esbuild 打包产物，拓扑画布用 `@xyflow/react`（构建期内联，不进 `dependencies`） | accepted | 已实施 | 见 §3 D14 |
+| D15 | 远程工作区 = 本地锚点目录的真记录 + `assignment.yml` 旁路归属；「添加远程工作区」只占 `directoryFlow` 选择器位，不接管 `sidebar.workspaces` 席位 | accepted | 未开始 | 见 §3 D15 |
 
 ## 3. 需要展开的几条
 
@@ -112,3 +113,30 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 - 打包库必须随附其许可证声明（见根目录 `NOTICE`）。
 
 推翻它的条件：平台模块表直接提供画布库，或交互需求回落到「静态图 + 表格」。
+
+### D15：远程工作区做成「锚点目录 + 旁路归属」，不接管侧栏席位
+
+三条决定：
+
+- 远程工作区在原生 registry 里是**一条真记录**，`path` 指向本地锚点目录（`%LOCALAPPDATA%\dsh-mesh\anchors\<nodeId>\<hash(remoteCwd)>`），不是远端路径；归属（`workspaceId → nodeId / remoteCwd`）落在 `assignment.yml`，不进 workspace 记录。
+- 「添加远程工作区」不抢 `sidebar.workspaces` 席位，只占 `sidebar.workspaces.directoryFlow` 与 `conversation.hero.workspace.directoryFlow` 两个 single 槽，把选目录交互扩成「本地 / 远程」两路；本机那一半调 `remote.directoryPicker.pick()`，不重写 OS 选择器。
+- 来源只写进 `title`（`<仓库名> @<机器名>`）。
+
+理由：
+
+- 工作区在本地的定义就是真实目录：`create()` 走 `node:fs/promises` 的 `realpath` 与 `stat().isDirectory()`，`attachSession` 用同一套 canon 要求 `SessionHeader.cwd` 真实存在。远程路径过不去；锚点是唯一能让原生分组、排序、置顶、归档、会话归属、搜索全部免费复用的形态。
+- 记录加不了字段：`WorkspaceRecord` 是 `z.object({ path, title, sessionIds, createdAt, updatedAt })`，zod 默认剥掉未声明键，`nodeId` 存不进去；绕过它直接写 domain 表会跳过 `validateStoredState` 与实体缓存，升级时最先坏。
+- 工作区行没有 slot：`sidebar.session.row.*` 是会话行级，工作区那一层要加东西只能接管 `sidebar.workspaces`（single，占用方 `ui-workspace`），代价是复刻分组、搜索、排序、置顶、归档，且不能再 import 它的运行时值。
+
+代价，六条都要记住：
+
+- 锚点目录会被文件树、终端、LSP 当成真实项目根，里面是空的。放 `.dsh-remote.json` 与 README 让它自解释，但「本地空目录」消除不掉。
+- 一个远程工作区一个锚点目录，不能共用：`create()` 的唯一性是规范路径字符串相等，共用同一个目录只会得到一条记录。
+- 锚点被删 → `status()` 变 `missing-dir`，需要启动时按 `assignment.yml` 重建。
+- `rename` 要求 title 唯一非空，两台机器上的同名仓库必须靠机器名区分；title 只是显示，绑定只能按 `workspaceId` 查表。
+- 占 `directoryFlow` 就是替换选择器后端随附的 client half；`pick` 在 browse-only 部署会被拒，需要回退到 `list` / `createDirectory`。`busy` 期间 owner 拒绝重复打开，对话框必须尊重它。
+- 搜索只匹配标题与 id，所以「搜机器名」只能靠 title 里带机器名。
+
+推翻它的条件：DSH 给工作区行开出 slot（哪怕只是行尾 seat），或 `WorkspaceRecord` 支持扩展字段。在那之前不要接管 `sidebar.workspaces`。
+
+上述「工作区必须真实目录」「记录 schema」「`directoryFlow` 交互约定」「席位与 `panellist` 语义」四条依据来自 DSH 上游，不在本仓库内：`packages/workspace/workspace/src/paths.ts`、同包 `spec.ts`、`packages/client/ui-workspace/README.zh.md`、`packages/client/ui-sidebar/README.zh.md`，以及文档站 `reference/subsystems/workspace` 与 `reference/subsystems/slots`。
