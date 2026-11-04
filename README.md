@@ -43,6 +43,7 @@ is which.
 | **Stays out of execution** | Across the machine boundary only `session/*` and `workspace/*` calls travel. |
 | **Degrades, does not crash** | No peers? The plugin still loads; `mesh_dispatch` reports `unavailable` and the other three tools keep working. |
 | **Zero runtime dependencies** | Plain JSON Schema tool definitions; cordis services are probed at runtime instead of imported from the host (SPEC §9.4). |
+| **Optionally composes with 质子** | When `dsh-proton-workspace` is mounted, the browser half registers this mesh as one workspace source (`ctx.protonWorkspace.addSource`), so the shipped add-workspace flow can pick a remote workspace. Absent proton the injection never resolves and nothing else changes. |
 
 ## Requirements
 

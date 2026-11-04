@@ -10132,9 +10132,142 @@ function ensureVendorCss() {
   document.head.appendChild(tag2);
 }
 
+// client/src/proton-source.js
+var STATE_PATH = "/api/mesh/state";
+var ANCHOR_PATH = "/api/mesh/anchor";
+var ANCHORS_PATH = "/api/mesh/anchors";
+function readJson(response) {
+  return response.text().then(function(text) {
+    var value;
+    try {
+      value = text ? JSON.parse(text) : void 0;
+    } catch (error) {
+      value = void 0;
+    }
+    if (!response.ok) {
+      var message = value && typeof value === "object" && "error" in value ? String(value.error) : "HTTP " + response.status;
+      throw new Error(message);
+    }
+    return value;
+  });
+}
+function request(fetcher, path, init2) {
+  var base = { credentials: "same-origin", headers: { accept: "application/json" } };
+  if (init2 && init2.body !== void 0) base.headers["content-type"] = "application/json";
+  return fetcher(path, Object.assign(base, init2)).then(readJson);
+}
+function splitTarget(id2) {
+  var slash = String(id2).indexOf("/");
+  if (slash <= 0 || slash === String(id2).length - 1) {
+    throw new Error('malformed mesh workspace id "' + id2 + '"');
+  }
+  return { nodeId: id2.slice(0, slash), workspaceId: id2.slice(slash + 1) };
+}
+function pathKey(path) {
+  return String(path).replace(/[\\/]+$/, "").toLowerCase();
+}
+function createMeshWorkspaceSource(fetcher) {
+  var call = fetcher || (typeof fetch === "function" ? fetch.bind(globalThis) : void 0);
+  var anchors;
+  var loading;
+  var listeners = [];
+  function requireFetcher() {
+    if (typeof call !== "function") throw new Error("mesh workspace source has no fetch implementation");
+    return call;
+  }
+  function notify() {
+    var pending = listeners.slice();
+    for (var i = 0; i < pending.length; i += 1) pending[i]();
+  }
+  function forget() {
+    anchors = void 0;
+    loading = void 0;
+  }
+  function load() {
+    if (loading !== void 0) return loading;
+    loading = request(requireFetcher(), ANCHORS_PATH).then(function(payload) {
+      var map = /* @__PURE__ */ new Map();
+      var rows = payload && payload.anchors || [];
+      for (var i = 0; i < rows.length; i += 1) {
+        var row = rows[i];
+        if (!row || typeof row.path !== "string") continue;
+        map.set(pathKey(row.path), row);
+      }
+      anchors = map;
+      loading = void 0;
+      notify();
+      return map;
+    }).catch(function() {
+      loading = void 0;
+      return void 0;
+    });
+    return loading;
+  }
+  return {
+    id: "mesh",
+    label: "\u5DE5\u4F5C\u533A\u7F51\u683C",
+    list: function() {
+      return request(requireFetcher(), STATE_PATH).then(function(payload) {
+        var rows = [];
+        var peers = payload && payload.peers || [];
+        for (var i = 0; i < peers.length; i += 1) {
+          var peer = peers[i];
+          var workspaces = peer.workspaces || [];
+          for (var j = 0; j < workspaces.length; j += 1) {
+            var workspace = workspaces[j];
+            rows.push({
+              id: peer.nodeId + "/" + workspace.workspaceId,
+              title: (workspace.name || workspace.workspaceId) + " @" + (peer.label || peer.nodeId),
+              detail: workspace.path,
+              status: peer.status || "unknown"
+            });
+          }
+        }
+        return rows;
+      });
+    },
+    adopt: function(id2) {
+      var target = splitTarget(id2);
+      return request(requireFetcher(), ANCHOR_PATH, {
+        method: "POST",
+        body: JSON.stringify(target)
+      }).then(function(payload) {
+        forget();
+        load();
+        return { path: payload.workspace.path };
+      });
+    },
+    /**
+     * Where the workspace at `path` actually lives. Synchronous by contract:
+     * rows call this while rendering, so the first call starts the listing and
+     * answers "nothing yet" rather than blocking.
+     */
+    describe: function(path) {
+      if (typeof path !== "string" || path === "") return void 0;
+      if (anchors === void 0) {
+        load();
+        return void 0;
+      }
+      var record = anchors.get(pathKey(path));
+      if (record === void 0) return void 0;
+      return {
+        machine: record.nodeLabel || record.nodeId,
+        remotePath: record.remoteCwd
+      };
+    },
+    subscribe: function(listener) {
+      listeners.push(listener);
+      return function() {
+        var index2 = listeners.indexOf(listener);
+        if (index2 >= 0) listeners.splice(index2, 1);
+      };
+    }
+  };
+}
+
 // client/src/app.js
 var NS = "mesh";
-var STATE_PATH = "/api/mesh/state";
+var STATE_PATH2 = "/api/mesh/state";
 var CONFIG_PATH = "/api/mesh/config";
 var DISPATCH_PATH = "/api/mesh/dispatch";
 var SESSION_PATH = "/api/mesh/session";
@@ -10545,7 +10678,7 @@ function MeshSection(props) {
       set3({ phase: "error", data: null, error: "\u5F53\u524D\u9875\u9762\u6CA1\u6709 fetch", status: 0, at: Date.now() });
       return;
     }
-    fetch(STATE_PATH, { method: "GET", credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
+    fetch(STATE_PATH2, { method: "GET", credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
       if (!response.ok) {
         var error = new Error("HTTP " + response.status);
         error.status = response.status;
@@ -10862,6 +10995,13 @@ function apply(ctx) {
       return jsx4.jsx(TopoBoundary, { t, children: jsx4.jsx(MeshSection, Object.assign({}, props, { ctx })) });
     });
   });
+  if (typeof ctx.inject === "function") {
+    ctx.inject(["protonWorkspace"], function(scoped) {
+      scoped.effect(function() {
+        return scoped.protonWorkspace.addSource(createMeshWorkspaceSource());
+      }, "mesh: proton workspace source");
+    });
+  }
 }
 function MeshPanelIcon() {
   return jsx4.jsxs("svg", {
@@ -10883,7 +11023,7 @@ function MeshWorkspacePage() {
   var state = st[0];
   var set3 = st[1];
   var load = React2.useCallback(function() {
-    fetch(STATE_PATH, { method: "GET", credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
+    fetch(STATE_PATH2, { method: "GET", credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
       if (!response.ok) throw new Error("HTTP " + response.status);
       return response.json();
     }).then(function(data2) {

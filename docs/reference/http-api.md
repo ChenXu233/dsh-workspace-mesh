@@ -10,8 +10,8 @@
 
 | 组 | 调用者 | 挂在哪 | 认证 |
 | --- | --- | --- | --- |
-| 设置页路由（§1–§5） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
-| 对端路由（§6–§7） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
+| 设置页路由（§1–§6） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
+| 对端路由（§7–§8） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
 
 对端路由不能放进 fence：调用方手里还没有 cookie，放进去会先被 401 挡掉，握手永远走不到自己的处理器。它们因此自带校验，且只服务这两个操作面。
 
@@ -110,7 +110,44 @@ GET /api/mesh/session?nodeId=<peer>&sessionId=<id>&limit=50
 
 和工具一样**阻塞到最终回复**（或 `dispatchTimeoutMs`），所以一次页面请求最长约两分钟。
 
-## 6. POST /api/mesh/handshake
+## 6. POST /api/mesh/anchor
+
+为 assignment 或 roster 已证明的远端目标创建**本地锚点目录**，再调用原生 `workspaceRegistry.create(anchorPath, title)` 登记一条真记录。请求体：
+
+```text
+{ nodeId, workspaceId }
+```
+
+`remoteCwd` 只从 matching assignment 的 `cwd` 或 roster 中该节点的 workspace `path` 解析，客户端不能直接指定。每个目标使用独立目录：`%LOCALAPPDATA%\dsh-mesh\anchors\<sha256(nodeId)>\<sha256(JSON.stringify([nodeId, workspaceId, remoteCwd]))>`；两段散列均为小写十六进制，第一段直接散列原始 `nodeId`，避免 Windows 保留名、尾随点与大小写折叠别名。目录内有 `.dsh-remote.json`（`version` / `nodeId` / `workspaceId` / `remoteCwd`）和 README；已有元数据与目标身份不匹配时拒绝覆写。拟议标题是 `<仓库名> @<节点名>`。
+
+成功返回 200 + `{ ok: true, path, remoteCwd, workspace: { workspaceId, title, path } }`。顶层 `path` 与 `workspace.title/path` 取 `workspaceRegistry.create` 返回的实际记录（包括既有记录、改名与 realpath），不重算。这里只创建或复用本地记录，不挂载远端目录、不启动远程执行；agent loop 仍在归属机。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 405 | 方法不是 POST |
+| 400 | 请求体不是 JSON 对象，或 `nodeId` / `workspaceId` 缺失、不是非空字符串 |
+| 404 | assignment 与 roster 都不能证明这个 `nodeId` / `workspaceId` 目标，或它没有 `remoteCwd` |
+| 503 | 组合里没有可调用的 `workspaceRegistry.create` |
+| 500 | 目录或元数据读写失败、已有元数据与目标身份不匹配、注册表调用失败或返回无效记录 |
+| 200 | 锚点文件已写入，返回已创建或复用的原生工作区记录 |
+
+### GET /api/mesh/anchors
+
+列出本机已创建的全部锚点目录，供浏览器把工作区行标成「哪台机器」。返回 `{ ok: true, anchors: [...] }`，每项：
+
+```text
+{ path, nodeId, nodeLabel, workspaceId, remoteCwd }
+```
+
+`path` 取注册表里那条记录的实际拼写（`create()` 记的是 realpath），不是目录扫描出来的拼法——行只会用前者去匹配。锚点根目录不存在时返回空列表，不报错。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 405 | 方法不是 GET |
+| 500 | 目录或元数据读取失败 |
+| 200 | 其余情况 |
+
+## 7. POST /api/mesh/handshake
 
 对端用共享密钥换一个短期 mesh token。这是 relay 模式的入口：调用方不需要对端那个每次重启都轮换的登录 token。
 
@@ -131,9 +168,9 @@ hmac = base64url(HMAC-SHA256(meshSecret, "mesh-handshake:<nodeId>:<ts>:<nonce>")
 
 nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒（防重放）。
 
-## 7. POST /api/mesh/relay
+## 8. POST /api/mesh/relay
 
-对端**在本机**执行一次会话操作。凭 §6 换到的 mesh token。
+对端**在本机**执行一次会话操作。凭 §7 换到的 mesh token。
 
 ```text
 { token, op, args }        op ∈ list | create | prompt | page | workspaces
@@ -158,7 +195,7 @@ nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒
 
 把 source 传进 `prompt` 的第二位，报错是 `signal.throwIfAborted is not a function`——错误发生在对端，调用方只看到一句与参数无关的话。`test/relay-route.test.ts` 用「假控制器先调 `signal.throwIfAborted()`」把这条契约钉住。
 
-## 8. 为什么不用原生 settings 管道
+## 9. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

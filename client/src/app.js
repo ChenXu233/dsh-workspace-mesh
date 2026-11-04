@@ -5,6 +5,7 @@
 import * as React from "react";
 import * as jsx from "react/jsx-runtime";
 import { MeshTopology, TOPOLOGY_CSS, TopoBoundary, ensureVendorCss } from "./topology.jsx";
+import { createMeshWorkspaceSource } from "./proton-source.js";
     // The settings namespace equals this bundle's profile entry id (cordis.patch.yml: id: mesh).
     var NS = "mesh";
     // Read-only snapshot served by the host half (src/api/index.ts).
@@ -801,6 +802,18 @@ import { MeshTopology, TOPOLOGY_CSS, TopoBoundary, ensureVendorCss } from "./top
           return jsx.jsx(TopoBoundary, { t: t, children: jsx.jsx(MeshSection, Object.assign({}, props, { ctx: ctx })) });
         });
       });
+
+      // Optional composition: when dsh-proton-workspace is mounted, offer this
+      // mesh as one workspace source so "add workspace" can pick a remote one.
+      // Everything above works without it; when proton is absent the callback
+      // below never runs, because no one ever provides protonWorkspace.
+      if (typeof ctx.inject === "function") {
+        ctx.inject(["protonWorkspace"], function (scoped) {
+          scoped.effect(function () {
+            return scoped.protonWorkspace.addSource(createMeshWorkspaceSource());
+          }, "mesh: proton workspace source");
+        });
+      }
     }
 
     /** Left-rail icon: a hub with two peers. */

@@ -37,7 +37,8 @@
 | D12 | 删除 `pairing` / `loopback` 适配器，跨机传输只做 Typert | accepted | 已实施 | 见 §3 D12 |
 | D13 | 跨机调用复用对端的 owner 登录 token（`/connect` 换 cookie），不实现 mesh-peer 凭据 | accepted | 已实施 | 见 §3 D13 |
 | D14 | 浏览器半区改为 esbuild 打包产物，拓扑画布用 `@xyflow/react`（构建期内联，不进 `dependencies`） | accepted | 已实施 | 见 §3 D14 |
-| D15 | 远程工作区 = 本地锚点目录的真记录 + `assignment.yml` 旁路归属；「添加远程工作区」只占 `directoryFlow` 选择器位，不接管 `sidebar.workspaces` 席位 | accepted | 未开始 | 见 §3 D15 |
+| D15 | 远程工作区 = 本地锚点目录的真记录 + `assignment.yml` 旁路归属；「添加远程工作区」只占 `directoryFlow` 选择器位，不接管 `sidebar.workspaces` 席位 | accepted | 进行中 | 见 §3 D15 |
+| D16 | UI 扩展收敛到一个前置包（替换包）：下游插件只依赖它的 ProtonRegionMap 契约，不直接注册官方席位；占席位时复刻实现放进可抛弃的独立包 | accepted | 未开始 | 见 §3 D16 |
 
 ## 3. 需要展开的几条
 
@@ -118,7 +119,7 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 
 三条决定：
 
-- 远程工作区在原生 registry 里是**一条真记录**，`path` 指向本地锚点目录（`%LOCALAPPDATA%\dsh-mesh\anchors\<nodeId>\<hash(remoteCwd)>`），不是远端路径；归属（`workspaceId → nodeId / remoteCwd`）落在 `assignment.yml`，不进 workspace 记录。
+- 远程工作区在原生 registry 里是**一条真记录**，`path` 指向本地锚点目录（`%LOCALAPPDATA%\dsh-mesh\anchors\<sha256(nodeId)>\<sha256(JSON.stringify([nodeId, workspaceId, remoteCwd]))>`），不是远端路径；归属（`workspaceId → nodeId / remoteCwd`）落在 `assignment.yml`，不进 workspace 记录。
 - 「添加远程工作区」不抢 `sidebar.workspaces` 席位，只占 `sidebar.workspaces.directoryFlow` 与 `conversation.hero.workspace.directoryFlow` 两个 single 槽，把选目录交互扩成「本地 / 远程」两路；本机那一半调 `remote.directoryPicker.pick()`，不重写 OS 选择器。
 - 来源只写进 `title`（`<仓库名> @<机器名>`）。
 
@@ -140,3 +141,39 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 推翻它的条件：DSH 给工作区行开出 slot（哪怕只是行尾 seat），或 `WorkspaceRecord` 支持扩展字段。在那之前不要接管 `sidebar.workspaces`。
 
 上述「工作区必须真实目录」「记录 schema」「`directoryFlow` 交互约定」「席位与 `panellist` 语义」四条依据来自 DSH 上游，不在本仓库内：`packages/workspace/workspace/src/paths.ts`、同包 `spec.ts`、`packages/client/ui-workspace/README.zh.md`、`packages/client/ui-sidebar/README.zh.md`，以及文档站 `reference/subsystems/workspace` 与 `reference/subsystems/slots`。
+
+### D16：UI 扩展收敛到一个前置包，前置只承诺契约不承诺席位
+
+三条决定：
+
+- 所有 UI 扩展收敛到一个**前置包**，其他插件只依赖前置声明的 ProtonRegionMap 契约，不直接注册官方席位。前置的角色就是官方文档里的**替换包**。
+- 前置只做两件事：把下游的注册映射到官方**已有**的槽（如 `sidebar.session.row.trailing` 这类 list 槽）；官方没有的槽，由前置在自己占住的席位内部声明子槽并承载。
+- 占席位是降级手段，不是默认路径。真要占时，复刻实现放进单独的、可抛弃的包，前置只依赖它的接口；前置自己的键名按官方命名习惯设计，保证官方补槽后能原地对齐、实现可换。
+
+理由：
+
+- `ui-sidebar` 的 README 把「替换包」写成了机制名：声明感知的 `slots.inject()` 让替换包无论先于还是后于侧边栏激活都能生效。一个包接管、其余往它里面注册，是这套 slot 系统预留的位置，不是变通。
+- 席位占用方是唯一有权声明子槽的一方（「只在拥有并渲染某个位置的组件中声明新的 child slot」）。所以前置一旦占位，就能给下游开一套自己的键；下游仍用 `ctx.proton.inject()` / `register()`，手感与官方槽无差别。
+- 多个插件各自抢同一个 single 席位时，rc5 由 `priority` 仲裁，低 `priority` 获胜（single 与已占用的 keyed cell 就是替换点）。收敛到一个前置，可以把下游映射与占位决策集中管理。
+
+代价，四条都要记住：
+
+- 前置把「哪个键落到哪个官方槽」变成一份要维护的映射。官方改 key 或 cardinality 时，`import type` 引入的 ProtonRegionMap 声明会在编译期炸（早发现）；但行为漂移不会炸，只会慢慢不一致。
+- 一旦真占席位，等于复刻 `ui-workspace` 的整列行为（分组与树形、水位线、搜索、拖拽、置顶、归档、行菜单、悬浮卡、通知、`directoryFlow` 接洽、键盘导航）。这份复刻不属于前置，必须单独可抛弃。
+- 下游从此依赖前置的键而不是官方键：「官方补齐后丢掉前置」只在键名一一对应时成立，否则下游要跟着改。
+- 前置是额外的失效面：它挂了，所有依赖它的下游 UI 一起消失。
+
+推翻它的条件：官方为工作区行等位置开出正式槽，且键名能与前置契约一一映射 —— 那时把前置的实现换成「注册官方槽」，契约不动，或直接删除前置。若官方长期不开槽、而需求增长到 `sidebar.panellist` 承载不了，则重新评估是否值得长期维护那个复刻包。
+
+上述三条机制依据来自 DSH 上游，不在本仓库内：`packages/client/ui-sidebar/README.zh.md`（替换包与声明感知 `inject`）、`packages/client/ui-workspace/README.zh.md`（被复刻的行为清单）、文档站 `reference/subsystems/slots`（owner 声明子槽、single 是替换点、每个声明只有一个存活 owner）。
+
+### D17：机器名由席位档在行上渲染，标题保留来源语义
+
+`title` 仍是 `<仓库名> @<机器名>`：搜索只匹配标题与 id，两台机器上的同名仓库也要靠它区分。区别在渲染——席位档（`dsh-proton-workspace-seat`）接管 `sidebar.workspaces`，把标题里那段 ` @<机器名>` 拆成独立的小字标签，并按 `GET /api/mesh/anchors` 的答案换图标、补 hover 卡片。
+
+- 归属不新增字段、不新增槽：来源用 `describe(path)` 回答「哪台机器、远端哪个路径」，它不知道自己被谁显示。
+- 远端答案来得比第一帧晚，所以来源还要实现 `subscribe()`；`WorkspaceSources` 汇成 `onMarkChange()`，席位据此让问过的那一行再问一次。
+- 席位是**替换**不是叠加：官方 `ui-workspace` 必须从 profile 停掉，否则两套 apply 各自往同一批 slot 注册行操作，菜单会出现两遍。
+- 代价：上游 UI 变成 vendor 副本 + 补丁。上游动到同一处时以补丁冲突出现，要人工裁决；`scripts/with-vendor-patches.mjs` 让「打过补丁的树」只存在于构建期间。
+
+推翻它的条件：官方给工作区行开出 slot（哪怕只是行尾 seat）。那时席位可以退回普通插件，vendor 副本直接丢弃。
