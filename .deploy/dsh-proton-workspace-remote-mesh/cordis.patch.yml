@@ -1,0 +1,4 @@
+# dsh-proton-workspace-seat bundle layer.
+# Intentionally empty: the plugin is mounted from the DEPLOYER's profile patch
+# (- id: proton-workspace-seat / name: dsh-proton-workspace-seat).
+[]

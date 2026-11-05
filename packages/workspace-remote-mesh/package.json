@@ -12,7 +12,7 @@
       "default": "./lib/index.js"
     },
     "./client": {
-      "types": "./src/client/index.ts",
+      "types": "./src/client/index.tsx",
       "default": "./lib/client.js"
     },
     "./locale/*.json": "./vendor/ui-workspace/locale/*.json"

@@ -25,7 +25,7 @@ const HOST_MODULES = [
 /** Browser-half source root: CSS tag ids are relative to it. */
 const CLIENT_SRC = resolve(import.meta.dirname, 'vendor/ui-workspace/src/client')
 
-export default dshPackageBuild(PACKAGE, 'src/client/index.ts', {
+export default dshPackageBuild(PACKAGE, 'src/client/index.tsx', {
   externals: HOST_MODULES,
   plugins: [dshCssModules({ packageName: PACKAGE, rootDir: CLIENT_SRC })],
 })

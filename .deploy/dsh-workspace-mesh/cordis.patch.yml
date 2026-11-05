@@ -1,0 +1,6 @@
+# dsh-workspace-mesh bundle layer.
+# Intentionally empty: the plugin is mounted from the DEPLOYER's profile patch
+# (- id: mesh / name: dsh-workspace-mesh), which makes the entry uniquely
+# addressed and profile-owned — the requirement for the native settings form
+# (config-editor only edits profile-root-owned entries).
+[]
