@@ -140,6 +140,9 @@ importers:
       clsx:
         specifier: ^2.0.0
         version: 2.1.1
+      dsh-proton:
+        specifier: file:E:/git/dsh-proton/packages/core
+        version: file:../dsh-proton/packages/core(@deepseek-ai/cordis@4.0.5)(react@18.3.1)
       dsh-proton-workspace:
         specifier: 0.1.3
         version: 0.1.3(@deepseek-ai/cordis@4.0.5)(react@18.3.1)
@@ -1366,6 +1369,13 @@ packages:
 
   dsh-proton@0.1.3:
     resolution: {integrity: sha512-vXcO2EsNEpMJACdQVokjU8Y1GIubgOGMEo/90D1O6rZq8kQJsYpgd9xttxJIUwVSQKcts6tzpwDiPOcykErtWA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.5
+      react: ^18.2.0
+
+  dsh-proton@file:../dsh-proton/packages/core:
+    resolution: {directory: ../dsh-proton/packages/core, type: directory}
     engines: {node: '>=20'}
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.5
@@ -2780,6 +2790,11 @@ snapshots:
       react: 18.3.1
 
   dsh-proton@0.1.3(@deepseek-ai/cordis@4.0.5)(react@18.3.1):
+    dependencies:
+      '@deepseek-ai/cordis': 4.0.5(@deepseek-ai/cordis-plugin-include@1.0.10)(@deepseek-ai/cordis-plugin-loader@1.0.6)
+      react: 18.3.1
+
+  dsh-proton@file:../dsh-proton/packages/core(@deepseek-ai/cordis@4.0.5)(react@18.3.1):
     dependencies:
       '@deepseek-ai/cordis': 4.0.5(@deepseek-ai/cordis-plugin-include@1.0.10)(@deepseek-ai/cordis-plugin-loader@1.0.6)
       react: 18.3.1
