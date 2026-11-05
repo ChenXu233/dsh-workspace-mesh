@@ -86,6 +86,28 @@ function shippedEntry(ctx: Context, self: unknown): RawEntry | undefined {
 }
 
 /**
+ * Claim one entry and describe the kit the host renderer would have synthesized.
+ *
+ * Proton asks its registered providers in order; the first that answers draws the
+ * entry through the entry face. This package claims the workspace namespace —
+ * the shipped browser and picker both declare it.
+ * @param ctx - client root context.
+ * @param entry - the entry the outlet shadowed.
+ * @returns kit sources, or undefined when this entry is not ours to draw.
+ */
+export function workspaceEntrySources(ctx: Context, entry: unknown): EntryKitSources | undefined {
+  const declared = entry as { locale?: string }
+  if (declared.locale !== 'workspace') return undefined
+  const locale = (ctx as unknown as { locale?: LocaleLike }).locale
+  const workspaces = (ctx as unknown as { workspaces?: { list: WorkspaceListSource } }).workspaces
+  return {
+    standard: workspaces === undefined ? {} : { useWorkspaces: selectorHook(workspaces.list) },
+    translate: namespace => translator(locale, namespace),
+    storeOf: candidate => storeSeat(candidate as RawEntry),
+  }
+}
+
+/**
  * Render the shipped workspace browser through the proton entry face.
  *
  * Nothing here is vendored UI: this is the host's own component, drawn with the

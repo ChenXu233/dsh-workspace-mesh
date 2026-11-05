@@ -1,101 +1,46 @@
 /**
- * Experiment: shadow the workspace seat and draw the host's own browser through
- * proton's entry face, so the props the host renderer would synthesize are
- * supplied by this package instead.
+ * Remote workspace rendering.
+ *
+ * Two pieces, both independent of any DSH change:
+ *
+ * - the kit the host renderer would synthesize for the shipped workspace entry
+ *   (standard props, locale seat, store binding), handed to proton so its entry
+ *   face can draw that entry rather than only the renderer that owned it;
+ * - a section of its own, meant to render beside the shipped list and name the
+ *   machine each remote workspace lives on.
  */
-import { Component } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
-import type { ReactNode } from 'react'
-import { ShippedWorkspaceList } from './shipped'
+import { RemoteWorkspaceSection } from './remote-section'
+import { workspaceEntrySources } from './shipped'
 
-/** Surfaces a render failure in the DOM, so a blank region never hides its cause. */
-class Boundary extends Component<{ children: ReactNode }, { message: string | null }> {
-  override state = { message: null as string | null }
-  static getDerivedStateFromError(error: unknown): { message: string } {
-    return { message: error instanceof Error ? error.message : String(error) }
-  }
-  override render(): ReactNode {
-    if (this.state.message !== null) {
-      return <div data-seat-error={this.state.message} style={{ padding: '8px 12px', fontSize: 12, lineHeight: '16px', color: '#d97706' }}>{this.state.message}</div>
-    }
-    return this.props.children
-  }
-}
-
-export const inject = ['slots'] as const
-
-const SEAT = 'sidebar.workspaces'
-
-/** Our own wrapper identity: the lookup for the shipped entry must skip it. */
-function Wrapper({ ctx, onError }: { ctx: Context, onError: (message: string) => JSX.Element }): JSX.Element {
-  // The marker is the experiment's evidence: it proves this region is drawn by
-  // our face rather than by the shipped plugin reacting as if we were absent.
-  return (
-    <Boundary>
-      <div data-face="proton-entry-face"><ShippedWorkspaceList ctx={ctx} self={Wrapper} onError={onError} /></div>
-    </Boundary>
-  )
-}
-
-/** The slice of the slots service this takeover needs. */
-interface RawSlots {
-  inject(key: string, callback: () => () => void): () => void
-  register(options: { name: string }, component: unknown): () => void
-  entriesOfSlot(key: string): readonly { component: unknown }[]
-  subscribe(key: string, listener: () => void): () => void
-}
+export const inject = ['slots', 'proton'] as const
 
 /**
- * Take the seat and render the shipped occupant, or say why it cannot be drawn.
+ * Register the entry kit sources, and contribute the remote group.
  *
- * A single slot has no arbitration: the last registrant wins. The shipped plugin
- * registers from its own apply, which can land after ours, so taking the seat is
- * not a one-off call — it has to hold it.
+ * The section does not appear yet: it renders inside the workspace region's host,
+ * and that host is only reachable through proton's outlet — which stays parked
+ * until the shipped seat is visible to it (see the adapter's note). Registering
+ * anyway keeps the contribution honest: the moment the outlet holds the seat, the
+ * section is already there.
  * @param ctx - client root context.
  */
-/**
- * Off: competing for a single seat by re-registering from a subscriber fights
- * the slot's own change stream and livelocks the shell. A takeover has to go
- * through proton's outlet, which exists precisely to hold a seat.
- */
-const ENABLED = false
-
 export function apply(ctx: Context): void {
-  if (!ENABLED) return
-  const slots = ctx.slots as unknown as RawSlots
-  const Component = (owner: { onError?: never }) => (
-    <Wrapper
-      ctx={ctx}
-      onError={(message) => (
-        <div data-seat-error={message} style={{ padding: '8px 12px', fontSize: 12, lineHeight: '16px', color: 'var(--dsw-alias-state-warning-primary, #d97706)' }}>
-          {message}
-        </div>
-      )}
-    />
+  ctx.effect(
+    () => ctx.proton.addEntrySources(entry => workspaceEntrySources(ctx, entry)),
+    'remote-mesh: workspace entry sources',
   )
-
-  ctx.effect(() => slots.inject(SEAT, () => {
-    let dispose: (() => void) | undefined
-    // Disposing and re-registering both notify this same subscriber; without the
-    // guard the re-entry recurses until the boot dies.
-    let busy = false
-    const hold = (): void => {
-      if (busy) return
-      busy = true
-      try {
-        const winner = slots.entriesOfSlot(SEAT)[0]
-        if (winner?.component === Component) return
-        dispose?.()
-        dispose = slots.register({ name: SEAT }, Component)
-      } finally {
-        busy = false
-      }
-    }
-    hold()
-    const stop = slots.subscribe(SEAT, hold)
-    return () => {
-      stop()
-      dispose?.()
-    }
-  }), 'remote-mesh: shipped workspace list')
+  ctx.inject(['protonWorkspace'], (scoped) => {
+    const proton = scoped.protonWorkspace
+    if (typeof proton?.addSection !== 'function') return
+    scoped.effect(
+      () => proton.addSection({
+        id: 'remote-mesh',
+        order: 10,
+        title: '远程工作区',
+        render: () => <RemoteWorkspaceSection />,
+      }),
+      'remote-mesh: workspace section',
+    )
+  })
 }

@@ -1,0 +1,5 @@
+# dsh-proton-workspace bundle layer.
+# Intentionally empty: the plugin is mounted from the DEPLOYER's profile patch
+# (- id: proton-workspace / name: dsh-proton-workspace), which makes the entry uniquely
+# addressed and profile-owned.
+[]
