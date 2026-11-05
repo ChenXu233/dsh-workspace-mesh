@@ -1,31 +1,39 @@
-/**
- * Remote workspace rendering.
- *
- * Two pieces, both independent of any DSH change:
- *
- * - the kit the host renderer would synthesize for the shipped workspace entry
- *   (standard props, locale seat, store binding), handed to proton so its entry
- *   face can draw that entry rather than only the renderer that owned it;
- * - a section of its own, meant to render beside the shipped list and name the
- *   machine each remote workspace lives on.
- */
 import type { Context } from '@deepseek-ai/cordis'
 import { RemoteWorkspaceSection } from './remote-section'
 import { workspaceEntrySources } from './shipped'
 
-export const inject = ['slots', 'proton'] as const
+// The providers below read these services while drawing a shadowed entry; cordis
+// refuses an undeclared service access at runtime, so they are part of this
+// plugin's contract rather than an optional nicety.
+export const inject = ['slots', 'proton', 'locale', 'workspaces'] as const
+
+const SEAT = 'sidebar.workspaces'
 
 /**
- * Register the entry kit sources, and contribute the remote group.
- *
- * The section does not appear yet: it renders inside the workspace region's host,
- * and that host is only reachable through proton's outlet — which stays parked
- * until the shipped seat is visible to it (see the adapter's note). Registering
- * anyway keeps the contribution honest: the moment the outlet holds the seat, the
- * section is already there.
+ * Probe the slot ledger the way this plugin sees it, so a wrong-instance or
+ * wrong-key diagnosis is a measurement instead of a guess.
  * @param ctx - client root context.
  */
+function probe(ctx: Context): void {
+  const slots = ctx.slots as unknown as {
+    entries(key: string): readonly unknown[]
+    spec(key: string): unknown
+  }
+  const sample = (): Record<string, unknown> => ({
+    root: slots.entries('root').length,
+    seat: slots.entries(SEAT).length,
+    spec: slots.spec(SEAT) as never,
+    sameObjectAsProton: (ctx.proton as unknown as { host?: unknown }).host === ctx,
+  })
+  const publish = (): void => {
+    ;(globalThis as unknown as Record<string, unknown>).__slotsProbe = sample()
+  }
+  publish()
+  for (const delay of [500, 2000, 5000]) setTimeout(publish, delay)
+}
+
 export function apply(ctx: Context): void {
+  probe(ctx)
   ctx.effect(
     () => ctx.proton.addEntrySources(entry => workspaceEntrySources(ctx, entry)),
     'remote-mesh: workspace entry sources',
@@ -33,14 +41,12 @@ export function apply(ctx: Context): void {
   ctx.inject(['protonWorkspace'], (scoped) => {
     const proton = scoped.protonWorkspace
     if (typeof proton?.addSection !== 'function') return
-    scoped.effect(
-      () => proton.addSection({
-        id: 'remote-mesh',
-        order: 10,
-        title: '远程工作区',
-        render: () => <RemoteWorkspaceSection />,
-      }),
-      'remote-mesh: workspace section',
-    )
+    const dispose = proton.addSection({
+      id: 'remote-mesh',
+      order: 10,
+      title: '远程工作区',
+      render: () => <RemoteWorkspaceSection />,
+    })
+    ;(globalThis as unknown as Record<string, unknown>).__sectionDispose = typeof dispose
   })
 }

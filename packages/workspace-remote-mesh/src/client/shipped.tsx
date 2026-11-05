@@ -1,7 +1,8 @@
-import { useSyncExternalStore } from 'react'
+import { useRef, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import type { EntryKitSources } from 'dsh-proton/client'
+import { NativeWorkspaceList } from './native-list'
 import zh from '../../vendor/ui-workspace/locale/zh.json'
 import en from '../../vendor/ui-workspace/locale/en.json'
 
@@ -95,16 +96,29 @@ function shippedEntry(ctx: Context, self: unknown): RawEntry | undefined {
  * @param entry - the entry the outlet shadowed.
  * @returns kit sources, or undefined when this entry is not ours to draw.
  */
+const sourcesCache = new WeakMap<object, EntryKitSources>()
+
 export function workspaceEntrySources(ctx: Context, entry: unknown): EntryKitSources | undefined {
   const declared = entry as { locale?: string }
   if (declared.locale !== 'workspace') return undefined
+  const key = entry as object
+  const cached = sourcesCache.get(key)
+  if (cached !== undefined) return cached
   const locale = (ctx as unknown as { locale?: LocaleLike }).locale
   const workspaces = (ctx as unknown as { workspaces?: { list: WorkspaceListSource } }).workspaces
-  return {
+  const sources: EntryKitSources = {
+    // Draw the local half ourselves for now: the shipped browser is a rich entry
+    // that we can feed, but it re-renders itself without end under this kit, and a
+    // spinning list is worse than one drawn from the same public data.
+    draw: () => (
+      <NativeWorkspaceList source={workspaces === undefined ? undefined : workspaces.list} />
+    ),
     standard: workspaces === undefined ? {} : { useWorkspaces: selectorHook(workspaces.list) },
     translate: namespace => translator(locale, namespace),
     storeOf: candidate => storeSeat(candidate as RawEntry),
   }
+  sourcesCache.set(key, sources)
+  return sources
 }
 
 /**
@@ -146,15 +160,52 @@ export function ShippedWorkspaceList({ ctx, self, onError }: {
  * @param entry - the entry declaring the store.
  * @returns the bound pair, or undefined when the seat has no `create`.
  */
+/** One-level structural equality, to stop rebuilt snapshots looking like changes. */
+function shallowSame(left: unknown, right: unknown): boolean {
+  if (left === right) return true
+  if (typeof left !== 'object' || typeof right !== 'object' || left === null || right === null) return false
+  if (Array.isArray(left) !== Array.isArray(right)) return false
+  const a = left as Record<string, unknown>
+  const b = right as Record<string, unknown>
+  const keys = Object.keys(a)
+  if (keys.length !== Object.keys(b).length) return false
+  return keys.every(key => key in b && a[key] === b[key])
+}
+
+const storeInstances = new WeakMap<RawEntry, { useStore: unknown, actions: unknown }>()
+
 function storeSeat(entry: RawEntry): { useStore: unknown, actions: unknown } | undefined {
+  // One instance per entry: creating a store per render resubscribes every frame
+  // and React escalates it into "maximum update depth exceeded".
+  const cached = storeInstances.get(entry)
+  if (cached !== undefined) return cached
   const decl = (entry as unknown as { store?: { create?: () => unknown } }).store
   if (decl === undefined || typeof decl.create !== 'function') return undefined
   const instance = decl.create() as { getSnapshot?: () => unknown, subscribe?: (fn: () => void) => () => void, actions?: unknown }
   if (typeof instance.getSnapshot !== 'function' || typeof instance.subscribe !== 'function') return undefined
-  const useStore = (selector: (snapshot: never) => unknown) => useSyncExternalStore(
-    listener => instance.subscribe!(listener),
-    () => selector(instance.getSnapshot!() as never),
-    () => selector(instance.getSnapshot!() as never),
-  )
-  return { useStore, actions: instance.actions }
+  // One cache per call site, not per store: sharing it across hooks hands one
+  // selector's value to another, which surfaces as nonsense deep inside the
+  // shipped component.
+  function useStore<T>(selector: (snapshot: never) => T): T {
+    const cache = useRef<{ raw: unknown, selected: T } | undefined>(undefined)
+    const read = (): T => {
+      const raw = instance.getSnapshot!()
+      const held = cache.current
+      if (held !== undefined && held.raw === raw) return held.selected
+      const selected = selector(raw as never)
+      if (held !== undefined && shallowSame(held.selected, selected)) {
+        cache.current = { raw, selected: held.selected }
+        return held.selected
+      }
+      cache.current = { raw, selected }
+      return selected
+    }
+    if ((globalThis as unknown as { __freezeStore?: boolean }).__freezeStore === true) {
+      return selector(instance.getSnapshot!() as never)
+    }
+    return useSyncExternalStore(listener => instance.subscribe!(listener), read, read)
+  }
+  const bound = { useStore, actions: instance.actions }
+  storeInstances.set(entry, bound)
+  return bound
 }
