@@ -1,0 +1,14 @@
+{
+  "source": "https://github.com/deepseek-ai/deepseek-harness",
+  "tag": "dsh-v0.2.1-rc.5",
+  "commit": "b830ec950faba0a46dda564be3e2d854afed94f1",
+  "path": "packages/client/ui-workspace",
+  "license": "MIT",
+  "copied": [
+    "src",
+    "locale",
+    "package.json"
+  ],
+  "patches": [],
+  "note": "原样存放，不手工编辑。改动放 packages/workspace-seat/patches/。"
+}

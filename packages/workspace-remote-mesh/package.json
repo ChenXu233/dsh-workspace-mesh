@@ -1,0 +1,101 @@
+{
+  "name": "dsh-proton-workspace-remote-mesh",
+  "version": "0.1.0",
+  "description": "远程工作区渲染：接管 sidebar.workspaces，本地段透传原生、远程段自己画",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "lib/index.js",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./src/client/index.ts",
+      "default": "./lib/client.js"
+    },
+    "./locale/*.json": "./vendor/ui-workspace/locale/*.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "vendor",
+    "patches",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/with-vendor-patches.mjs ../../node_modules/tsdown/dist/run.mjs",
+    "typecheck": "node scripts/with-vendor-patches.mjs ../../node_modules/typescript/bin/tsc -p tsconfig.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "engines": {
+      "dsh": ">=0.2.1-rc.5"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-remote-access",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-shortcuts",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "dsh-proton-workspace"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-api-remote-access": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-api-remotes": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-api-session-controller": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-api-workspace-controller": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-locale": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-product-analytics": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-shortcuts": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-store": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-layout": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-session": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-jobs": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-schedule": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-subagent": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-util-values": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-util-workspace-path": "0.2.1-rc.5",
+    "clsx": "^2.0.0",
+    "dsh-proton-workspace": "0.1.3",
+    "lightningcss": "^1.33.0",
+    "react": "^18.3.1",
+    "@deepseek-ai/dsh-client-ui-workspace": "0.2.1-rc.5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChenXu233/dsh-workspace-mesh.git",
+    "directory": "packages/workspace-remote-mesh"
+  }
+}

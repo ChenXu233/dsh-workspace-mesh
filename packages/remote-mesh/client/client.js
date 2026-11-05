@@ -41,9 +41,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.development.js
+// ../../node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.development.js
 var require_use_sync_external_store_shim_development = __commonJS({
-  "node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.development.js"(exports) {
+  "../../node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.development.js"(exports) {
     "use strict";
     (function() {
       function is(x, y) {
@@ -53,24 +53,24 @@ var require_use_sync_external_store_shim_development = __commonJS({
         didWarnOld18Alpha || void 0 === React3.startTransition || (didWarnOld18Alpha = true, console.error(
           "You are using an outdated, pre-release alpha of React 18 that does not support useSyncExternalStore. The use-sync-external-store shim will not work correctly. Upgrade to a newer pre-release."
         ));
-        var value = getSnapshot();
+        var value2 = getSnapshot();
         if (!didWarnUncachedGetSnapshot) {
           var cachedValue = getSnapshot();
-          objectIs(value, cachedValue) || (console.error(
+          objectIs(value2, cachedValue) || (console.error(
             "The result of getSnapshot should be cached to avoid an infinite loop"
           ), didWarnUncachedGetSnapshot = true);
         }
         cachedValue = useState4({
-          inst: { value, getSnapshot }
+          inst: { value: value2, getSnapshot }
         });
         var inst = cachedValue[0].inst, forceUpdate = cachedValue[1];
         useLayoutEffect2(
           function() {
-            inst.value = value;
+            inst.value = value2;
             inst.getSnapshot = getSnapshot;
             checkIfSnapshotChanged(inst) && forceUpdate({ inst });
           },
-          [subscribe, value, getSnapshot]
+          [subscribe, value2, getSnapshot]
         );
         useEffect4(
           function() {
@@ -81,8 +81,8 @@ var require_use_sync_external_store_shim_development = __commonJS({
           },
           [subscribe]
         );
-        useDebugValue2(value);
-        return value;
+        useDebugValue2(value2);
+        return value2;
       }
       function checkIfSnapshotChanged(inst) {
         var latestGetSnapshot = inst.getSnapshot;
@@ -105,9 +105,9 @@ var require_use_sync_external_store_shim_development = __commonJS({
   }
 });
 
-// node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/shim/index.js
+// ../../node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/shim/index.js
 var require_shim = __commonJS({
-  "node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/shim/index.js"(exports, module2) {
+  "../../node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/shim/index.js"(exports, module2) {
     "use strict";
     if (false) {
       module2.exports = null;
@@ -117,9 +117,9 @@ var require_shim = __commonJS({
   }
 });
 
-// node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.development.js
+// ../../node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.development.js
 var require_with_selector_development = __commonJS({
-  "node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.development.js"(exports) {
+  "../../node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.development.js"(exports) {
     "use strict";
     (function() {
       function is(x, y) {
@@ -127,7 +127,7 @@ var require_with_selector_development = __commonJS({
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
       var React3 = require("react"), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore = shim.useSyncExternalStore, useRef3 = React3.useRef, useEffect4 = React3.useEffect, useMemo3 = React3.useMemo, useDebugValue2 = React3.useDebugValue;
-      exports.useSyncExternalStoreWithSelector = function(subscribe, getSnapshot, getServerSnapshot, selector, isEqual) {
+      exports.useSyncExternalStoreWithSelector = function(subscribe, getSnapshot, getServerSnapshot, selector2, isEqual) {
         var instRef = useRef3(null);
         if (null === instRef.current) {
           var inst = { hasValue: false, value: null };
@@ -139,7 +139,7 @@ var require_with_selector_development = __commonJS({
               if (!hasMemo) {
                 hasMemo = true;
                 memoizedSnapshot = nextSnapshot;
-                nextSnapshot = selector(nextSnapshot);
+                nextSnapshot = selector2(nextSnapshot);
                 if (void 0 !== isEqual && inst.hasValue) {
                   var currentSelection = inst.value;
                   if (isEqual(currentSelection, nextSnapshot))
@@ -150,7 +150,7 @@ var require_with_selector_development = __commonJS({
               currentSelection = memoizedSelection;
               if (objectIs(memoizedSnapshot, nextSnapshot))
                 return currentSelection;
-              var nextSelection = selector(nextSnapshot);
+              var nextSelection = selector2(nextSnapshot);
               if (void 0 !== isEqual && isEqual(currentSelection, nextSelection))
                 return memoizedSnapshot = nextSnapshot, currentSelection;
               memoizedSnapshot = nextSnapshot;
@@ -166,27 +166,27 @@ var require_with_selector_development = __commonJS({
               }
             ];
           },
-          [getSnapshot, getServerSnapshot, selector, isEqual]
+          [getSnapshot, getServerSnapshot, selector2, isEqual]
         );
-        var value = useSyncExternalStore(subscribe, instRef[0], instRef[1]);
+        var value2 = useSyncExternalStore(subscribe, instRef[0], instRef[1]);
         useEffect4(
           function() {
             inst.hasValue = true;
-            inst.value = value;
+            inst.value = value2;
           },
-          [value]
+          [value2]
         );
-        useDebugValue2(value);
-        return value;
+        useDebugValue2(value2);
+        return value2;
       };
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
     })();
   }
 });
 
-// node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/shim/with-selector.js
+// ../../node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/shim/with-selector.js
 var require_with_selector = __commonJS({
-  "node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/shim/with-selector.js"(exports, module2) {
+  "../../node_modules/.pnpm/use-sync-external-store@1.7.0_react@18.3.1/node_modules/use-sync-external-store/shim/with-selector.js"(exports, module2) {
     "use strict";
     if (false) {
       module2.exports = null;
@@ -210,11 +210,11 @@ var jsx4 = __toESM(require("react/jsx-runtime"), 1);
 var React = __toESM(require("react"), 1);
 var jsx2 = __toESM(require("react/jsx-runtime"), 1);
 
-// node_modules/.pnpm/@xyflow+react@12.12.0_react_1b4487a84058fedfe8142ac7cadbbf3a/node_modules/@xyflow/react/dist/esm/index.js
+// ../../node_modules/.pnpm/@xyflow+react@12.12.1_@type_5cffb36229562c78dccf6e78a05e6785/node_modules/@xyflow/react/dist/esm/index.js
 var import_jsx_runtime = require("react/jsx-runtime");
 var import_react2 = require("react");
 
-// node_modules/.pnpm/classcat@5.0.5/node_modules/classcat/index.js
+// ../../node_modules/.pnpm/classcat@5.0.5/node_modules/classcat/index.js
 function cc(names) {
   if (typeof names === "string" || typeof names === "number") return "" + names;
   let out = "";
@@ -232,13 +232,13 @@ function cc(names) {
   return out;
 }
 
-// node_modules/.pnpm/d3-dispatch@3.0.1/node_modules/d3-dispatch/src/dispatch.js
+// ../../node_modules/.pnpm/d3-dispatch@3.0.2/node_modules/d3-dispatch/dist/d3-dispatch.mjs
 var noop = { value: () => {
 } };
 function dispatch() {
-  for (var i = 0, n = arguments.length, _ = {}, t2; i < n; ++i) {
-    if (!(t2 = arguments[i] + "") || t2 in _ || /[\s.]/.test(t2)) throw new Error("illegal type: " + t2);
-    _[t2] = [];
+  for (var i = 0, n = arguments.length, _ = {}, t4; i < n; ++i) {
+    if (!(t4 = arguments[i] + "") || t4 in _ || /[\s.]/.test(t4)) throw new Error("illegal type: " + t4);
+    _[t4] = [];
   }
   return new Dispatch(_);
 }
@@ -246,41 +246,41 @@ function Dispatch(_) {
   this._ = _;
 }
 function parseTypenames(typenames, types) {
-  return typenames.trim().split(/^|\s+/).map(function(t2) {
-    var name = "", i = t2.indexOf(".");
-    if (i >= 0) name = t2.slice(i + 1), t2 = t2.slice(0, i);
-    if (t2 && !types.hasOwnProperty(t2)) throw new Error("unknown type: " + t2);
-    return { type: t2, name };
+  return typenames.trim().split(/^|\s+/).map(function(t4) {
+    var name = "", i = t4.indexOf(".");
+    if (i >= 0) name = t4.slice(i + 1), t4 = t4.slice(0, i);
+    if (t4 && !types.hasOwnProperty(t4)) throw new Error("unknown type: " + t4);
+    return { type: t4, name };
   });
 }
 Dispatch.prototype = dispatch.prototype = {
   constructor: Dispatch,
   on: function(typename, callback) {
-    var _ = this._, T = parseTypenames(typename + "", _), t2, i = -1, n = T.length;
+    var _ = this._, T = parseTypenames(typename + "", _), t4, i = -1, n = T.length;
     if (arguments.length < 2) {
-      while (++i < n) if ((t2 = (typename = T[i]).type) && (t2 = get(_[t2], typename.name))) return t2;
+      while (++i < n) if ((t4 = (typename = T[i]).type) && (t4 = get(_[t4], typename.name))) return t4;
       return;
     }
     if (callback != null && typeof callback !== "function") throw new Error("invalid callback: " + callback);
     while (++i < n) {
-      if (t2 = (typename = T[i]).type) _[t2] = set(_[t2], typename.name, callback);
-      else if (callback == null) for (t2 in _) _[t2] = set(_[t2], typename.name, null);
+      if (t4 = (typename = T[i]).type) _[t4] = set(_[t4], typename.name, callback);
+      else if (callback == null) for (t4 in _) _[t4] = set(_[t4], typename.name, null);
     }
     return this;
   },
   copy: function() {
     var copy = {}, _ = this._;
-    for (var t2 in _) copy[t2] = _[t2].slice();
+    for (var t4 in _) copy[t4] = _[t4].slice();
     return new Dispatch(copy);
   },
   call: function(type, that) {
-    if ((n = arguments.length - 2) > 0) for (var args = new Array(n), i = 0, n, t2; i < n; ++i) args[i] = arguments[i + 2];
+    if ((n = arguments.length - 2) > 0) for (var args = new Array(n), i = 0, n, t4; i < n; ++i) args[i] = arguments[i + 2];
     if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
-    for (t2 = this._[type], i = 0, n = t2.length; i < n; ++i) t2[i].value.apply(that, args);
+    for (t4 = this._[type], i = 0, n = t4.length; i < n; ++i) t4[i].value.apply(that, args);
   },
   apply: function(type, that, args) {
     if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
-    for (var t2 = this._[type], i = 0, n = t2.length; i < n; ++i) t2[i].value.apply(that, args);
+    for (var t4 = this._[type], i = 0, n = t4.length; i < n; ++i) t4[i].value.apply(that, args);
   }
 };
 function get(type, name) {
@@ -300,26 +300,21 @@ function set(type, name, callback) {
   if (callback != null) type.push({ name, value: callback });
   return type;
 }
-var dispatch_default = dispatch;
 
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/namespaces.js
+// ../../node_modules/.pnpm/d3-selection@3.0.1/node_modules/d3-selection/dist/d3-selection.mjs
 var xhtml = "http://www.w3.org/1999/xhtml";
-var namespaces_default = {
+var namespaces = {
   svg: "http://www.w3.org/2000/svg",
   xhtml,
   xlink: "http://www.w3.org/1999/xlink",
   xml: "http://www.w3.org/XML/1998/namespace",
   xmlns: "http://www.w3.org/2000/xmlns/"
 };
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/namespace.js
-function namespace_default(name) {
+function namespace(name) {
   var prefix = name += "", i = prefix.indexOf(":");
   if (i >= 0 && (prefix = name.slice(0, i)) !== "xmlns") name = name.slice(i + 1);
-  return namespaces_default.hasOwnProperty(prefix) ? { space: namespaces_default[prefix], local: name } : name;
+  return namespaces.hasOwnProperty(prefix) ? { space: namespaces[prefix], local: name } : name;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/creator.js
 function creatorInherit(name) {
   return function() {
     var document2 = this.ownerDocument, uri = this.namespaceURI;
@@ -331,26 +326,22 @@ function creatorFixed(fullname) {
     return this.ownerDocument.createElementNS(fullname.space, fullname.local);
   };
 }
-function creator_default(name) {
-  var fullname = namespace_default(name);
+function creator(name) {
+  var fullname = namespace(name);
   return (fullname.local ? creatorFixed : creatorInherit)(fullname);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selector.js
 function none() {
 }
-function selector_default(selector) {
-  return selector == null ? none : function() {
-    return this.querySelector(selector);
+function selector(selector2) {
+  return selector2 == null ? none : function() {
+    return this.querySelector(selector2);
   };
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/select.js
-function select_default(select) {
-  if (typeof select !== "function") select = selector_default(select);
+function selection_select(select2) {
+  if (typeof select2 !== "function") select2 = selector(select2);
   for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, subgroup = subgroups[j] = new Array(n), node, subnode, i = 0; i < n; ++i) {
-      if ((node = group[i]) && (subnode = select.call(node, node.__data__, i, group))) {
+      if ((node = group[i]) && (subnode = select2.call(node, node.__data__, i, group))) {
         if ("__data__" in node) subnode.__data__ = node.__data__;
         subgroup[i] = subnode;
       }
@@ -358,55 +349,45 @@ function select_default(select) {
   }
   return new Selection(subgroups, this._parents);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/array.js
 function array(x) {
   return x == null ? [] : Array.isArray(x) ? x : Array.from(x);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selectorAll.js
 function empty() {
   return [];
 }
-function selectorAll_default(selector) {
-  return selector == null ? empty : function() {
-    return this.querySelectorAll(selector);
+function selectorAll(selector2) {
+  return selector2 == null ? empty : function() {
+    return this.querySelectorAll(selector2);
   };
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/selectAll.js
-function arrayAll(select) {
+function arrayAll(select2) {
   return function() {
-    return array(select.apply(this, arguments));
+    return array(select2.apply(this, arguments));
   };
 }
-function selectAll_default(select) {
-  if (typeof select === "function") select = arrayAll(select);
-  else select = selectorAll_default(select);
+function selection_selectAll(select2) {
+  if (typeof select2 === "function") select2 = arrayAll(select2);
+  else select2 = selectorAll(select2);
   for (var groups = this._groups, m = groups.length, subgroups = [], parents = [], j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, node, i = 0; i < n; ++i) {
       if (node = group[i]) {
-        subgroups.push(select.call(node, node.__data__, i, group));
+        subgroups.push(select2.call(node, node.__data__, i, group));
         parents.push(node);
       }
     }
   }
   return new Selection(subgroups, parents);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/matcher.js
-function matcher_default(selector) {
+function matcher(selector2) {
   return function() {
-    return this.matches(selector);
+    return this.matches(selector2);
   };
 }
-function childMatcher(selector) {
+function childMatcher(selector2) {
   return function(node) {
-    return node.matches(selector);
+    return node.matches(selector2);
   };
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/selectChild.js
 var find = Array.prototype.find;
 function childFind(match) {
   return function() {
@@ -416,11 +397,9 @@ function childFind(match) {
 function childFirst() {
   return this.firstElementChild;
 }
-function selectChild_default(match) {
+function selection_selectChild(match) {
   return this.select(match == null ? childFirst : childFind(typeof match === "function" ? match : childMatcher(match)));
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/selectChildren.js
 var filter = Array.prototype.filter;
 function children() {
   return Array.from(this.children);
@@ -430,13 +409,11 @@ function childrenFilter(match) {
     return filter.call(this.children, match);
   };
 }
-function selectChildren_default(match) {
+function selection_selectChildren(match) {
   return this.selectAll(match == null ? children : childrenFilter(typeof match === "function" ? match : childMatcher(match)));
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/filter.js
-function filter_default(match) {
-  if (typeof match !== "function") match = matcher_default(match);
+function selection_filter(match) {
+  if (typeof match !== "function") match = matcher(match);
   for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, subgroup = subgroups[j] = [], node, i = 0; i < n; ++i) {
       if ((node = group[i]) && match.call(node, node.__data__, i, group)) {
@@ -446,15 +423,11 @@ function filter_default(match) {
   }
   return new Selection(subgroups, this._parents);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/sparse.js
-function sparse_default(update) {
+function sparse(update) {
   return new Array(update.length);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/enter.js
-function enter_default() {
-  return new Selection(this._enter || this._groups.map(sparse_default), this._parents);
+function selection_enter() {
+  return new Selection(this._enter || this._groups.map(sparse), this._parents);
 }
 function EnterNode(parent, datum2) {
   this.ownerDocument = parent.ownerDocument;
@@ -471,22 +444,18 @@ EnterNode.prototype = {
   insertBefore: function(child, next) {
     return this._parent.insertBefore(child, next);
   },
-  querySelector: function(selector) {
-    return this._parent.querySelector(selector);
+  querySelector: function(selector2) {
+    return this._parent.querySelector(selector2);
   },
-  querySelectorAll: function(selector) {
-    return this._parent.querySelectorAll(selector);
+  querySelectorAll: function(selector2) {
+    return this._parent.querySelectorAll(selector2);
   }
 };
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/constant.js
-function constant_default(x) {
+function constant(x) {
   return function() {
     return x;
   };
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/data.js
 function bindIndex(parent, group, enter, update, exit, data) {
   var i = 0, node, groupLength = group.length, dataLength = data.length;
   for (; i < dataLength; ++i) {
@@ -534,12 +503,12 @@ function bindKey(parent, group, enter, update, exit, data, key) {
 function datum(node) {
   return node.__data__;
 }
-function data_default(value, key) {
+function selection_data(value2, key) {
   if (!arguments.length) return Array.from(this, datum);
   var bind = key ? bindKey : bindIndex, parents = this._parents, groups = this._groups;
-  if (typeof value !== "function") value = constant_default(value);
+  if (typeof value2 !== "function") value2 = constant(value2);
   for (var m = groups.length, update = new Array(m), enter = new Array(m), exit = new Array(m), j = 0; j < m; ++j) {
-    var parent = parents[j], group = groups[j], groupLength = group.length, data = arraylike(value.call(parent, parent && parent.__data__, j, parents)), dataLength = data.length, enterGroup = enter[j] = new Array(dataLength), updateGroup = update[j] = new Array(dataLength), exitGroup = exit[j] = new Array(groupLength);
+    var parent = parents[j], group = groups[j], groupLength = group.length, data = arraylike(value2.call(parent, parent && parent.__data__, j, parents)), dataLength = data.length, enterGroup = enter[j] = new Array(dataLength), updateGroup = update[j] = new Array(dataLength), exitGroup = exit[j] = new Array(groupLength);
     bind(parent, group, enterGroup, updateGroup, exitGroup, data, key);
     for (var i0 = 0, i1 = 0, previous, next; i0 < dataLength; ++i0) {
       if (previous = enterGroup[i0]) {
@@ -557,14 +526,10 @@ function data_default(value, key) {
 function arraylike(data) {
   return typeof data === "object" && "length" in data ? data : Array.from(data);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/exit.js
-function exit_default() {
-  return new Selection(this._exit || this._groups.map(sparse_default), this._parents);
+function selection_exit() {
+  return new Selection(this._exit || this._groups.map(sparse), this._parents);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/join.js
-function join_default(onenter, onupdate, onexit) {
+function selection_join(onenter, onupdate, onexit) {
   var enter = this.enter(), update = this, exit = this.exit();
   if (typeof onenter === "function") {
     enter = onenter(enter);
@@ -580,9 +545,7 @@ function join_default(onenter, onupdate, onexit) {
   else onexit(exit);
   return enter && update ? enter.merge(update).order() : update;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/merge.js
-function merge_default(context) {
+function selection_merge(context) {
   var selection2 = context.selection ? context.selection() : context;
   for (var groups0 = this._groups, groups1 = selection2._groups, m0 = groups0.length, m1 = groups1.length, m = Math.min(m0, m1), merges = new Array(m0), j = 0; j < m; ++j) {
     for (var group0 = groups0[j], group1 = groups1[j], n = group0.length, merge = merges[j] = new Array(n), node, i = 0; i < n; ++i) {
@@ -596,9 +559,7 @@ function merge_default(context) {
   }
   return new Selection(merges, this._parents);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/order.js
-function order_default() {
+function selection_order() {
   for (var groups = this._groups, j = -1, m = groups.length; ++j < m; ) {
     for (var group = groups[j], i = group.length - 1, next = group[i], node; --i >= 0; ) {
       if (node = group[i]) {
@@ -609,9 +570,7 @@ function order_default() {
   }
   return this;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/sort.js
-function sort_default(compare) {
+function selection_sort(compare) {
   if (!compare) compare = ascending;
   function compareNode(a, b) {
     return a && b ? compare(a.__data__, b.__data__) : !a - !b;
@@ -629,22 +588,16 @@ function sort_default(compare) {
 function ascending(a, b) {
   return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/call.js
-function call_default() {
+function selection_call() {
   var callback = arguments[0];
   arguments[0] = this;
   callback.apply(null, arguments);
   return this;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/nodes.js
-function nodes_default() {
+function selection_nodes() {
   return Array.from(this);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/node.js
-function node_default() {
+function selection_node() {
   for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
     for (var group = groups[j], i = 0, n = group.length; i < n; ++i) {
       var node = group[i];
@@ -653,21 +606,15 @@ function node_default() {
   }
   return null;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/size.js
-function size_default() {
+function selection_size() {
   let size = 0;
   for (const node of this) ++size;
   return size;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/empty.js
-function empty_default() {
+function selection_empty() {
   return !this.node();
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/each.js
-function each_default(callback) {
+function selection_each(callback) {
   for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
     for (var group = groups[j], i = 0, n = group.length, node; i < n; ++i) {
       if (node = group[i]) callback.call(node, node.__data__, i, group);
@@ -675,8 +622,6 @@ function each_default(callback) {
   }
   return this;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/attr.js
 function attrRemove(name) {
   return function() {
     this.removeAttribute(name);
@@ -687,94 +632,86 @@ function attrRemoveNS(fullname) {
     this.removeAttributeNS(fullname.space, fullname.local);
   };
 }
-function attrConstant(name, value) {
+function attrConstant(name, value2) {
   return function() {
-    this.setAttribute(name, value);
+    this.setAttribute(name, value2);
   };
 }
-function attrConstantNS(fullname, value) {
+function attrConstantNS(fullname, value2) {
   return function() {
-    this.setAttributeNS(fullname.space, fullname.local, value);
+    this.setAttributeNS(fullname.space, fullname.local, value2);
   };
 }
-function attrFunction(name, value) {
+function attrFunction(name, value2) {
   return function() {
-    var v = value.apply(this, arguments);
+    var v = value2.apply(this, arguments);
     if (v == null) this.removeAttribute(name);
     else this.setAttribute(name, v);
   };
 }
-function attrFunctionNS(fullname, value) {
+function attrFunctionNS(fullname, value2) {
   return function() {
-    var v = value.apply(this, arguments);
+    var v = value2.apply(this, arguments);
     if (v == null) this.removeAttributeNS(fullname.space, fullname.local);
     else this.setAttributeNS(fullname.space, fullname.local, v);
   };
 }
-function attr_default(name, value) {
-  var fullname = namespace_default(name);
+function selection_attr(name, value2) {
+  var fullname = namespace(name);
   if (arguments.length < 2) {
     var node = this.node();
     return fullname.local ? node.getAttributeNS(fullname.space, fullname.local) : node.getAttribute(fullname);
   }
-  return this.each((value == null ? fullname.local ? attrRemoveNS : attrRemove : typeof value === "function" ? fullname.local ? attrFunctionNS : attrFunction : fullname.local ? attrConstantNS : attrConstant)(fullname, value));
+  return this.each((value2 == null ? fullname.local ? attrRemoveNS : attrRemove : typeof value2 === "function" ? fullname.local ? attrFunctionNS : attrFunction : fullname.local ? attrConstantNS : attrConstant)(fullname, value2));
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/window.js
-function window_default(node) {
+function defaultView(node) {
   return node.ownerDocument && node.ownerDocument.defaultView || node.document && node || node.defaultView;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/style.js
 function styleRemove(name) {
   return function() {
     this.style.removeProperty(name);
   };
 }
-function styleConstant(name, value, priority) {
+function styleConstant(name, value2, priority) {
   return function() {
-    this.style.setProperty(name, value, priority);
+    this.style.setProperty(name, value2, priority);
   };
 }
-function styleFunction(name, value, priority) {
+function styleFunction(name, value2, priority) {
   return function() {
-    var v = value.apply(this, arguments);
+    var v = value2.apply(this, arguments);
     if (v == null) this.style.removeProperty(name);
     else this.style.setProperty(name, v, priority);
   };
 }
-function style_default(name, value, priority) {
-  return arguments.length > 1 ? this.each((value == null ? styleRemove : typeof value === "function" ? styleFunction : styleConstant)(name, value, priority == null ? "" : priority)) : styleValue(this.node(), name);
+function selection_style(name, value2, priority) {
+  return arguments.length > 1 ? this.each((value2 == null ? styleRemove : typeof value2 === "function" ? styleFunction : styleConstant)(name, value2, priority == null ? "" : priority)) : styleValue(this.node(), name);
 }
 function styleValue(node, name) {
-  return node.style.getPropertyValue(name) || window_default(node).getComputedStyle(node, null).getPropertyValue(name);
+  return node.style.getPropertyValue(name) || defaultView(node).getComputedStyle(node, null).getPropertyValue(name);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/property.js
 function propertyRemove(name) {
   return function() {
     delete this[name];
   };
 }
-function propertyConstant(name, value) {
+function propertyConstant(name, value2) {
   return function() {
-    this[name] = value;
+    this[name] = value2;
   };
 }
-function propertyFunction(name, value) {
+function propertyFunction(name, value2) {
   return function() {
-    var v = value.apply(this, arguments);
+    var v = value2.apply(this, arguments);
     if (v == null) delete this[name];
     else this[name] = v;
   };
 }
-function property_default(name, value) {
-  return arguments.length > 1 ? this.each((value == null ? propertyRemove : typeof value === "function" ? propertyFunction : propertyConstant)(name, value)) : this.node()[name];
+function selection_property(name, value2) {
+  return arguments.length > 1 ? this.each((value2 == null ? propertyRemove : typeof value2 === "function" ? propertyFunction : propertyConstant)(name, value2)) : this.node()[name];
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/classed.js
-function classArray(string) {
-  return string.trim().split(/^|\s+/);
+function classArray(string2) {
+  return string2.trim().split(/^|\s+/);
 }
 function classList(node) {
   return node.classList || new ClassList(node);
@@ -820,104 +757,88 @@ function classedFalse(names) {
     classedRemove(this, names);
   };
 }
-function classedFunction(names, value) {
+function classedFunction(names, value2) {
   return function() {
-    (value.apply(this, arguments) ? classedAdd : classedRemove)(this, names);
+    (value2.apply(this, arguments) ? classedAdd : classedRemove)(this, names);
   };
 }
-function classed_default(name, value) {
+function selection_classed(name, value2) {
   var names = classArray(name + "");
   if (arguments.length < 2) {
     var list = classList(this.node()), i = -1, n = names.length;
     while (++i < n) if (!list.contains(names[i])) return false;
     return true;
   }
-  return this.each((typeof value === "function" ? classedFunction : value ? classedTrue : classedFalse)(names, value));
+  return this.each((typeof value2 === "function" ? classedFunction : value2 ? classedTrue : classedFalse)(names, value2));
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/text.js
 function textRemove() {
   this.textContent = "";
 }
-function textConstant(value) {
+function textConstant(value2) {
   return function() {
-    this.textContent = value;
+    this.textContent = value2;
   };
 }
-function textFunction(value) {
+function textFunction(value2) {
   return function() {
-    var v = value.apply(this, arguments);
+    var v = value2.apply(this, arguments);
     this.textContent = v == null ? "" : v;
   };
 }
-function text_default(value) {
-  return arguments.length ? this.each(value == null ? textRemove : (typeof value === "function" ? textFunction : textConstant)(value)) : this.node().textContent;
+function selection_text(value2) {
+  return arguments.length ? this.each(value2 == null ? textRemove : (typeof value2 === "function" ? textFunction : textConstant)(value2)) : this.node().textContent;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/html.js
 function htmlRemove() {
   this.innerHTML = "";
 }
-function htmlConstant(value) {
+function htmlConstant(value2) {
   return function() {
-    this.innerHTML = value;
+    this.innerHTML = value2;
   };
 }
-function htmlFunction(value) {
+function htmlFunction(value2) {
   return function() {
-    var v = value.apply(this, arguments);
+    var v = value2.apply(this, arguments);
     this.innerHTML = v == null ? "" : v;
   };
 }
-function html_default(value) {
-  return arguments.length ? this.each(value == null ? htmlRemove : (typeof value === "function" ? htmlFunction : htmlConstant)(value)) : this.node().innerHTML;
+function selection_html(value2) {
+  return arguments.length ? this.each(value2 == null ? htmlRemove : (typeof value2 === "function" ? htmlFunction : htmlConstant)(value2)) : this.node().innerHTML;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/raise.js
 function raise() {
   if (this.nextSibling) this.parentNode.appendChild(this);
 }
-function raise_default() {
+function selection_raise() {
   return this.each(raise);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/lower.js
 function lower() {
   if (this.previousSibling) this.parentNode.insertBefore(this, this.parentNode.firstChild);
 }
-function lower_default() {
+function selection_lower() {
   return this.each(lower);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/append.js
-function append_default(name) {
-  var create2 = typeof name === "function" ? name : creator_default(name);
+function selection_append(name) {
+  var create2 = typeof name === "function" ? name : creator(name);
   return this.select(function() {
     return this.appendChild(create2.apply(this, arguments));
   });
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/insert.js
 function constantNull() {
   return null;
 }
-function insert_default(name, before) {
-  var create2 = typeof name === "function" ? name : creator_default(name), select = before == null ? constantNull : typeof before === "function" ? before : selector_default(before);
+function selection_insert(name, before) {
+  var create2 = typeof name === "function" ? name : creator(name), select2 = before == null ? constantNull : typeof before === "function" ? before : selector(before);
   return this.select(function() {
-    return this.insertBefore(create2.apply(this, arguments), select.apply(this, arguments) || null);
+    return this.insertBefore(create2.apply(this, arguments), select2.apply(this, arguments) || null);
   });
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/remove.js
 function remove() {
   var parent = this.parentNode;
   if (parent) parent.removeChild(this);
 }
-function remove_default() {
+function selection_remove() {
   return this.each(remove);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/clone.js
 function selection_cloneShallow() {
   var clone = this.cloneNode(false), parent = this.parentNode;
   return parent ? parent.insertBefore(clone, this.nextSibling) : clone;
@@ -926,26 +847,22 @@ function selection_cloneDeep() {
   var clone = this.cloneNode(true), parent = this.parentNode;
   return parent ? parent.insertBefore(clone, this.nextSibling) : clone;
 }
-function clone_default(deep) {
+function selection_clone(deep) {
   return this.select(deep ? selection_cloneDeep : selection_cloneShallow);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/datum.js
-function datum_default(value) {
-  return arguments.length ? this.property("__data__", value) : this.node().__data__;
+function selection_datum(value2) {
+  return arguments.length ? this.property("__data__", value2) : this.node().__data__;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/on.js
 function contextListener(listener) {
   return function(event) {
     listener.call(this, event, this.__data__);
   };
 }
 function parseTypenames2(typenames) {
-  return typenames.trim().split(/^|\s+/).map(function(t2) {
-    var name = "", i = t2.indexOf(".");
-    if (i >= 0) name = t2.slice(i + 1), t2 = t2.slice(0, i);
-    return { type: t2, name };
+  return typenames.trim().split(/^|\s+/).map(function(t4) {
+    var name = "", i = t4.indexOf(".");
+    if (i >= 0) name = t4.slice(i + 1), t4 = t4.slice(0, i);
+    return { type: t4, name };
   });
 }
 function onRemove(typename) {
@@ -963,44 +880,42 @@ function onRemove(typename) {
     else delete this.__on;
   };
 }
-function onAdd(typename, value, options) {
+function onAdd(typename, value2, options) {
   return function() {
-    var on = this.__on, o, listener = contextListener(value);
+    var on = this.__on, o, listener = contextListener(value2);
     if (on) for (var j = 0, m = on.length; j < m; ++j) {
       if ((o = on[j]).type === typename.type && o.name === typename.name) {
         this.removeEventListener(o.type, o.listener, o.options);
         this.addEventListener(o.type, o.listener = listener, o.options = options);
-        o.value = value;
+        o.value = value2;
         return;
       }
     }
     this.addEventListener(typename.type, listener, options);
-    o = { type: typename.type, name: typename.name, value, listener, options };
+    o = { type: typename.type, name: typename.name, value: value2, listener, options };
     if (!on) this.__on = [o];
     else on.push(o);
   };
 }
-function on_default(typename, value, options) {
-  var typenames = parseTypenames2(typename + ""), i, n = typenames.length, t2;
+function selection_on(typename, value2, options) {
+  var typenames = parseTypenames2(typename + ""), i, n = typenames.length, t4;
   if (arguments.length < 2) {
     var on = this.node().__on;
     if (on) for (var j = 0, m = on.length, o; j < m; ++j) {
       for (i = 0, o = on[j]; i < n; ++i) {
-        if ((t2 = typenames[i]).type === o.type && t2.name === o.name) {
+        if ((t4 = typenames[i]).type === o.type && t4.name === o.name) {
           return o.value;
         }
       }
     }
     return;
   }
-  on = value ? onAdd : onRemove;
-  for (i = 0; i < n; ++i) this.each(on(typenames[i], value, options));
+  on = value2 ? onAdd : onRemove;
+  for (i = 0; i < n; ++i) this.each(on(typenames[i], value2, options));
   return this;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/dispatch.js
 function dispatchEvent(node, type, params) {
-  var window2 = window_default(node), event = window2.CustomEvent;
+  var window2 = defaultView(node), event = window2.CustomEvent;
   if (typeof event === "function") {
     event = new event(type, params);
   } else {
@@ -1020,20 +935,16 @@ function dispatchFunction(type, params) {
     return dispatchEvent(this, type, params.apply(this, arguments));
   };
 }
-function dispatch_default2(type, params) {
+function selection_dispatch(type, params) {
   return this.each((typeof params === "function" ? dispatchFunction : dispatchConstant)(type, params));
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/iterator.js
-function* iterator_default() {
+function* selection_iterator() {
   for (var groups = this._groups, j = 0, m = groups.length; j < m; ++j) {
     for (var group = groups[j], i = 0, n = group.length, node; i < n; ++i) {
       if (node = group[i]) yield node;
     }
   }
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/selection/index.js
 var root = [null];
 function Selection(groups, parents) {
   this._groups = groups;
@@ -1047,59 +958,76 @@ function selection_selection() {
 }
 Selection.prototype = selection.prototype = {
   constructor: Selection,
-  select: select_default,
-  selectAll: selectAll_default,
-  selectChild: selectChild_default,
-  selectChildren: selectChildren_default,
-  filter: filter_default,
-  data: data_default,
-  enter: enter_default,
-  exit: exit_default,
-  join: join_default,
-  merge: merge_default,
+  select: selection_select,
+  selectAll: selection_selectAll,
+  selectChild: selection_selectChild,
+  selectChildren: selection_selectChildren,
+  filter: selection_filter,
+  data: selection_data,
+  enter: selection_enter,
+  exit: selection_exit,
+  join: selection_join,
+  merge: selection_merge,
   selection: selection_selection,
-  order: order_default,
-  sort: sort_default,
-  call: call_default,
-  nodes: nodes_default,
-  node: node_default,
-  size: size_default,
-  empty: empty_default,
-  each: each_default,
-  attr: attr_default,
-  style: style_default,
-  property: property_default,
-  classed: classed_default,
-  text: text_default,
-  html: html_default,
-  raise: raise_default,
-  lower: lower_default,
-  append: append_default,
-  insert: insert_default,
-  remove: remove_default,
-  clone: clone_default,
-  datum: datum_default,
-  on: on_default,
-  dispatch: dispatch_default2,
-  [Symbol.iterator]: iterator_default
+  order: selection_order,
+  sort: selection_sort,
+  call: selection_call,
+  nodes: selection_nodes,
+  node: selection_node,
+  size: selection_size,
+  empty: selection_empty,
+  each: selection_each,
+  attr: selection_attr,
+  style: selection_style,
+  property: selection_property,
+  classed: selection_classed,
+  text: selection_text,
+  html: selection_html,
+  raise: selection_raise,
+  lower: selection_lower,
+  append: selection_append,
+  insert: selection_insert,
+  remove: selection_remove,
+  clone: selection_clone,
+  datum: selection_datum,
+  on: selection_on,
+  dispatch: selection_dispatch,
+  [Symbol.iterator]: selection_iterator
 };
-var selection_default = selection;
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/select.js
-function select_default2(selector) {
-  return typeof selector === "string" ? new Selection([[document.querySelector(selector)]], [document.documentElement]) : new Selection([[selector]], root);
+function select(selector2) {
+  return typeof selector2 === "string" ? new Selection([[document.querySelector(selector2)]], [document.documentElement]) : new Selection([[selector2]], root);
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/sourceEvent.js
-function sourceEvent_default(event) {
-  let sourceEvent;
-  while (sourceEvent = event.sourceEvent) event = sourceEvent;
+var nextId = 0;
+function local() {
+  return new Local();
+}
+function Local() {
+  this._ = "@" + (++nextId).toString(36);
+}
+Local.prototype = local.prototype = {
+  constructor: Local,
+  get: function(node) {
+    var id2 = this._;
+    while (!(id2 in node)) if (!(node = node.parentNode)) return;
+    return node[id2];
+  },
+  set: function(node, value2) {
+    return node[this._] = value2;
+  },
+  remove: function(node) {
+    return this._ in node && delete node[this._];
+  },
+  toString: function() {
+    return this._;
+  }
+};
+function sourceEvent(event) {
+  let sourceEvent2;
+  while (sourceEvent2 = event.sourceEvent) event = sourceEvent2;
   return event;
 }
-
-// node_modules/.pnpm/d3-selection@3.0.0/node_modules/d3-selection/src/pointer.js
-function pointer_default(event, node) {
-  event = sourceEvent_default(event);
+function pointer(event, node) {
+  event = sourceEvent(event);
   if (node === void 0) node = event.currentTarget;
   if (node) {
     var svg = node.ownerSVGElement || node;
@@ -1117,31 +1045,29 @@ function pointer_default(event, node) {
   return [event.pageX, event.pageY];
 }
 
-// node_modules/.pnpm/d3-drag@3.0.0/node_modules/d3-drag/src/noevent.js
+// ../../node_modules/.pnpm/d3-drag@3.0.1/node_modules/d3-drag/dist/d3-drag.mjs
 var nonpassive = { passive: false };
 var nonpassivecapture = { capture: true, passive: false };
 function nopropagation(event) {
   event.stopImmediatePropagation();
 }
-function noevent_default(event) {
+function noevent(event) {
   event.preventDefault();
   event.stopImmediatePropagation();
 }
-
-// node_modules/.pnpm/d3-drag@3.0.0/node_modules/d3-drag/src/nodrag.js
-function nodrag_default(view) {
-  var root2 = view.document.documentElement, selection2 = select_default2(view).on("dragstart.drag", noevent_default, nonpassivecapture);
+function nodrag(view) {
+  var root2 = view.document.documentElement, selection2 = select(view).on("dragstart.drag", noevent, nonpassivecapture);
   if ("onselectstart" in root2) {
-    selection2.on("selectstart.drag", noevent_default, nonpassivecapture);
+    selection2.on("selectstart.drag", noevent, nonpassivecapture);
   } else {
     root2.__noselect = root2.style.MozUserSelect;
     root2.style.MozUserSelect = "none";
   }
 }
 function yesdrag(view, noclick) {
-  var root2 = view.document.documentElement, selection2 = select_default2(view).on("dragstart.drag", null);
+  var root2 = view.document.documentElement, selection2 = select(view).on("dragstart.drag", null);
   if (noclick) {
-    selection2.on("click.drag", noevent_default, nonpassivecapture);
+    selection2.on("click.drag", noevent, nonpassivecapture);
     setTimeout(function() {
       selection2.on("click.drag", null);
     }, 0);
@@ -1153,13 +1079,9 @@ function yesdrag(view, noclick) {
     delete root2.__noselect;
   }
 }
-
-// node_modules/.pnpm/d3-drag@3.0.0/node_modules/d3-drag/src/constant.js
-var constant_default2 = (x) => () => x;
-
-// node_modules/.pnpm/d3-drag@3.0.0/node_modules/d3-drag/src/event.js
+var constant2 = (x) => () => x;
 function DragEvent(type, {
-  sourceEvent,
+  sourceEvent: sourceEvent2,
   subject,
   target,
   identifier,
@@ -1172,7 +1094,7 @@ function DragEvent(type, {
 }) {
   Object.defineProperties(this, {
     type: { value: type, enumerable: true, configurable: true },
-    sourceEvent: { value: sourceEvent, enumerable: true, configurable: true },
+    sourceEvent: { value: sourceEvent2, enumerable: true, configurable: true },
     subject: { value: subject, enumerable: true, configurable: true },
     target: { value: target, enumerable: true, configurable: true },
     identifier: { value: identifier, enumerable: true, configurable: true },
@@ -1185,11 +1107,9 @@ function DragEvent(type, {
   });
 }
 DragEvent.prototype.on = function() {
-  var value = this._.on.apply(this._, arguments);
-  return value === this._ ? this : value;
+  var value2 = this._.on.apply(this._, arguments);
+  return value2 === this._ ? this : value2;
 };
-
-// node_modules/.pnpm/d3-drag@3.0.0/node_modules/d3-drag/src/drag.js
 function defaultFilter(event) {
   return !event.ctrlKey && !event.button;
 }
@@ -1202,17 +1122,17 @@ function defaultSubject(event, d) {
 function defaultTouchable() {
   return navigator.maxTouchPoints || "ontouchstart" in this;
 }
-function drag_default() {
-  var filter2 = defaultFilter, container = defaultContainer, subject = defaultSubject, touchable = defaultTouchable, gestures = {}, listeners = dispatch_default("start", "drag", "end"), active = 0, mousedownx, mousedowny, mousemoving, touchending, clickDistance2 = 0;
-  function drag(selection2) {
+function drag() {
+  var filter2 = defaultFilter, container = defaultContainer, subject = defaultSubject, touchable = defaultTouchable, gestures = {}, listeners = dispatch("start", "drag", "end"), active = 0, mousedownx, mousedowny, mousemoving, touchending, clickDistance2 = 0;
+  function drag2(selection2) {
     selection2.on("mousedown.drag", mousedowned).filter(touchable).on("touchstart.drag", touchstarted).on("touchmove.drag", touchmoved, nonpassive).on("touchend.drag touchcancel.drag", touchended).style("touch-action", "none").style("-webkit-tap-highlight-color", "rgba(0,0,0,0)");
   }
   function mousedowned(event, d) {
     if (touchending || !filter2.call(this, event, d)) return;
     var gesture = beforestart(this, container.call(this, event, d), event, d, "mouse");
     if (!gesture) return;
-    select_default2(event.view).on("mousemove.drag", mousemoved, nonpassivecapture).on("mouseup.drag", mouseupped, nonpassivecapture);
-    nodrag_default(event.view);
+    select(event.view).on("mousemove.drag", mousemoved, nonpassivecapture).on("mouseup.drag", mouseupped, nonpassivecapture);
+    nodrag(event.view);
     nopropagation(event);
     mousemoving = false;
     mousedownx = event.clientX;
@@ -1220,7 +1140,7 @@ function drag_default() {
     gesture("start", event);
   }
   function mousemoved(event) {
-    noevent_default(event);
+    noevent(event);
     if (!mousemoving) {
       var dx = event.clientX - mousedownx, dy = event.clientY - mousedowny;
       mousemoving = dx * dx + dy * dy > clickDistance2;
@@ -1228,9 +1148,9 @@ function drag_default() {
     gestures.mouse("drag", event);
   }
   function mouseupped(event) {
-    select_default2(event.view).on("mousemove.drag mouseup.drag", null);
+    select(event.view).on("mousemove.drag mouseup.drag", null);
     yesdrag(event.view, mousemoving);
-    noevent_default(event);
+    noevent(event);
     gestures.mouse("end", event);
   }
   function touchstarted(event, d) {
@@ -1247,7 +1167,7 @@ function drag_default() {
     var touches = event.changedTouches, n = touches.length, i, gesture;
     for (i = 0; i < n; ++i) {
       if (gesture = gestures[touches[i].identifier]) {
-        noevent_default(event);
+        noevent(event);
         gesture("drag", event, touches[i]);
       }
     }
@@ -1266,10 +1186,10 @@ function drag_default() {
     }
   }
   function beforestart(that, container2, event, d, identifier, touch) {
-    var dispatch2 = listeners.copy(), p = pointer_default(touch || event, container2), dx, dy, s;
+    var dispatch2 = listeners.copy(), p = pointer(touch || event, container2), dx, dy, s;
     if ((s = subject.call(that, new DragEvent("beforestart", {
       sourceEvent: event,
-      target: drag,
+      target: drag2,
       identifier,
       active,
       x: p[0],
@@ -1290,7 +1210,7 @@ function drag_default() {
           delete gestures[identifier], --active;
         // falls through
         case "drag":
-          p = pointer_default(touch2 || event2, container2), n = active;
+          p = pointer(touch2 || event2, container2), n = active;
           break;
       }
       dispatch2.call(
@@ -1299,7 +1219,7 @@ function drag_default() {
         new DragEvent(type, {
           sourceEvent: event2,
           subject: s,
-          target: drag,
+          target: drag2,
           identifier,
           active: n,
           x: p[0] + dx,
@@ -1312,30 +1232,30 @@ function drag_default() {
       );
     };
   }
-  drag.filter = function(_) {
-    return arguments.length ? (filter2 = typeof _ === "function" ? _ : constant_default2(!!_), drag) : filter2;
+  drag2.filter = function(_) {
+    return arguments.length ? (filter2 = typeof _ === "function" ? _ : constant2(!!_), drag2) : filter2;
   };
-  drag.container = function(_) {
-    return arguments.length ? (container = typeof _ === "function" ? _ : constant_default2(_), drag) : container;
+  drag2.container = function(_) {
+    return arguments.length ? (container = typeof _ === "function" ? _ : constant2(_), drag2) : container;
   };
-  drag.subject = function(_) {
-    return arguments.length ? (subject = typeof _ === "function" ? _ : constant_default2(_), drag) : subject;
+  drag2.subject = function(_) {
+    return arguments.length ? (subject = typeof _ === "function" ? _ : constant2(_), drag2) : subject;
   };
-  drag.touchable = function(_) {
-    return arguments.length ? (touchable = typeof _ === "function" ? _ : constant_default2(!!_), drag) : touchable;
+  drag2.touchable = function(_) {
+    return arguments.length ? (touchable = typeof _ === "function" ? _ : constant2(!!_), drag2) : touchable;
   };
-  drag.on = function() {
-    var value = listeners.on.apply(listeners, arguments);
-    return value === listeners ? drag : value;
+  drag2.on = function() {
+    var value2 = listeners.on.apply(listeners, arguments);
+    return value2 === listeners ? drag2 : value2;
   };
-  drag.clickDistance = function(_) {
-    return arguments.length ? (clickDistance2 = (_ = +_) * _, drag) : Math.sqrt(clickDistance2);
+  drag2.clickDistance = function(_) {
+    return arguments.length ? (clickDistance2 = (_ = +_) * _, drag2) : Math.sqrt(clickDistance2);
   };
-  return drag;
+  return drag2;
 }
 
-// node_modules/.pnpm/d3-color@3.1.0/node_modules/d3-color/src/define.js
-function define_default(constructor, factory, prototype) {
+// ../../node_modules/.pnpm/d3-color@3.1.1/node_modules/d3-color/dist/d3-color.mjs
+function define(constructor, factory, prototype) {
   constructor.prototype = factory.prototype = prototype;
   prototype.constructor = constructor;
 }
@@ -1344,8 +1264,6 @@ function extend(parent, definition) {
   for (var key in definition) prototype[key] = definition[key];
   return prototype;
 }
-
-// node_modules/.pnpm/d3-color@3.1.0/node_modules/d3-color/src/color.js
 function Color() {
 }
 var darker = 0.7;
@@ -1510,7 +1428,7 @@ var named = {
   yellow: 16776960,
   yellowgreen: 10145074
 };
-define_default(Color, color, {
+define(Color, color, {
   copy(channels) {
     return Object.assign(new this.constructor(), this, channels);
   },
@@ -1564,7 +1482,7 @@ function Rgb(r, g, b, opacity) {
   this.b = +b;
   this.opacity = +opacity;
 }
-define_default(Rgb, rgb, extend(Color, {
+define(Rgb, rgb, extend(Color, {
   brighter(k) {
     k = k == null ? brighter : Math.pow(brighter, k);
     return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
@@ -1602,12 +1520,12 @@ function rgb_formatRgb() {
 function clampa(opacity) {
   return isNaN(opacity) ? 1 : Math.max(0, Math.min(1, opacity));
 }
-function clampi(value) {
-  return Math.max(0, Math.min(255, Math.round(value) || 0));
+function clampi(value2) {
+  return Math.max(0, Math.min(255, Math.round(value2) || 0));
 }
-function hex(value) {
-  value = clampi(value);
-  return (value < 16 ? "0" : "") + value.toString(16);
+function hex(value2) {
+  value2 = clampi(value2);
+  return (value2 < 16 ? "0" : "") + value2.toString(16);
 }
 function hsla(h, s, l, a) {
   if (a <= 0) h = s = l = NaN;
@@ -1642,7 +1560,7 @@ function Hsl(h, s, l, opacity) {
   this.l = +l;
   this.opacity = +opacity;
 }
-define_default(Hsl, hsl, extend(Color, {
+define(Hsl, hsl, extend(Color, {
   brighter(k) {
     k = k == null ? brighter : Math.pow(brighter, k);
     return new Hsl(this.h, this.s, this.l * k, this.opacity);
@@ -1671,78 +1589,211 @@ define_default(Hsl, hsl, extend(Color, {
     return `${a === 1 ? "hsl(" : "hsla("}${clamph(this.h)}, ${clampt(this.s) * 100}%, ${clampt(this.l) * 100}%${a === 1 ? ")" : `, ${a})`}`;
   }
 }));
-function clamph(value) {
-  value = (value || 0) % 360;
-  return value < 0 ? value + 360 : value;
+function clamph(value2) {
+  value2 = (value2 || 0) % 360;
+  return value2 < 0 ? value2 + 360 : value2;
 }
-function clampt(value) {
-  return Math.max(0, Math.min(1, value || 0));
+function clampt(value2) {
+  return Math.max(0, Math.min(1, value2 || 0));
 }
 function hsl2rgb(h, m1, m2) {
   return (h < 60 ? m1 + (m2 - m1) * h / 60 : h < 180 ? m2 : h < 240 ? m1 + (m2 - m1) * (240 - h) / 60 : m1) * 255;
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/basis.js
-function basis(t1, v0, v1, v2, v3) {
-  var t2 = t1 * t1, t3 = t2 * t1;
-  return ((1 - 3 * t1 + 3 * t2 - t3) * v0 + (4 - 6 * t2 + 3 * t3) * v1 + (1 + 3 * t1 + 3 * t2 - 3 * t3) * v2 + t3 * v3) / 6;
+var radians = Math.PI / 180;
+var degrees = 180 / Math.PI;
+var K = 18;
+var Xn = 0.96422;
+var Yn = 1;
+var Zn = 0.82521;
+var t0 = 4 / 29;
+var t1 = 6 / 29;
+var t2 = 3 * t1 * t1;
+var t3 = t1 * t1 * t1;
+function labConvert(o) {
+  if (o instanceof Lab) return new Lab(o.l, o.a, o.b, o.opacity);
+  if (o instanceof Hcl) return hcl2lab(o);
+  if (!(o instanceof Rgb)) o = rgbConvert(o);
+  var r = rgb2lrgb(o.r), g = rgb2lrgb(o.g), b = rgb2lrgb(o.b), y = xyz2lab((0.2225045 * r + 0.7168786 * g + 0.0606169 * b) / Yn), x, z;
+  if (r === g && g === b) x = z = y;
+  else {
+    x = xyz2lab((0.4360747 * r + 0.3850649 * g + 0.1430804 * b) / Xn);
+    z = xyz2lab((0.0139322 * r + 0.0971045 * g + 0.7141733 * b) / Zn);
+  }
+  return new Lab(116 * y - 16, 500 * (x - y), 200 * (y - z), o.opacity);
 }
-function basis_default(values) {
+function lab(l, a, b, opacity) {
+  return arguments.length === 1 ? labConvert(l) : new Lab(l, a, b, opacity == null ? 1 : opacity);
+}
+function Lab(l, a, b, opacity) {
+  this.l = +l;
+  this.a = +a;
+  this.b = +b;
+  this.opacity = +opacity;
+}
+define(Lab, lab, extend(Color, {
+  brighter(k) {
+    return new Lab(this.l + K * (k == null ? 1 : k), this.a, this.b, this.opacity);
+  },
+  darker(k) {
+    return new Lab(this.l - K * (k == null ? 1 : k), this.a, this.b, this.opacity);
+  },
+  rgb() {
+    var y = (this.l + 16) / 116, x = isNaN(this.a) ? y : y + this.a / 500, z = isNaN(this.b) ? y : y - this.b / 200;
+    x = Xn * lab2xyz(x);
+    y = Yn * lab2xyz(y);
+    z = Zn * lab2xyz(z);
+    return new Rgb(
+      lrgb2rgb(3.1338561 * x - 1.6168667 * y - 0.4906146 * z),
+      lrgb2rgb(-0.9787684 * x + 1.9161415 * y + 0.033454 * z),
+      lrgb2rgb(0.0719453 * x - 0.2289914 * y + 1.4052427 * z),
+      this.opacity
+    );
+  }
+}));
+function xyz2lab(t4) {
+  return t4 > t3 ? Math.pow(t4, 1 / 3) : t4 / t2 + t0;
+}
+function lab2xyz(t4) {
+  return t4 > t1 ? t4 * t4 * t4 : t2 * (t4 - t0);
+}
+function lrgb2rgb(x) {
+  return 255 * (x <= 31308e-7 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055);
+}
+function rgb2lrgb(x) {
+  return (x /= 255) <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+}
+function hclConvert(o) {
+  if (o instanceof Hcl) return new Hcl(o.h, o.c, o.l, o.opacity);
+  if (!(o instanceof Lab)) o = labConvert(o);
+  if (o.a === 0 && o.b === 0) return new Hcl(NaN, 0 < o.l && o.l < 100 ? 0 : NaN, o.l, o.opacity);
+  var h = Math.atan2(o.b, o.a) * degrees;
+  return new Hcl(h < 0 ? h + 360 : h, Math.sqrt(o.a * o.a + o.b * o.b), o.l, o.opacity);
+}
+function hcl(h, c, l, opacity) {
+  return arguments.length === 1 ? hclConvert(h) : new Hcl(h, c, l, opacity == null ? 1 : opacity);
+}
+function Hcl(h, c, l, opacity) {
+  this.h = +h;
+  this.c = +c;
+  this.l = +l;
+  this.opacity = +opacity;
+}
+function hcl2lab(o) {
+  if (isNaN(o.h)) return new Lab(o.l, 0, 0, o.opacity);
+  var h = o.h * radians;
+  return new Lab(o.l, Math.cos(h) * o.c, Math.sin(h) * o.c, o.opacity);
+}
+define(Hcl, hcl, extend(Color, {
+  brighter(k) {
+    return new Hcl(this.h, this.c, this.l + K * (k == null ? 1 : k), this.opacity);
+  },
+  darker(k) {
+    return new Hcl(this.h, this.c, this.l - K * (k == null ? 1 : k), this.opacity);
+  },
+  rgb() {
+    return hcl2lab(this).rgb();
+  }
+}));
+var A = -0.14861;
+var B = 1.78277;
+var C = -0.29227;
+var D = -0.90649;
+var E = 1.97294;
+var ED = E * D;
+var EB = E * B;
+var BC_DA = B * C - D * A;
+function cubehelixConvert(o) {
+  if (o instanceof Cubehelix) return new Cubehelix(o.h, o.s, o.l, o.opacity);
+  if (!(o instanceof Rgb)) o = rgbConvert(o);
+  var r = o.r / 255, g = o.g / 255, b = o.b / 255, l = (BC_DA * b + ED * r - EB * g) / (BC_DA + ED - EB), bl = b - l, k = (E * (g - l) - C * bl) / D, s = Math.sqrt(k * k + bl * bl) / (E * l * (1 - l)), h = s ? Math.atan2(k, bl) * degrees - 120 : NaN;
+  return new Cubehelix(h < 0 ? h + 360 : h, s, l, o.opacity);
+}
+function cubehelix(h, s, l, opacity) {
+  return arguments.length === 1 ? cubehelixConvert(h) : new Cubehelix(h, s, l, opacity == null ? 1 : opacity);
+}
+function Cubehelix(h, s, l, opacity) {
+  this.h = +h;
+  this.s = +s;
+  this.l = +l;
+  this.opacity = +opacity;
+}
+define(Cubehelix, cubehelix, extend(Color, {
+  brighter(k) {
+    k = k == null ? brighter : Math.pow(brighter, k);
+    return new Cubehelix(this.h, this.s, this.l * k, this.opacity);
+  },
+  darker(k) {
+    k = k == null ? darker : Math.pow(darker, k);
+    return new Cubehelix(this.h, this.s, this.l * k, this.opacity);
+  },
+  rgb() {
+    var h = isNaN(this.h) ? 0 : (this.h + 120) * radians, l = +this.l, a = isNaN(this.s) ? 0 : this.s * l * (1 - l), cosh2 = Math.cos(h), sinh2 = Math.sin(h);
+    return new Rgb(
+      255 * (l + a * (A * cosh2 + B * sinh2)),
+      255 * (l + a * (C * cosh2 + D * sinh2)),
+      255 * (l + a * (E * cosh2)),
+      this.opacity
+    );
+  }
+}));
+
+// ../../node_modules/.pnpm/d3-interpolate@3.0.2/node_modules/d3-interpolate/dist/d3-interpolate.mjs
+function basis(t12, v0, v1, v2, v3) {
+  var t22 = t12 * t12, t32 = t22 * t12;
+  return ((1 - 3 * t12 + 3 * t22 - t32) * v0 + (4 - 6 * t22 + 3 * t32) * v1 + (1 + 3 * t12 + 3 * t22 - 3 * t32) * v2 + t32 * v3) / 6;
+}
+function basis$1(values) {
   var n = values.length - 1;
-  return function(t2) {
-    var i = t2 <= 0 ? t2 = 0 : t2 >= 1 ? (t2 = 1, n - 1) : Math.floor(t2 * n), v1 = values[i], v2 = values[i + 1], v0 = i > 0 ? values[i - 1] : 2 * v1 - v2, v3 = i < n - 1 ? values[i + 2] : 2 * v2 - v1;
-    return basis((t2 - i / n) * n, v0, v1, v2, v3);
+  return function(t4) {
+    var i = t4 <= 0 ? t4 = 0 : t4 >= 1 ? (t4 = 1, n - 1) : Math.floor(t4 * n), v1 = values[i], v2 = values[i + 1], v0 = i > 0 ? values[i - 1] : 2 * v1 - v2, v3 = i < n - 1 ? values[i + 2] : 2 * v2 - v1;
+    return basis((t4 - i / n) * n, v0, v1, v2, v3);
   };
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/basisClosed.js
-function basisClosed_default(values) {
+function basisClosed(values) {
   var n = values.length;
-  return function(t2) {
-    var i = Math.floor(((t2 %= 1) < 0 ? ++t2 : t2) * n), v0 = values[(i + n - 1) % n], v1 = values[i % n], v2 = values[(i + 1) % n], v3 = values[(i + 2) % n];
-    return basis((t2 - i / n) * n, v0, v1, v2, v3);
+  return function(t4) {
+    var i = Math.floor(((t4 %= 1) < 0 ? ++t4 : t4) * n), v0 = values[(i + n - 1) % n], v1 = values[i % n], v2 = values[(i + 1) % n], v3 = values[(i + 2) % n];
+    return basis((t4 - i / n) * n, v0, v1, v2, v3);
   };
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/constant.js
-var constant_default3 = (x) => () => x;
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/color.js
+var constant3 = (x) => () => x;
 function linear(a, d) {
-  return function(t2) {
-    return a + t2 * d;
+  return function(t4) {
+    return a + t4 * d;
   };
 }
 function exponential(a, b, y) {
-  return a = Math.pow(a, y), b = Math.pow(b, y) - a, y = 1 / y, function(t2) {
-    return Math.pow(a + t2 * b, y);
+  return a = Math.pow(a, y), b = Math.pow(b, y) - a, y = 1 / y, function(t4) {
+    return Math.pow(a + t4 * b, y);
   };
+}
+function hue$1(a, b) {
+  var d = b - a;
+  return d ? linear(a, d > 180 || d < -180 ? d - 360 * Math.round(d / 360) : d) : constant3(isNaN(a) ? b : a);
 }
 function gamma(y) {
   return (y = +y) === 1 ? nogamma : function(a, b) {
-    return b - a ? exponential(a, b, y) : constant_default3(isNaN(a) ? b : a);
+    return b - a ? exponential(a, b, y) : constant3(isNaN(a) ? b : a);
   };
 }
 function nogamma(a, b) {
   var d = b - a;
-  return d ? linear(a, d) : constant_default3(isNaN(a) ? b : a);
+  return d ? linear(a, d) : constant3(isNaN(a) ? b : a);
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/rgb.js
-var rgb_default = (function rgbGamma(y) {
+var rgb2 = (function rgbGamma(y) {
   var color2 = gamma(y);
-  function rgb2(start2, end) {
+  function rgb3(start2, end) {
     var r = color2((start2 = rgb(start2)).r, (end = rgb(end)).r), g = color2(start2.g, end.g), b = color2(start2.b, end.b), opacity = nogamma(start2.opacity, end.opacity);
-    return function(t2) {
-      start2.r = r(t2);
-      start2.g = g(t2);
-      start2.b = b(t2);
-      start2.opacity = opacity(t2);
+    return function(t4) {
+      start2.r = r(t4);
+      start2.g = g(t4);
+      start2.b = b(t4);
+      start2.opacity = opacity(t4);
       return start2 + "";
     };
   }
-  rgb2.gamma = rgbGamma;
-  return rgb2;
+  rgb3.gamma = rgbGamma;
+  return rgb3;
 })(1);
 function rgbSpline(spline) {
   return function(colors) {
@@ -1757,75 +1808,63 @@ function rgbSpline(spline) {
     g = spline(g);
     b = spline(b);
     color2.opacity = 1;
-    return function(t2) {
-      color2.r = r(t2);
-      color2.g = g(t2);
-      color2.b = b(t2);
+    return function(t4) {
+      color2.r = r(t4);
+      color2.g = g(t4);
+      color2.b = b(t4);
       return color2 + "";
     };
   };
 }
-var rgbBasis = rgbSpline(basis_default);
-var rgbBasisClosed = rgbSpline(basisClosed_default);
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/numberArray.js
-function numberArray_default(a, b) {
+var rgbBasis = rgbSpline(basis$1);
+var rgbBasisClosed = rgbSpline(basisClosed);
+function numberArray(a, b) {
   if (!b) b = [];
   var n = a ? Math.min(b.length, a.length) : 0, c = b.slice(), i;
-  return function(t2) {
-    for (i = 0; i < n; ++i) c[i] = a[i] * (1 - t2) + b[i] * t2;
+  return function(t4) {
+    for (i = 0; i < n; ++i) c[i] = a[i] * (1 - t4) + b[i] * t4;
     return c;
   };
 }
 function isNumberArray(x) {
   return ArrayBuffer.isView(x) && !(x instanceof DataView);
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/array.js
 function genericArray(a, b) {
   var nb = b ? b.length : 0, na = a ? Math.min(nb, a.length) : 0, x = new Array(na), c = new Array(nb), i;
-  for (i = 0; i < na; ++i) x[i] = value_default(a[i], b[i]);
+  for (i = 0; i < na; ++i) x[i] = value(a[i], b[i]);
   for (; i < nb; ++i) c[i] = b[i];
-  return function(t2) {
-    for (i = 0; i < na; ++i) c[i] = x[i](t2);
+  return function(t4) {
+    for (i = 0; i < na; ++i) c[i] = x[i](t4);
     return c;
   };
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/date.js
-function date_default(a, b) {
+function date(a, b) {
   var d = /* @__PURE__ */ new Date();
-  return a = +a, b = +b, function(t2) {
-    return d.setTime(a * (1 - t2) + b * t2), d;
+  return a = +a, b = +b, function(t4) {
+    return d.setTime(a * (1 - t4) + b * t4), d;
   };
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/number.js
-function number_default(a, b) {
-  return a = +a, b = +b, function(t2) {
-    return a * (1 - t2) + b * t2;
+function number(a, b) {
+  return a = +a, b = +b, function(t4) {
+    return a * (1 - t4) + b * t4;
   };
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/object.js
-function object_default(a, b) {
+function object(a, b) {
   var i = {}, c = {}, k;
   if (a === null || typeof a !== "object") a = {};
   if (b === null || typeof b !== "object") b = {};
   for (k in b) {
     if (k in a) {
-      i[k] = value_default(a[k], b[k]);
+      i[k] = value(a[k], b[k]);
     } else {
       c[k] = b[k];
     }
   }
-  return function(t2) {
-    for (k in i) c[k] = i[k](t2);
+  return function(t4) {
+    for (k in i) c[k] = i[k](t4);
     return c;
   };
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/string.js
 var reA = /[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g;
 var reB = new RegExp(reA.source, "g");
 function zero(b) {
@@ -1834,11 +1873,11 @@ function zero(b) {
   };
 }
 function one(b) {
-  return function(t2) {
-    return b(t2) + "";
+  return function(t4) {
+    return b(t4) + "";
   };
 }
-function string_default(a, b) {
+function string(a, b) {
   var bi = reA.lastIndex = reB.lastIndex = 0, am, bm, bs, i = -1, s = [], q = [];
   a = a + "", b = b + "";
   while ((am = reA.exec(a)) && (bm = reB.exec(b))) {
@@ -1852,7 +1891,7 @@ function string_default(a, b) {
       else s[++i] = bm;
     } else {
       s[++i] = null;
-      q.push({ i, x: number_default(am, bm) });
+      q.push({ i, x: number(am, bm) });
     }
     bi = reB.lastIndex;
   }
@@ -1861,20 +1900,16 @@ function string_default(a, b) {
     if (s[i]) s[i] += bs;
     else s[++i] = bs;
   }
-  return s.length < 2 ? q[0] ? one(q[0].x) : zero(b) : (b = q.length, function(t2) {
-    for (var i2 = 0, o; i2 < b; ++i2) s[(o = q[i2]).i] = o.x(t2);
+  return s.length < 2 ? q[0] ? one(q[0].x) : zero(b) : (b = q.length, function(t4) {
+    for (var i2 = 0, o; i2 < b; ++i2) s[(o = q[i2]).i] = o.x(t4);
     return s.join("");
   });
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/value.js
-function value_default(a, b) {
-  var t2 = typeof b, c;
-  return b == null || t2 === "boolean" ? constant_default3(b) : (t2 === "number" ? number_default : t2 === "string" ? (c = color(b)) ? (b = c, rgb_default) : string_default : b instanceof color ? rgb_default : b instanceof Date ? date_default : isNumberArray(b) ? numberArray_default : Array.isArray(b) ? genericArray : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object_default : number_default)(a, b);
+function value(a, b) {
+  var t4 = typeof b, c;
+  return b == null || t4 === "boolean" ? constant3(b) : (t4 === "number" ? number : t4 === "string" ? (c = color(b)) ? (b = c, rgb2) : string : b instanceof color ? rgb2 : b instanceof Date ? date : isNumberArray(b) ? numberArray : Array.isArray(b) ? genericArray : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object : number)(a, b);
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/transform/decompose.js
-var degrees = 180 / Math.PI;
+var degrees2 = 180 / Math.PI;
 var identity = {
   translateX: 0,
   translateY: 0,
@@ -1883,7 +1918,7 @@ var identity = {
   scaleX: 1,
   scaleY: 1
 };
-function decompose_default(a, b, c, d, e, f) {
+function decompose(a, b, c, d, e, f) {
   var scaleX, scaleY, skewX;
   if (scaleX = Math.sqrt(a * a + b * b)) a /= scaleX, b /= scaleX;
   if (skewX = a * c + b * d) c -= a * skewX, d -= b * skewX;
@@ -1892,29 +1927,25 @@ function decompose_default(a, b, c, d, e, f) {
   return {
     translateX: e,
     translateY: f,
-    rotate: Math.atan2(b, a) * degrees,
-    skewX: Math.atan(skewX) * degrees,
+    rotate: Math.atan2(b, a) * degrees2,
+    skewX: Math.atan(skewX) * degrees2,
     scaleX,
     scaleY
   };
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/transform/parse.js
 var svgNode;
-function parseCss(value) {
-  const m = new (typeof DOMMatrix === "function" ? DOMMatrix : WebKitCSSMatrix)(value + "");
-  return m.isIdentity ? identity : decompose_default(m.a, m.b, m.c, m.d, m.e, m.f);
+function parseCss(value2) {
+  const m = new (typeof DOMMatrix === "function" ? DOMMatrix : WebKitCSSMatrix)(value2 + "");
+  return m.isIdentity ? identity : decompose(m.a, m.b, m.c, m.d, m.e, m.f);
 }
-function parseSvg(value) {
-  if (value == null) return identity;
+function parseSvg(value2) {
+  if (value2 == null) return identity;
   if (!svgNode) svgNode = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  svgNode.setAttribute("transform", value);
-  if (!(value = svgNode.transform.baseVal.consolidate())) return identity;
-  value = value.matrix;
-  return decompose_default(value.a, value.b, value.c, value.d, value.e, value.f);
+  svgNode.setAttribute("transform", value2);
+  if (!(value2 = svgNode.transform.baseVal.consolidate())) return identity;
+  value2 = value2.matrix;
+  return decompose(value2.a, value2.b, value2.c, value2.d, value2.e, value2.f);
 }
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/transform/index.js
 function interpolateTransform(parse, pxComma, pxParen, degParen) {
   function pop(s) {
     return s.length ? s.pop() + " " : "";
@@ -1922,7 +1953,7 @@ function interpolateTransform(parse, pxComma, pxParen, degParen) {
   function translate(xa, ya, xb, yb, s, q) {
     if (xa !== xb || ya !== yb) {
       var i = s.push("translate(", null, pxComma, null, pxParen);
-      q.push({ i: i - 4, x: number_default(xa, xb) }, { i: i - 2, x: number_default(ya, yb) });
+      q.push({ i: i - 4, x: number(xa, xb) }, { i: i - 2, x: number(ya, yb) });
     } else if (xb || yb) {
       s.push("translate(" + xb + pxComma + yb + pxParen);
     }
@@ -1931,14 +1962,14 @@ function interpolateTransform(parse, pxComma, pxParen, degParen) {
     if (a !== b) {
       if (a - b > 180) b += 360;
       else if (b - a > 180) a += 360;
-      q.push({ i: s.push(pop(s) + "rotate(", null, degParen) - 2, x: number_default(a, b) });
+      q.push({ i: s.push(pop(s) + "rotate(", null, degParen) - 2, x: number(a, b) });
     } else if (b) {
       s.push(pop(s) + "rotate(" + b + degParen);
     }
   }
   function skewX(a, b, s, q) {
     if (a !== b) {
-      q.push({ i: s.push(pop(s) + "skewX(", null, degParen) - 2, x: number_default(a, b) });
+      q.push({ i: s.push(pop(s) + "skewX(", null, degParen) - 2, x: number(a, b) });
     } else if (b) {
       s.push(pop(s) + "skewX(" + b + degParen);
     }
@@ -1946,7 +1977,7 @@ function interpolateTransform(parse, pxComma, pxParen, degParen) {
   function scale(xa, ya, xb, yb, s, q) {
     if (xa !== xb || ya !== yb) {
       var i = s.push(pop(s) + "scale(", null, ",", null, ")");
-      q.push({ i: i - 4, x: number_default(xa, xb) }, { i: i - 2, x: number_default(ya, yb) });
+      q.push({ i: i - 4, x: number(xa, xb) }, { i: i - 2, x: number(ya, yb) });
     } else if (xb !== 1 || yb !== 1) {
       s.push(pop(s) + "scale(" + xb + "," + yb + ")");
     }
@@ -1959,17 +1990,15 @@ function interpolateTransform(parse, pxComma, pxParen, degParen) {
     skewX(a.skewX, b.skewX, s, q);
     scale(a.scaleX, a.scaleY, b.scaleX, b.scaleY, s, q);
     a = b = null;
-    return function(t2) {
+    return function(t4) {
       var i = -1, n = q.length, o;
-      while (++i < n) s[(o = q[i]).i] = o.x(t2);
+      while (++i < n) s[(o = q[i]).i] = o.x(t4);
       return s.join("");
     };
   };
 }
 var interpolateTransformCss = interpolateTransform(parseCss, "px, ", "px)", "deg)");
 var interpolateTransformSvg = interpolateTransform(parseSvg, ", ", ")", ")");
-
-// node_modules/.pnpm/d3-interpolate@3.0.1/node_modules/d3-interpolate/src/zoom.js
 var epsilon2 = 1e-12;
 function cosh(x) {
   return ((x = Math.exp(x)) + 1 / x) / 2;
@@ -1980,23 +2009,23 @@ function sinh(x) {
 function tanh(x) {
   return ((x = Math.exp(2 * x)) - 1) / (x + 1);
 }
-var zoom_default = (function zoomRho(rho, rho2, rho4) {
-  function zoom(p0, p1) {
+var zoom = (function zoomRho(rho, rho2, rho4) {
+  function zoom3(p0, p1) {
     var ux0 = p0[0], uy0 = p0[1], w0 = p0[2], ux1 = p1[0], uy1 = p1[1], w1 = p1[2], dx = ux1 - ux0, dy = uy1 - uy0, d2 = dx * dx + dy * dy, i, S;
     if (d2 < epsilon2) {
       S = Math.log(w1 / w0) / rho;
-      i = function(t2) {
+      i = function(t4) {
         return [
-          ux0 + t2 * dx,
-          uy0 + t2 * dy,
-          w0 * Math.exp(rho * t2 * S)
+          ux0 + t4 * dx,
+          uy0 + t4 * dy,
+          w0 * Math.exp(rho * t4 * S)
         ];
       };
     } else {
-      var d1 = Math.sqrt(d2), b0 = (w1 * w1 - w0 * w0 + rho4 * d2) / (2 * w0 * rho2 * d1), b1 = (w1 * w1 - w0 * w0 - rho4 * d2) / (2 * w1 * rho2 * d1), r0 = Math.log(Math.sqrt(b0 * b0 + 1) - b0), r1 = Math.log(Math.sqrt(b1 * b1 + 1) - b1);
+      var d1 = Math.sqrt(d2), b02 = (w1 * w1 - w0 * w0 + rho4 * d2) / (2 * w0 * rho2 * d1), b12 = (w1 * w1 - w0 * w0 - rho4 * d2) / (2 * w1 * rho2 * d1), r0 = Math.log(Math.sqrt(b02 * b02 + 1) - b02), r1 = Math.log(Math.sqrt(b12 * b12 + 1) - b12);
       S = (r1 - r0) / rho;
-      i = function(t2) {
-        var s = t2 * S, coshr0 = cosh(r0), u = w0 / (rho2 * d1) * (coshr0 * tanh(rho * s + r0) - sinh(r0));
+      i = function(t4) {
+        var s = t4 * S, coshr0 = cosh(r0), u = w0 / (rho2 * d1) * (coshr0 * tanh(rho * s + r0) - sinh(r0));
         return [
           ux0 + u * dx,
           uy0 + u * dy,
@@ -2004,20 +2033,67 @@ var zoom_default = (function zoomRho(rho, rho2, rho4) {
         ];
       };
     }
-    i.duration = S * 1e3 * rho / Math.SQRT2;
+    i.duration = Math.abs(S) * 1e3 * rho / Math.SQRT2;
     return i;
   }
-  zoom.rho = function(_) {
+  zoom3.rho = function(_) {
     var _1 = Math.max(1e-3, +_), _2 = _1 * _1, _4 = _2 * _2;
     return zoomRho(_1, _2, _4);
   };
-  return zoom;
+  return zoom3;
 })(Math.SQRT2, 2, 4);
+function hsl2(hue) {
+  return function(start2, end) {
+    var h = hue((start2 = hsl(start2)).h, (end = hsl(end)).h), s = nogamma(start2.s, end.s), l = nogamma(start2.l, end.l), opacity = nogamma(start2.opacity, end.opacity);
+    return function(t4) {
+      start2.h = h(t4);
+      start2.s = s(t4);
+      start2.l = l(t4);
+      start2.opacity = opacity(t4);
+      return start2 + "";
+    };
+  };
+}
+var hsl_default = hsl2(hue$1);
+var hslLong = hsl2(nogamma);
+function hcl2(hue) {
+  return function(start2, end) {
+    var h = hue((start2 = hcl(start2)).h, (end = hcl(end)).h), c = nogamma(start2.c, end.c), l = nogamma(start2.l, end.l), opacity = nogamma(start2.opacity, end.opacity);
+    return function(t4) {
+      start2.h = h(t4);
+      start2.c = c(t4);
+      start2.l = l(t4);
+      start2.opacity = opacity(t4);
+      return start2 + "";
+    };
+  };
+}
+var hcl_default = hcl2(hue$1);
+var hclLong = hcl2(nogamma);
+function cubehelix2(hue) {
+  return (function cubehelixGamma(y) {
+    y = +y;
+    function cubehelix3(start2, end) {
+      var h = hue((start2 = cubehelix(start2)).h, (end = cubehelix(end)).h), s = nogamma(start2.s, end.s), l = nogamma(start2.l, end.l), opacity = nogamma(start2.opacity, end.opacity);
+      return function(t4) {
+        start2.h = h(t4);
+        start2.s = s(t4);
+        start2.l = l(Math.pow(t4, y));
+        start2.opacity = opacity(t4);
+        return start2 + "";
+      };
+    }
+    cubehelix3.gamma = cubehelixGamma;
+    return cubehelix3;
+  })(1);
+}
+var cubehelix_default = cubehelix2(hue$1);
+var cubehelixLong = cubehelix2(nogamma);
 
-// node_modules/.pnpm/d3-timer@3.0.1/node_modules/d3-timer/src/timer.js
+// ../../node_modules/.pnpm/d3-timer@3.0.2/node_modules/d3-timer/dist/d3-timer.mjs
 var frame = 0;
-var timeout = 0;
-var interval = 0;
+var timeout$1 = 0;
+var interval$1 = 0;
 var pokeDelay = 1e3;
 var taskHead;
 var taskTail;
@@ -2060,23 +2136,23 @@ Timer.prototype = timer.prototype = {
   }
 };
 function timer(callback, delay, time) {
-  var t2 = new Timer();
-  t2.restart(callback, delay, time);
-  return t2;
+  var t4 = new Timer();
+  t4.restart(callback, delay, time);
+  return t4;
 }
 function timerFlush() {
   now();
   ++frame;
-  var t2 = taskHead, e;
-  while (t2) {
-    if ((e = clockNow - t2._time) >= 0) t2._call.call(void 0, e);
-    t2 = t2._next;
+  var t4 = taskHead, e;
+  while (t4) {
+    if ((e = clockNow - t4._time) >= 0) t4._call.call(void 0, e);
+    t4 = t4._next;
   }
   --frame;
 }
 function wake() {
   clockNow = (clockLast = clock.now()) + clockSkew;
-  frame = timeout = 0;
+  frame = timeout$1 = 0;
   try {
     timerFlush();
   } finally {
@@ -2090,45 +2166,155 @@ function poke() {
   if (delay > pokeDelay) clockSkew -= delay, clockLast = now2;
 }
 function nap() {
-  var t0, t1 = taskHead, t2, time = Infinity;
-  while (t1) {
-    if (t1._call) {
-      if (time > t1._time) time = t1._time;
-      t0 = t1, t1 = t1._next;
+  var t02, t12 = taskHead, t22, time = Infinity;
+  while (t12) {
+    if (t12._call) {
+      if (time > t12._time) time = t12._time;
+      t02 = t12, t12 = t12._next;
     } else {
-      t2 = t1._next, t1._next = null;
-      t1 = t0 ? t0._next = t2 : taskHead = t2;
+      t22 = t12._next, t12._next = null;
+      t12 = t02 ? t02._next = t22 : taskHead = t22;
     }
   }
-  taskTail = t0;
+  taskTail = t02;
   sleep(time);
 }
 function sleep(time) {
   if (frame) return;
-  if (timeout) timeout = clearTimeout(timeout);
+  if (timeout$1) timeout$1 = clearTimeout(timeout$1);
   var delay = time - clockNow;
   if (delay > 24) {
-    if (time < Infinity) timeout = setTimeout(wake, time - clock.now() - clockSkew);
-    if (interval) interval = clearInterval(interval);
+    if (time < Infinity) timeout$1 = setTimeout(wake, Math.ceil(time - clock.now() - clockSkew) + 1);
+    if (interval$1) interval$1 = clearInterval(interval$1);
   } else {
-    if (!interval) clockLast = clock.now(), interval = setInterval(poke, pokeDelay);
+    if (!interval$1) clockLast = clock.now(), interval$1 = setInterval(poke, pokeDelay);
     frame = 1, setFrame(wake);
   }
 }
-
-// node_modules/.pnpm/d3-timer@3.0.1/node_modules/d3-timer/src/timeout.js
-function timeout_default(callback, delay, time) {
-  var t2 = new Timer();
+function timeout(callback, delay, time) {
+  var t4 = new Timer();
   delay = delay == null ? 0 : +delay;
-  t2.restart((elapsed) => {
-    t2.stop();
+  t4.restart((elapsed) => {
+    t4.stop();
     callback(elapsed + delay);
   }, delay, time);
-  return t2;
+  return t4;
 }
 
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/schedule.js
-var emptyOn = dispatch_default("start", "end", "cancel", "interrupt");
+// ../../node_modules/.pnpm/d3-ease@3.0.2/node_modules/d3-ease/dist/d3-ease.mjs
+function cubicInOut(t4) {
+  return ((t4 *= 2) <= 1 ? t4 * t4 * t4 : (t4 -= 2) * t4 * t4 + 2) / 2;
+}
+var exponent = 3;
+var polyIn = (function custom(e) {
+  e = +e;
+  function polyIn2(t4) {
+    return Math.pow(t4, e);
+  }
+  polyIn2.exponent = custom;
+  return polyIn2;
+})(exponent);
+var polyOut = (function custom2(e) {
+  e = +e;
+  function polyOut2(t4) {
+    return 1 - Math.pow(1 - t4, e);
+  }
+  polyOut2.exponent = custom2;
+  return polyOut2;
+})(exponent);
+var polyInOut = (function custom3(e) {
+  e = +e;
+  function polyInOut2(t4) {
+    return ((t4 *= 2) <= 1 ? Math.pow(t4, e) : 2 - Math.pow(2 - t4, e)) / 2;
+  }
+  polyInOut2.exponent = custom3;
+  return polyInOut2;
+})(exponent);
+var pi = Math.PI;
+var halfPi = pi / 2;
+function tpmt(x) {
+  return (Math.pow(2, -10 * x) - 9765625e-10) * 1.0009775171065494;
+}
+var b1 = 4 / 11;
+var b2 = 6 / 11;
+var b3 = 8 / 11;
+var b4 = 3 / 4;
+var b5 = 9 / 11;
+var b6 = 10 / 11;
+var b7 = 15 / 16;
+var b8 = 21 / 22;
+var b9 = 63 / 64;
+var b0 = 1 / b1 / b1;
+var overshoot = 1.70158;
+var backIn = (function custom4(s) {
+  s = +s;
+  function backIn2(t4) {
+    return (t4 = +t4) * t4 * (s * (t4 - 1) + t4);
+  }
+  backIn2.overshoot = custom4;
+  return backIn2;
+})(overshoot);
+var backOut = (function custom5(s) {
+  s = +s;
+  function backOut2(t4) {
+    return --t4 * t4 * ((t4 + 1) * s + t4) + 1;
+  }
+  backOut2.overshoot = custom5;
+  return backOut2;
+})(overshoot);
+var backInOut = (function custom6(s) {
+  s = +s;
+  function backInOut2(t4) {
+    return ((t4 *= 2) < 1 ? t4 * t4 * ((s + 1) * t4 - s) : (t4 -= 2) * t4 * ((s + 1) * t4 + s) + 2) / 2;
+  }
+  backInOut2.overshoot = custom6;
+  return backInOut2;
+})(overshoot);
+var tau = 2 * Math.PI;
+var amplitude = 1;
+var period = 0.3;
+var elasticIn = (function custom7(a, p) {
+  var s = Math.asin(1 / (a = Math.max(1, a))) * (p /= tau);
+  function elasticIn2(t4) {
+    return a * tpmt(- --t4) * Math.sin((s - t4) / p);
+  }
+  elasticIn2.amplitude = function(a2) {
+    return custom7(a2, p * tau);
+  };
+  elasticIn2.period = function(p2) {
+    return custom7(a, p2);
+  };
+  return elasticIn2;
+})(amplitude, period);
+var elasticOut = (function custom8(a, p) {
+  var s = Math.asin(1 / (a = Math.max(1, a))) * (p /= tau);
+  function elasticOut2(t4) {
+    return 1 - a * tpmt(t4 = +t4) * Math.sin((t4 + s) / p);
+  }
+  elasticOut2.amplitude = function(a2) {
+    return custom8(a2, p * tau);
+  };
+  elasticOut2.period = function(p2) {
+    return custom8(a, p2);
+  };
+  return elasticOut2;
+})(amplitude, period);
+var elasticInOut = (function custom9(a, p) {
+  var s = Math.asin(1 / (a = Math.max(1, a))) * (p /= tau);
+  function elasticInOut2(t4) {
+    return ((t4 = t4 * 2 - 1) < 0 ? a * tpmt(-t4) * Math.sin((s - t4) / p) : 2 - a * tpmt(t4) * Math.sin((s + t4) / p)) / 2;
+  }
+  elasticInOut2.amplitude = function(a2) {
+    return custom9(a2, p * tau);
+  };
+  elasticInOut2.period = function(p2) {
+    return custom9(a, p2);
+  };
+  return elasticInOut2;
+})(amplitude, period);
+
+// ../../node_modules/.pnpm/d3-transition@3.0.2_d3-selection@3.0.1/node_modules/d3-transition/dist/d3-transition.mjs
+var emptyOn = dispatch("start", "end", "cancel", "interrupt");
 var emptyTween = [];
 var CREATED = 0;
 var SCHEDULED = 1;
@@ -2137,7 +2323,7 @@ var STARTED = 3;
 var RUNNING = 4;
 var ENDING = 5;
 var ENDED = 6;
-function schedule_default(node, name, id2, index2, group, timing) {
+function schedule(node, name, id2, index2, group, timing) {
   var schedules = node.__transition;
   if (!schedules) node.__transition = {};
   else if (id2 in schedules) return;
@@ -2158,25 +2344,25 @@ function schedule_default(node, name, id2, index2, group, timing) {
   });
 }
 function init(node, id2) {
-  var schedule = get2(node, id2);
-  if (schedule.state > CREATED) throw new Error("too late; already scheduled");
-  return schedule;
+  var schedule2 = get2(node, id2);
+  if (schedule2.state > CREATED) throw new Error("too late; already scheduled");
+  return schedule2;
 }
 function set2(node, id2) {
-  var schedule = get2(node, id2);
-  if (schedule.state > STARTED) throw new Error("too late; already running");
-  return schedule;
+  var schedule2 = get2(node, id2);
+  if (schedule2.state > STARTED) throw new Error("too late; already running");
+  return schedule2;
 }
 function get2(node, id2) {
-  var schedule = node.__transition;
-  if (!schedule || !(schedule = schedule[id2])) throw new Error("transition not found");
-  return schedule;
+  var schedule2 = node.__transition;
+  if (!schedule2 || !(schedule2 = schedule2[id2])) throw new Error("transition not found");
+  return schedule2;
 }
 function create(node, id2, self) {
   var schedules = node.__transition, tween;
   schedules[id2] = self;
-  self.timer = timer(schedule, 0, self.time);
-  function schedule(elapsed) {
+  self.timer = timer(schedule2, 0, self.time);
+  function schedule2(elapsed) {
     self.state = SCHEDULED;
     self.timer.restart(start2, self.delay, self.time);
     if (self.delay <= elapsed) start2(elapsed - self.delay);
@@ -2187,7 +2373,7 @@ function create(node, id2, self) {
     for (i in schedules) {
       o = schedules[i];
       if (o.name !== self.name) continue;
-      if (o.state === STARTED) return timeout_default(start2);
+      if (o.state === STARTED) return timeout(start2);
       if (o.state === RUNNING) {
         o.state = ENDED;
         o.timer.stop();
@@ -2200,7 +2386,7 @@ function create(node, id2, self) {
         delete schedules[i];
       }
     }
-    timeout_default(function() {
+    timeout(function() {
       if (self.state === STARTED) {
         self.state = RUNNING;
         self.timer.restart(tick, self.delay, self.time);
@@ -2220,9 +2406,9 @@ function create(node, id2, self) {
     tween.length = j + 1;
   }
   function tick(elapsed) {
-    var t2 = elapsed < self.duration ? self.ease.call(null, elapsed / self.duration) : (self.timer.restart(stop), self.state = ENDING, 1), i = -1, n = tween.length;
+    var t4 = elapsed < self.duration ? self.ease.call(null, elapsed / self.duration) : (self.timer.restart(stop), self.state = ENDING, 1), i = -1, n = tween.length;
     while (++i < n) {
-      tween[i].call(node, t2);
+      tween[i].call(node, t4);
     }
     if (self.state === ENDING) {
       self.on.call("end", node, node.__data__, self.index, self.group);
@@ -2237,38 +2423,32 @@ function create(node, id2, self) {
     delete node.__transition;
   }
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/interrupt.js
-function interrupt_default(node, name) {
-  var schedules = node.__transition, schedule, active, empty2 = true, i;
+function interrupt(node, name) {
+  var schedules = node.__transition, schedule2, active, empty2 = true, i;
   if (!schedules) return;
   name = name == null ? null : name + "";
   for (i in schedules) {
-    if ((schedule = schedules[i]).name !== name) {
+    if ((schedule2 = schedules[i]).name !== name) {
       empty2 = false;
       continue;
     }
-    active = schedule.state > STARTING && schedule.state < ENDING;
-    schedule.state = ENDED;
-    schedule.timer.stop();
-    schedule.on.call(active ? "interrupt" : "cancel", node, node.__data__, schedule.index, schedule.group);
+    active = schedule2.state > STARTING && schedule2.state < ENDING;
+    schedule2.state = ENDED;
+    schedule2.timer.stop();
+    schedule2.on.call(active ? "interrupt" : "cancel", node, node.__data__, schedule2.index, schedule2.group);
     delete schedules[i];
   }
   if (empty2) delete node.__transition;
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/selection/interrupt.js
-function interrupt_default2(name) {
+function selection_interrupt(name) {
   return this.each(function() {
-    interrupt_default(this, name);
+    interrupt(this, name);
   });
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/tween.js
 function tweenRemove(id2, name) {
   var tween0, tween1;
   return function() {
-    var schedule = set2(this, id2), tween = schedule.tween;
+    var schedule2 = set2(this, id2), tween = schedule2.tween;
     if (tween !== tween0) {
       tween1 = tween0 = tween;
       for (var i = 0, n = tween1.length; i < n; ++i) {
@@ -2279,59 +2459,55 @@ function tweenRemove(id2, name) {
         }
       }
     }
-    schedule.tween = tween1;
+    schedule2.tween = tween1;
   };
 }
-function tweenFunction(id2, name, value) {
+function tweenFunction(id2, name, value2) {
   var tween0, tween1;
-  if (typeof value !== "function") throw new Error();
+  if (typeof value2 !== "function") throw new Error();
   return function() {
-    var schedule = set2(this, id2), tween = schedule.tween;
+    var schedule2 = set2(this, id2), tween = schedule2.tween;
     if (tween !== tween0) {
       tween1 = (tween0 = tween).slice();
-      for (var t2 = { name, value }, i = 0, n = tween1.length; i < n; ++i) {
+      for (var t4 = { name, value: value2 }, i = 0, n = tween1.length; i < n; ++i) {
         if (tween1[i].name === name) {
-          tween1[i] = t2;
+          tween1[i] = t4;
           break;
         }
       }
-      if (i === n) tween1.push(t2);
+      if (i === n) tween1.push(t4);
     }
-    schedule.tween = tween1;
+    schedule2.tween = tween1;
   };
 }
-function tween_default(name, value) {
+function transition_tween(name, value2) {
   var id2 = this._id;
   name += "";
   if (arguments.length < 2) {
     var tween = get2(this.node(), id2).tween;
-    for (var i = 0, n = tween.length, t2; i < n; ++i) {
-      if ((t2 = tween[i]).name === name) {
-        return t2.value;
+    for (var i = 0, n = tween.length, t4; i < n; ++i) {
+      if ((t4 = tween[i]).name === name) {
+        return t4.value;
       }
     }
     return null;
   }
-  return this.each((value == null ? tweenRemove : tweenFunction)(id2, name, value));
+  return this.each((value2 == null ? tweenRemove : tweenFunction)(id2, name, value2));
 }
-function tweenValue(transition2, name, value) {
+function tweenValue(transition2, name, value2) {
   var id2 = transition2._id;
   transition2.each(function() {
-    var schedule = set2(this, id2);
-    (schedule.value || (schedule.value = {}))[name] = value.apply(this, arguments);
+    var schedule2 = set2(this, id2);
+    (schedule2.value || (schedule2.value = {}))[name] = value2.apply(this, arguments);
   });
   return function(node) {
     return get2(node, id2).value[name];
   };
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/interpolate.js
-function interpolate_default(a, b) {
+function interpolate(a, b) {
   var c;
-  return (typeof b === "number" ? number_default : b instanceof color ? rgb_default : (c = color(b)) ? (b = c, rgb_default) : string_default)(a, b);
+  return (typeof b === "number" ? number : b instanceof color ? rgb2 : (c = color(b)) ? (b = c, rgb2) : string)(a, b);
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/attr.js
 function attrRemove2(name) {
   return function() {
     this.removeAttribute(name);
@@ -2342,145 +2518,133 @@ function attrRemoveNS2(fullname) {
     this.removeAttributeNS(fullname.space, fullname.local);
   };
 }
-function attrConstant2(name, interpolate, value1) {
+function attrConstant2(name, interpolate2, value1) {
   var string00, string1 = value1 + "", interpolate0;
   return function() {
     var string0 = this.getAttribute(name);
-    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate(string00 = string0, value1);
+    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate2(string00 = string0, value1);
   };
 }
-function attrConstantNS2(fullname, interpolate, value1) {
+function attrConstantNS2(fullname, interpolate2, value1) {
   var string00, string1 = value1 + "", interpolate0;
   return function() {
     var string0 = this.getAttributeNS(fullname.space, fullname.local);
-    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate(string00 = string0, value1);
+    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate2(string00 = string0, value1);
   };
 }
-function attrFunction2(name, interpolate, value) {
+function attrFunction2(name, interpolate2, value2) {
   var string00, string10, interpolate0;
   return function() {
-    var string0, value1 = value(this), string1;
+    var string0, value1 = value2(this), string1;
     if (value1 == null) return void this.removeAttribute(name);
     string0 = this.getAttribute(name);
     string1 = value1 + "";
-    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate(string00 = string0, value1));
+    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate2(string00 = string0, value1));
   };
 }
-function attrFunctionNS2(fullname, interpolate, value) {
+function attrFunctionNS2(fullname, interpolate2, value2) {
   var string00, string10, interpolate0;
   return function() {
-    var string0, value1 = value(this), string1;
+    var string0, value1 = value2(this), string1;
     if (value1 == null) return void this.removeAttributeNS(fullname.space, fullname.local);
     string0 = this.getAttributeNS(fullname.space, fullname.local);
     string1 = value1 + "";
-    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate(string00 = string0, value1));
+    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate2(string00 = string0, value1));
   };
 }
-function attr_default2(name, value) {
-  var fullname = namespace_default(name), i = fullname === "transform" ? interpolateTransformSvg : interpolate_default;
-  return this.attrTween(name, typeof value === "function" ? (fullname.local ? attrFunctionNS2 : attrFunction2)(fullname, i, tweenValue(this, "attr." + name, value)) : value == null ? (fullname.local ? attrRemoveNS2 : attrRemove2)(fullname) : (fullname.local ? attrConstantNS2 : attrConstant2)(fullname, i, value));
+function transition_attr(name, value2) {
+  var fullname = namespace(name), i = fullname === "transform" ? interpolateTransformSvg : interpolate;
+  return this.attrTween(name, typeof value2 === "function" ? (fullname.local ? attrFunctionNS2 : attrFunction2)(fullname, i, tweenValue(this, "attr." + name, value2)) : value2 == null ? (fullname.local ? attrRemoveNS2 : attrRemove2)(fullname) : (fullname.local ? attrConstantNS2 : attrConstant2)(fullname, i, value2));
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/attrTween.js
 function attrInterpolate(name, i) {
-  return function(t2) {
-    this.setAttribute(name, i.call(this, t2));
+  return function(t4) {
+    this.setAttribute(name, i.call(this, t4));
   };
 }
 function attrInterpolateNS(fullname, i) {
-  return function(t2) {
-    this.setAttributeNS(fullname.space, fullname.local, i.call(this, t2));
+  return function(t4) {
+    this.setAttributeNS(fullname.space, fullname.local, i.call(this, t4));
   };
 }
-function attrTweenNS(fullname, value) {
-  var t0, i0;
+function attrTweenNS(fullname, value2) {
+  var t02, i0;
   function tween() {
-    var i = value.apply(this, arguments);
-    if (i !== i0) t0 = (i0 = i) && attrInterpolateNS(fullname, i);
-    return t0;
+    var i = value2.apply(this, arguments);
+    if (i !== i0) t02 = (i0 = i) && attrInterpolateNS(fullname, i);
+    return t02;
   }
-  tween._value = value;
+  tween._value = value2;
   return tween;
 }
-function attrTween(name, value) {
-  var t0, i0;
+function attrTween(name, value2) {
+  var t02, i0;
   function tween() {
-    var i = value.apply(this, arguments);
-    if (i !== i0) t0 = (i0 = i) && attrInterpolate(name, i);
-    return t0;
+    var i = value2.apply(this, arguments);
+    if (i !== i0) t02 = (i0 = i) && attrInterpolate(name, i);
+    return t02;
   }
-  tween._value = value;
+  tween._value = value2;
   return tween;
 }
-function attrTween_default(name, value) {
+function transition_attrTween(name, value2) {
   var key = "attr." + name;
   if (arguments.length < 2) return (key = this.tween(key)) && key._value;
-  if (value == null) return this.tween(key, null);
-  if (typeof value !== "function") throw new Error();
-  var fullname = namespace_default(name);
-  return this.tween(key, (fullname.local ? attrTweenNS : attrTween)(fullname, value));
+  if (value2 == null) return this.tween(key, null);
+  if (typeof value2 !== "function") throw new Error();
+  var fullname = namespace(name);
+  return this.tween(key, (fullname.local ? attrTweenNS : attrTween)(fullname, value2));
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/delay.js
-function delayFunction(id2, value) {
+function delayFunction(id2, value2) {
   return function() {
-    init(this, id2).delay = +value.apply(this, arguments);
+    init(this, id2).delay = +value2.apply(this, arguments);
   };
 }
-function delayConstant(id2, value) {
-  return value = +value, function() {
-    init(this, id2).delay = value;
+function delayConstant(id2, value2) {
+  return value2 = +value2, function() {
+    init(this, id2).delay = value2;
   };
 }
-function delay_default(value) {
+function transition_delay(value2) {
   var id2 = this._id;
-  return arguments.length ? this.each((typeof value === "function" ? delayFunction : delayConstant)(id2, value)) : get2(this.node(), id2).delay;
+  return arguments.length ? this.each((typeof value2 === "function" ? delayFunction : delayConstant)(id2, value2)) : get2(this.node(), id2).delay;
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/duration.js
-function durationFunction(id2, value) {
+function durationFunction(id2, value2) {
   return function() {
-    set2(this, id2).duration = +value.apply(this, arguments);
+    set2(this, id2).duration = +value2.apply(this, arguments);
   };
 }
-function durationConstant(id2, value) {
-  return value = +value, function() {
-    set2(this, id2).duration = value;
+function durationConstant(id2, value2) {
+  return value2 = +value2, function() {
+    set2(this, id2).duration = value2;
   };
 }
-function duration_default(value) {
+function transition_duration(value2) {
   var id2 = this._id;
-  return arguments.length ? this.each((typeof value === "function" ? durationFunction : durationConstant)(id2, value)) : get2(this.node(), id2).duration;
+  return arguments.length ? this.each((typeof value2 === "function" ? durationFunction : durationConstant)(id2, value2)) : get2(this.node(), id2).duration;
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/ease.js
-function easeConstant(id2, value) {
-  if (typeof value !== "function") throw new Error();
+function easeConstant(id2, value2) {
+  if (typeof value2 !== "function") throw new Error();
   return function() {
-    set2(this, id2).ease = value;
+    set2(this, id2).ease = value2;
   };
 }
-function ease_default(value) {
+function transition_ease(value2) {
   var id2 = this._id;
-  return arguments.length ? this.each(easeConstant(id2, value)) : get2(this.node(), id2).ease;
+  return arguments.length ? this.each(easeConstant(id2, value2)) : get2(this.node(), id2).ease;
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/easeVarying.js
-function easeVarying(id2, value) {
+function easeVarying(id2, value2) {
   return function() {
-    var v = value.apply(this, arguments);
+    var v = value2.apply(this, arguments);
     if (typeof v !== "function") throw new Error();
     set2(this, id2).ease = v;
   };
 }
-function easeVarying_default(value) {
-  if (typeof value !== "function") throw new Error();
-  return this.each(easeVarying(this._id, value));
+function transition_easeVarying(value2) {
+  if (typeof value2 !== "function") throw new Error();
+  return this.each(easeVarying(this._id, value2));
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/filter.js
-function filter_default2(match) {
-  if (typeof match !== "function") match = matcher_default(match);
+function transition_filter(match) {
+  if (typeof match !== "function") match = matcher(match);
   for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, subgroup = subgroups[j] = [], node, i = 0; i < n; ++i) {
       if ((node = group[i]) && match.call(node, node.__data__, i, group)) {
@@ -2490,9 +2654,7 @@ function filter_default2(match) {
   }
   return new Transition(subgroups, this._parents, this._name, this._id);
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/merge.js
-function merge_default2(transition2) {
+function transition_merge(transition2) {
   if (transition2._id !== this._id) throw new Error();
   for (var groups0 = this._groups, groups1 = transition2._groups, m0 = groups0.length, m1 = groups1.length, m = Math.min(m0, m1), merges = new Array(m0), j = 0; j < m; ++j) {
     for (var group0 = groups0[j], group1 = groups1[j], n = group0.length, merge = merges[j] = new Array(n), node, i = 0; i < n; ++i) {
@@ -2506,29 +2668,25 @@ function merge_default2(transition2) {
   }
   return new Transition(merges, this._parents, this._name, this._id);
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/on.js
 function start(name) {
-  return (name + "").trim().split(/^|\s+/).every(function(t2) {
-    var i = t2.indexOf(".");
-    if (i >= 0) t2 = t2.slice(0, i);
-    return !t2 || t2 === "start";
+  return (name + "").trim().split(/^|\s+/).every(function(t4) {
+    var i = t4.indexOf(".");
+    if (i >= 0) t4 = t4.slice(0, i);
+    return !t4 || t4 === "start";
   });
 }
 function onFunction(id2, name, listener) {
   var on0, on1, sit = start(name) ? init : set2;
   return function() {
-    var schedule = sit(this, id2), on = schedule.on;
+    var schedule2 = sit(this, id2), on = schedule2.on;
     if (on !== on0) (on1 = (on0 = on).copy()).on(name, listener);
-    schedule.on = on1;
+    schedule2.on = on1;
   };
 }
-function on_default2(name, listener) {
+function transition_on(name, listener) {
   var id2 = this._id;
   return arguments.length < 2 ? get2(this.node(), id2).on.on(name) : this.each(onFunction(id2, name, listener));
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/remove.js
 function removeFunction(id2) {
   return function() {
     var parent = this.parentNode;
@@ -2536,36 +2694,32 @@ function removeFunction(id2) {
     if (parent) parent.removeChild(this);
   };
 }
-function remove_default2() {
+function transition_remove() {
   return this.on("end.remove", removeFunction(this._id));
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/select.js
-function select_default3(select) {
+function transition_select(select2) {
   var name = this._name, id2 = this._id;
-  if (typeof select !== "function") select = selector_default(select);
+  if (typeof select2 !== "function") select2 = selector(select2);
   for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, subgroup = subgroups[j] = new Array(n), node, subnode, i = 0; i < n; ++i) {
-      if ((node = group[i]) && (subnode = select.call(node, node.__data__, i, group))) {
+      if ((node = group[i]) && (subnode = select2.call(node, node.__data__, i, group))) {
         if ("__data__" in node) subnode.__data__ = node.__data__;
         subgroup[i] = subnode;
-        schedule_default(subgroup[i], name, id2, i, subgroup, get2(node, id2));
+        schedule(subgroup[i], name, id2, i, subgroup, get2(node, id2));
       }
     }
   }
   return new Transition(subgroups, this._parents, name, id2);
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/selectAll.js
-function selectAll_default2(select) {
+function transition_selectAll(select2) {
   var name = this._name, id2 = this._id;
-  if (typeof select !== "function") select = selectorAll_default(select);
+  if (typeof select2 !== "function") select2 = selectorAll(select2);
   for (var groups = this._groups, m = groups.length, subgroups = [], parents = [], j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, node, i = 0; i < n; ++i) {
       if (node = group[i]) {
-        for (var children2 = select.call(node, node.__data__, i, group), child, inherit2 = get2(node, id2), k = 0, l = children2.length; k < l; ++k) {
+        for (var children2 = select2.call(node, node.__data__, i, group), child, inherit2 = get2(node, id2), k = 0, l = children2.length; k < l; ++k) {
           if (child = children2[k]) {
-            schedule_default(child, name, id2, k, children2, inherit2);
+            schedule(child, name, id2, k, children2, inherit2);
           }
         }
         subgroups.push(children2);
@@ -2575,19 +2729,15 @@ function selectAll_default2(select) {
   }
   return new Transition(subgroups, parents, name, id2);
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/selection.js
-var Selection2 = selection_default.prototype.constructor;
-function selection_default2() {
+var Selection2 = selection.prototype.constructor;
+function transition_selection() {
   return new Selection2(this._groups, this._parents);
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/style.js
-function styleNull(name, interpolate) {
+function styleNull(name, interpolate2) {
   var string00, string10, interpolate0;
   return function() {
     var string0 = styleValue(this, name), string1 = (this.style.removeProperty(name), styleValue(this, name));
-    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : interpolate0 = interpolate(string00 = string0, string10 = string1);
+    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : interpolate0 = interpolate2(string00 = string0, string10 = string1);
   };
 }
 function styleRemove2(name) {
@@ -2595,106 +2745,98 @@ function styleRemove2(name) {
     this.style.removeProperty(name);
   };
 }
-function styleConstant2(name, interpolate, value1) {
+function styleConstant2(name, interpolate2, value1) {
   var string00, string1 = value1 + "", interpolate0;
   return function() {
     var string0 = styleValue(this, name);
-    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate(string00 = string0, value1);
+    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate2(string00 = string0, value1);
   };
 }
-function styleFunction2(name, interpolate, value) {
+function styleFunction2(name, interpolate2, value2) {
   var string00, string10, interpolate0;
   return function() {
-    var string0 = styleValue(this, name), value1 = value(this), string1 = value1 + "";
+    var string0 = styleValue(this, name), value1 = value2(this), string1 = value1 + "";
     if (value1 == null) string1 = value1 = (this.style.removeProperty(name), styleValue(this, name));
-    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate(string00 = string0, value1));
+    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate2(string00 = string0, value1));
   };
 }
 function styleMaybeRemove(id2, name) {
   var on0, on1, listener0, key = "style." + name, event = "end." + key, remove2;
   return function() {
-    var schedule = set2(this, id2), on = schedule.on, listener = schedule.value[key] == null ? remove2 || (remove2 = styleRemove2(name)) : void 0;
+    var schedule2 = set2(this, id2), on = schedule2.on, listener = schedule2.value[key] == null ? remove2 || (remove2 = styleRemove2(name)) : void 0;
     if (on !== on0 || listener0 !== listener) (on1 = (on0 = on).copy()).on(event, listener0 = listener);
-    schedule.on = on1;
+    schedule2.on = on1;
   };
 }
-function style_default2(name, value, priority) {
-  var i = (name += "") === "transform" ? interpolateTransformCss : interpolate_default;
-  return value == null ? this.styleTween(name, styleNull(name, i)).on("end.style." + name, styleRemove2(name)) : typeof value === "function" ? this.styleTween(name, styleFunction2(name, i, tweenValue(this, "style." + name, value))).each(styleMaybeRemove(this._id, name)) : this.styleTween(name, styleConstant2(name, i, value), priority).on("end.style." + name, null);
+function transition_style(name, value2, priority) {
+  var i = (name += "") === "transform" ? interpolateTransformCss : interpolate;
+  return value2 == null ? this.styleTween(name, styleNull(name, i)).on("end.style." + name, styleRemove2(name)) : typeof value2 === "function" ? this.styleTween(name, styleFunction2(name, i, tweenValue(this, "style." + name, value2))).each(styleMaybeRemove(this._id, name)) : this.styleTween(name, styleConstant2(name, i, value2), priority).on("end.style." + name, null);
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/styleTween.js
 function styleInterpolate(name, i, priority) {
-  return function(t2) {
-    this.style.setProperty(name, i.call(this, t2), priority);
+  return function(t4) {
+    this.style.setProperty(name, i.call(this, t4), priority);
   };
 }
-function styleTween(name, value, priority) {
-  var t2, i0;
+function styleTween(name, value2, priority) {
+  var t4, i0;
   function tween() {
-    var i = value.apply(this, arguments);
-    if (i !== i0) t2 = (i0 = i) && styleInterpolate(name, i, priority);
-    return t2;
+    var i = value2.apply(this, arguments);
+    if (i !== i0) t4 = (i0 = i) && styleInterpolate(name, i, priority);
+    return t4;
   }
-  tween._value = value;
+  tween._value = value2;
   return tween;
 }
-function styleTween_default(name, value, priority) {
+function transition_styleTween(name, value2, priority) {
   var key = "style." + (name += "");
   if (arguments.length < 2) return (key = this.tween(key)) && key._value;
-  if (value == null) return this.tween(key, null);
-  if (typeof value !== "function") throw new Error();
-  return this.tween(key, styleTween(name, value, priority == null ? "" : priority));
+  if (value2 == null) return this.tween(key, null);
+  if (typeof value2 !== "function") throw new Error();
+  return this.tween(key, styleTween(name, value2, priority == null ? "" : priority));
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/text.js
-function textConstant2(value) {
+function textConstant2(value2) {
   return function() {
-    this.textContent = value;
+    this.textContent = value2;
   };
 }
-function textFunction2(value) {
+function textFunction2(value2) {
   return function() {
-    var value1 = value(this);
+    var value1 = value2(this);
     this.textContent = value1 == null ? "" : value1;
   };
 }
-function text_default2(value) {
-  return this.tween("text", typeof value === "function" ? textFunction2(tweenValue(this, "text", value)) : textConstant2(value == null ? "" : value + ""));
+function transition_text(value2) {
+  return this.tween("text", typeof value2 === "function" ? textFunction2(tweenValue(this, "text", value2)) : textConstant2(value2 == null ? "" : value2 + ""));
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/textTween.js
 function textInterpolate(i) {
-  return function(t2) {
-    this.textContent = i.call(this, t2);
+  return function(t4) {
+    this.textContent = i.call(this, t4);
   };
 }
-function textTween(value) {
-  var t0, i0;
+function textTween(value2) {
+  var t02, i0;
   function tween() {
-    var i = value.apply(this, arguments);
-    if (i !== i0) t0 = (i0 = i) && textInterpolate(i);
-    return t0;
+    var i = value2.apply(this, arguments);
+    if (i !== i0) t02 = (i0 = i) && textInterpolate(i);
+    return t02;
   }
-  tween._value = value;
+  tween._value = value2;
   return tween;
 }
-function textTween_default(value) {
+function transition_textTween(value2) {
   var key = "text";
   if (arguments.length < 1) return (key = this.tween(key)) && key._value;
-  if (value == null) return this.tween(key, null);
-  if (typeof value !== "function") throw new Error();
-  return this.tween(key, textTween(value));
+  if (value2 == null) return this.tween(key, null);
+  if (typeof value2 !== "function") throw new Error();
+  return this.tween(key, textTween(value2));
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/transition.js
-function transition_default() {
+function transition_transition() {
   var name = this._name, id0 = this._id, id1 = newId();
   for (var groups = this._groups, m = groups.length, j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, node, i = 0; i < n; ++i) {
       if (node = group[i]) {
         var inherit2 = get2(node, id0);
-        schedule_default(node, name, id1, i, group, {
+        schedule(node, name, id1, i, group, {
           time: inherit2.time + inherit2.delay + inherit2.duration,
           delay: 0,
           duration: inherit2.duration,
@@ -2705,29 +2847,25 @@ function transition_default() {
   }
   return new Transition(groups, this._parents, name, id1);
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/end.js
-function end_default() {
+function transition_end() {
   var on0, on1, that = this, id2 = that._id, size = that.size();
   return new Promise(function(resolve, reject) {
     var cancel = { value: reject }, end = { value: function() {
       if (--size === 0) resolve();
     } };
     that.each(function() {
-      var schedule = set2(this, id2), on = schedule.on;
+      var schedule2 = set2(this, id2), on = schedule2.on;
       if (on !== on0) {
         on1 = (on0 = on).copy();
         on1._.cancel.push(cancel);
         on1._.interrupt.push(cancel);
         on1._.end.push(end);
       }
-      schedule.on = on1;
+      schedule2.on = on1;
     });
     if (size === 0) resolve();
   });
 }
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/transition/index.js
 var id = 0;
 function Transition(groups, parents, name, id2) {
   this._groups = groups;
@@ -2736,51 +2874,44 @@ function Transition(groups, parents, name, id2) {
   this._id = id2;
 }
 function transition(name) {
-  return selection_default().transition(name);
+  return selection().transition(name);
 }
 function newId() {
   return ++id;
 }
-var selection_prototype = selection_default.prototype;
+var selection_prototype = selection.prototype;
 Transition.prototype = transition.prototype = {
   constructor: Transition,
-  select: select_default3,
-  selectAll: selectAll_default2,
+  select: transition_select,
+  selectAll: transition_selectAll,
   selectChild: selection_prototype.selectChild,
   selectChildren: selection_prototype.selectChildren,
-  filter: filter_default2,
-  merge: merge_default2,
-  selection: selection_default2,
-  transition: transition_default,
+  filter: transition_filter,
+  merge: transition_merge,
+  selection: transition_selection,
+  transition: transition_transition,
   call: selection_prototype.call,
   nodes: selection_prototype.nodes,
   node: selection_prototype.node,
   size: selection_prototype.size,
   empty: selection_prototype.empty,
   each: selection_prototype.each,
-  on: on_default2,
-  attr: attr_default2,
-  attrTween: attrTween_default,
-  style: style_default2,
-  styleTween: styleTween_default,
-  text: text_default2,
-  textTween: textTween_default,
-  remove: remove_default2,
-  tween: tween_default,
-  delay: delay_default,
-  duration: duration_default,
-  ease: ease_default,
-  easeVarying: easeVarying_default,
-  end: end_default,
+  on: transition_on,
+  attr: transition_attr,
+  attrTween: transition_attrTween,
+  style: transition_style,
+  styleTween: transition_styleTween,
+  text: transition_text,
+  textTween: transition_textTween,
+  remove: transition_remove,
+  tween: transition_tween,
+  delay: transition_delay,
+  duration: transition_duration,
+  ease: transition_ease,
+  easeVarying: transition_easeVarying,
+  end: transition_end,
   [Symbol.iterator]: selection_prototype[Symbol.iterator]
 };
-
-// node_modules/.pnpm/d3-ease@3.0.1/node_modules/d3-ease/src/cubic.js
-function cubicInOut(t2) {
-  return ((t2 *= 2) <= 1 ? t2 * t2 * t2 : (t2 -= 2) * t2 * t2 + 2) / 2;
-}
-
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/selection/transition.js
 var defaultTiming = {
   time: null,
   // Set on use.
@@ -2797,7 +2928,7 @@ function inherit(node, id2) {
   }
   return timing;
 }
-function transition_default2(name) {
+function selection_transition(name) {
   var id2, timing;
   if (name instanceof Transition) {
     id2 = name._id, name = name._name;
@@ -2807,37 +2938,31 @@ function transition_default2(name) {
   for (var groups = this._groups, m = groups.length, j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, node, i = 0; i < n; ++i) {
       if (node = group[i]) {
-        schedule_default(node, name, id2, i, group, timing || inherit(node, id2));
+        schedule(node, name, id2, i, group, timing || inherit(node, id2));
       }
     }
   }
   return new Transition(groups, this._parents, name, id2);
 }
+selection.prototype.interrupt = selection_interrupt;
+selection.prototype.transition = selection_transition;
 
-// node_modules/.pnpm/d3-transition@3.0.1_d3-selection@3.0.0/node_modules/d3-transition/src/selection/index.js
-selection_default.prototype.interrupt = interrupt_default2;
-selection_default.prototype.transition = transition_default2;
-
-// node_modules/.pnpm/d3-zoom@3.0.0/node_modules/d3-zoom/src/constant.js
-var constant_default4 = (x) => () => x;
-
-// node_modules/.pnpm/d3-zoom@3.0.0/node_modules/d3-zoom/src/event.js
+// ../../node_modules/.pnpm/d3-zoom@3.0.1/node_modules/d3-zoom/dist/d3-zoom.mjs
+var constant4 = (x) => () => x;
 function ZoomEvent(type, {
-  sourceEvent,
+  sourceEvent: sourceEvent2,
   target,
   transform: transform2,
   dispatch: dispatch2
 }) {
   Object.defineProperties(this, {
     type: { value: type, enumerable: true, configurable: true },
-    sourceEvent: { value: sourceEvent, enumerable: true, configurable: true },
+    sourceEvent: { value: sourceEvent2, enumerable: true, configurable: true },
     target: { value: target, enumerable: true, configurable: true },
     transform: { value: transform2, enumerable: true, configurable: true },
     _: { value: dispatch2 }
   });
 }
-
-// node_modules/.pnpm/d3-zoom@3.0.0/node_modules/d3-zoom/src/transform.js
 function Transform(k, x, y) {
   this.k = k;
   this.x = x;
@@ -2885,17 +3010,13 @@ function transform(node) {
   while (!node.__zoom) if (!(node = node.parentNode)) return identity2;
   return node.__zoom;
 }
-
-// node_modules/.pnpm/d3-zoom@3.0.0/node_modules/d3-zoom/src/noevent.js
 function nopropagation2(event) {
   event.stopImmediatePropagation();
 }
-function noevent_default2(event) {
+function noevent2(event) {
   event.preventDefault();
   event.stopImmediatePropagation();
 }
-
-// node_modules/.pnpm/d3-zoom@3.0.0/node_modules/d3-zoom/src/zoom.js
 function defaultFilter2(event) {
   return (!event.ctrlKey || event.type === "wheel") && !event.button;
 }
@@ -2927,46 +3048,46 @@ function defaultConstrain(transform2, extent, translateExtent) {
     dy1 > dy0 ? (dy0 + dy1) / 2 : Math.min(0, dy0) || Math.max(0, dy1)
   );
 }
-function zoom_default2() {
-  var filter2 = defaultFilter2, extent = defaultExtent, constrain = defaultConstrain, wheelDelta2 = defaultWheelDelta, touchable = defaultTouchable2, scaleExtent = [0, Infinity], translateExtent = [[-Infinity, -Infinity], [Infinity, Infinity]], duration = 250, interpolate = zoom_default, listeners = dispatch_default("start", "zoom", "end"), touchstarting, touchfirst, touchending, touchDelay = 500, wheelDelay = 150, clickDistance2 = 0, tapDistance = 10;
-  function zoom(selection2) {
+function zoom2() {
+  var filter2 = defaultFilter2, extent = defaultExtent, constrain = defaultConstrain, wheelDelta2 = defaultWheelDelta, touchable = defaultTouchable2, scaleExtent = [0, Infinity], translateExtent = [[-Infinity, -Infinity], [Infinity, Infinity]], duration = 250, interpolate2 = zoom, listeners = dispatch("start", "zoom", "end"), touchstarting, touchfirst, touchending, touchDelay = 500, wheelDelay = 150, clickDistance2 = 0, tapDistance = 10;
+  function zoom3(selection2) {
     selection2.property("__zoom", defaultTransform).on("wheel.zoom", wheeled, { passive: false }).on("mousedown.zoom", mousedowned).on("dblclick.zoom", dblclicked).filter(touchable).on("touchstart.zoom", touchstarted).on("touchmove.zoom", touchmoved).on("touchend.zoom touchcancel.zoom", touchended).style("-webkit-tap-highlight-color", "rgba(0,0,0,0)");
   }
-  zoom.transform = function(collection, transform2, point, event) {
+  zoom3.transform = function(collection, transform2, point, event) {
     var selection2 = collection.selection ? collection.selection() : collection;
     selection2.property("__zoom", defaultTransform);
     if (collection !== selection2) {
-      schedule(collection, transform2, point, event);
+      schedule2(collection, transform2, point, event);
     } else {
       selection2.interrupt().each(function() {
         gesture(this, arguments).event(event).start().zoom(null, typeof transform2 === "function" ? transform2.apply(this, arguments) : transform2).end();
       });
     }
   };
-  zoom.scaleBy = function(selection2, k, p, event) {
-    zoom.scaleTo(selection2, function() {
+  zoom3.scaleBy = function(selection2, k, p, event) {
+    zoom3.scaleTo(selection2, function() {
       var k0 = this.__zoom.k, k1 = typeof k === "function" ? k.apply(this, arguments) : k;
       return k0 * k1;
     }, p, event);
   };
-  zoom.scaleTo = function(selection2, k, p, event) {
-    zoom.transform(selection2, function() {
-      var e = extent.apply(this, arguments), t0 = this.__zoom, p0 = p == null ? centroid(e) : typeof p === "function" ? p.apply(this, arguments) : p, p1 = t0.invert(p0), k1 = typeof k === "function" ? k.apply(this, arguments) : k;
-      return constrain(translate(scale(t0, k1), p0, p1), e, translateExtent);
+  zoom3.scaleTo = function(selection2, k, p, event) {
+    zoom3.transform(selection2, function() {
+      var e = extent.apply(this, arguments), t02 = this.__zoom, p0 = p == null ? centroid(e) : typeof p === "function" ? p.apply(this, arguments) : p, p1 = t02.invert(p0), k1 = typeof k === "function" ? k.apply(this, arguments) : k;
+      return constrain(translate(scale(t02, k1), p0, p1), e, translateExtent);
     }, p, event);
   };
-  zoom.translateBy = function(selection2, x, y, event) {
-    zoom.transform(selection2, function() {
+  zoom3.translateBy = function(selection2, x, y, event) {
+    zoom3.transform(selection2, function() {
       return constrain(this.__zoom.translate(
         typeof x === "function" ? x.apply(this, arguments) : x,
         typeof y === "function" ? y.apply(this, arguments) : y
       ), extent.apply(this, arguments), translateExtent);
     }, null, event);
   };
-  zoom.translateTo = function(selection2, x, y, p, event) {
-    zoom.transform(selection2, function() {
-      var e = extent.apply(this, arguments), t2 = this.__zoom, p0 = p == null ? centroid(e) : typeof p === "function" ? p.apply(this, arguments) : p;
-      return constrain(identity2.translate(p0[0], p0[1]).scale(t2.k).translate(
+  zoom3.translateTo = function(selection2, x, y, p, event) {
+    zoom3.transform(selection2, function() {
+      var e = extent.apply(this, arguments), t4 = this.__zoom, p0 = p == null ? centroid(e) : typeof p === "function" ? p.apply(this, arguments) : p;
+      return constrain(identity2.translate(p0[0], p0[1]).scale(t4.k).translate(
         typeof x === "function" ? -x.apply(this, arguments) : -x,
         typeof y === "function" ? -y.apply(this, arguments) : -y
       ), e, translateExtent);
@@ -2983,20 +3104,20 @@ function zoom_default2() {
   function centroid(extent2) {
     return [(+extent2[0][0] + +extent2[1][0]) / 2, (+extent2[0][1] + +extent2[1][1]) / 2];
   }
-  function schedule(transition2, transform2, point, event) {
+  function schedule2(transition2, transform2, point, event) {
     transition2.on("start.zoom", function() {
       gesture(this, arguments).event(event).start();
     }).on("interrupt.zoom end.zoom", function() {
       gesture(this, arguments).event(event).end();
     }).tween("zoom", function() {
-      var that = this, args = arguments, g = gesture(that, args).event(event), e = extent.apply(that, args), p = point == null ? centroid(e) : typeof point === "function" ? point.apply(that, args) : point, w = Math.max(e[1][0] - e[0][0], e[1][1] - e[0][1]), a = that.__zoom, b = typeof transform2 === "function" ? transform2.apply(that, args) : transform2, i = interpolate(a.invert(p).concat(w / a.k), b.invert(p).concat(w / b.k));
-      return function(t2) {
-        if (t2 === 1) t2 = b;
+      var that = this, args = arguments, g = gesture(that, args).event(event), e = extent.apply(that, args), p = point == null ? centroid(e) : typeof point === "function" ? point.apply(that, args) : point, w = Math.max(e[1][0] - e[0][0], e[1][1] - e[0][1]), a = that.__zoom, b = typeof transform2 === "function" ? transform2.apply(that, args) : transform2, i = interpolate2(a.invert(p).concat(w / a.k), b.invert(p).concat(w / b.k));
+      return function(t4) {
+        if (t4 === 1) t4 = b;
         else {
-          var l = i(t2), k = w / l[2];
-          t2 = new Transform(k, p[0] - l[0] * k, p[1] - l[1] * k);
+          var l = i(t4), k = w / l[2];
+          t4 = new Transform(k, p[0] - l[0] * k, p[1] - l[1] * k);
         }
-        g.zoom(null, t2);
+        g.zoom(null, t4);
       };
     });
   }
@@ -3039,14 +3160,13 @@ function zoom_default2() {
       return this;
     },
     emit: function(type) {
-      var d = select_default2(this.that).datum();
+      var d = select(this.that).datum();
       listeners.call(
         type,
         this.that,
         new ZoomEvent(type, {
           sourceEvent: this.sourceEvent,
-          target: zoom,
-          type,
+          target: zoom3,
           transform: this.that.__zoom,
           dispatch: listeners
         }),
@@ -3056,21 +3176,21 @@ function zoom_default2() {
   };
   function wheeled(event, ...args) {
     if (!filter2.apply(this, arguments)) return;
-    var g = gesture(this, args).event(event), t2 = this.__zoom, k = Math.max(scaleExtent[0], Math.min(scaleExtent[1], t2.k * Math.pow(2, wheelDelta2.apply(this, arguments)))), p = pointer_default(event);
+    var g = gesture(this, args).event(event), t4 = this.__zoom, k = Math.max(scaleExtent[0], Math.min(scaleExtent[1], t4.k * Math.pow(2, wheelDelta2.apply(this, arguments)))), p = pointer(event);
     if (g.wheel) {
       if (g.mouse[0][0] !== p[0] || g.mouse[0][1] !== p[1]) {
-        g.mouse[1] = t2.invert(g.mouse[0] = p);
+        g.mouse[1] = t4.invert(g.mouse[0] = p);
       }
       clearTimeout(g.wheel);
-    } else if (t2.k === k) return;
+    } else if (t4.k === k) return;
     else {
-      g.mouse = [p, t2.invert(p)];
-      interrupt_default(this);
+      g.mouse = [p, t4.invert(p)];
+      interrupt(this);
       g.start();
     }
-    noevent_default2(event);
+    noevent2(event);
     g.wheel = setTimeout(wheelidled, wheelDelay);
-    g.zoom("mouse", constrain(translate(scale(t2, k), g.mouse[0], g.mouse[1]), g.extent, translateExtent));
+    g.zoom("mouse", constrain(translate(scale(t4, k), g.mouse[0], g.mouse[1]), g.extent, translateExtent));
     function wheelidled() {
       g.wheel = null;
       g.end();
@@ -3078,41 +3198,41 @@ function zoom_default2() {
   }
   function mousedowned(event, ...args) {
     if (touchending || !filter2.apply(this, arguments)) return;
-    var currentTarget = event.currentTarget, g = gesture(this, args, true).event(event), v = select_default2(event.view).on("mousemove.zoom", mousemoved, true).on("mouseup.zoom", mouseupped, true), p = pointer_default(event, currentTarget), x0 = event.clientX, y0 = event.clientY;
-    nodrag_default(event.view);
+    var currentTarget = event.currentTarget, g = gesture(this, args, true).event(event), v = select(event.view).on("mousemove.zoom", mousemoved, true).on("mouseup.zoom", mouseupped, true), p = pointer(event, currentTarget), x0 = event.clientX, y0 = event.clientY;
+    nodrag(event.view);
     nopropagation2(event);
     g.mouse = [p, this.__zoom.invert(p)];
-    interrupt_default(this);
+    interrupt(this);
     g.start();
     function mousemoved(event2) {
-      noevent_default2(event2);
+      noevent2(event2);
       if (!g.moved) {
         var dx = event2.clientX - x0, dy = event2.clientY - y0;
         g.moved = dx * dx + dy * dy > clickDistance2;
       }
-      g.event(event2).zoom("mouse", constrain(translate(g.that.__zoom, g.mouse[0] = pointer_default(event2, currentTarget), g.mouse[1]), g.extent, translateExtent));
+      g.event(event2).zoom("mouse", constrain(translate(g.that.__zoom, g.mouse[0] = pointer(event2, currentTarget), g.mouse[1]), g.extent, translateExtent));
     }
     function mouseupped(event2) {
       v.on("mousemove.zoom mouseup.zoom", null);
       yesdrag(event2.view, g.moved);
-      noevent_default2(event2);
+      noevent2(event2);
       g.event(event2).end();
     }
   }
   function dblclicked(event, ...args) {
     if (!filter2.apply(this, arguments)) return;
-    var t0 = this.__zoom, p0 = pointer_default(event.changedTouches ? event.changedTouches[0] : event, this), p1 = t0.invert(p0), k1 = t0.k * (event.shiftKey ? 0.5 : 2), t1 = constrain(translate(scale(t0, k1), p0, p1), extent.apply(this, args), translateExtent);
-    noevent_default2(event);
-    if (duration > 0) select_default2(this).transition().duration(duration).call(schedule, t1, p0, event);
-    else select_default2(this).call(zoom.transform, t1, p0, event);
+    var t02 = this.__zoom, p0 = pointer(event.changedTouches ? event.changedTouches[0] : event, this), p1 = t02.invert(p0), k1 = t02.k * (event.shiftKey ? 0.5 : 2), t12 = constrain(translate(scale(t02, k1), p0, p1), extent.apply(this, args), translateExtent);
+    noevent2(event);
+    if (duration > 0) select(this).transition().duration(duration).call(schedule2, t12, p0, event);
+    else select(this).call(zoom3.transform, t12, p0, event);
   }
   function touchstarted(event, ...args) {
     if (!filter2.apply(this, arguments)) return;
-    var touches = event.touches, n = touches.length, g = gesture(this, args, event.changedTouches.length === n).event(event), started, i, t2, p;
+    var touches = event.touches, n = touches.length, g = gesture(this, args, event.changedTouches.length === n).event(event), started, i, t4, p;
     nopropagation2(event);
     for (i = 0; i < n; ++i) {
-      t2 = touches[i], p = pointer_default(t2, this);
-      p = [p, this.__zoom.invert(p), t2.identifier];
+      t4 = touches[i], p = pointer(t4, this);
+      p = [p, this.__zoom.invert(p), t4.identifier];
       if (!g.touch0) g.touch0 = p, started = true, g.taps = 1 + !!touchstarting;
       else if (!g.touch1 && g.touch0[2] !== p[2]) g.touch1 = p, g.taps = 0;
     }
@@ -3121,96 +3241,96 @@ function zoom_default2() {
       if (g.taps < 2) touchfirst = p[0], touchstarting = setTimeout(function() {
         touchstarting = null;
       }, touchDelay);
-      interrupt_default(this);
+      interrupt(this);
       g.start();
     }
   }
   function touchmoved(event, ...args) {
     if (!this.__zooming) return;
-    var g = gesture(this, args).event(event), touches = event.changedTouches, n = touches.length, i, t2, p, l;
-    noevent_default2(event);
+    var g = gesture(this, args).event(event), touches = event.changedTouches, n = touches.length, i, t4, p, l;
+    noevent2(event);
     for (i = 0; i < n; ++i) {
-      t2 = touches[i], p = pointer_default(t2, this);
-      if (g.touch0 && g.touch0[2] === t2.identifier) g.touch0[0] = p;
-      else if (g.touch1 && g.touch1[2] === t2.identifier) g.touch1[0] = p;
+      t4 = touches[i], p = pointer(t4, this);
+      if (g.touch0 && g.touch0[2] === t4.identifier) g.touch0[0] = p;
+      else if (g.touch1 && g.touch1[2] === t4.identifier) g.touch1[0] = p;
     }
-    t2 = g.that.__zoom;
+    t4 = g.that.__zoom;
     if (g.touch1) {
       var p0 = g.touch0[0], l0 = g.touch0[1], p1 = g.touch1[0], l1 = g.touch1[1], dp = (dp = p1[0] - p0[0]) * dp + (dp = p1[1] - p0[1]) * dp, dl = (dl = l1[0] - l0[0]) * dl + (dl = l1[1] - l0[1]) * dl;
-      t2 = scale(t2, Math.sqrt(dp / dl));
+      t4 = scale(t4, Math.sqrt(dp / dl));
       p = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2];
       l = [(l0[0] + l1[0]) / 2, (l0[1] + l1[1]) / 2];
     } else if (g.touch0) p = g.touch0[0], l = g.touch0[1];
     else return;
-    g.zoom("touch", constrain(translate(t2, p, l), g.extent, translateExtent));
+    g.zoom("touch", constrain(translate(t4, p, l), g.extent, translateExtent));
   }
   function touchended(event, ...args) {
     if (!this.__zooming) return;
-    var g = gesture(this, args).event(event), touches = event.changedTouches, n = touches.length, i, t2;
+    var g = gesture(this, args).event(event), touches = event.changedTouches, n = touches.length, i, t4;
     nopropagation2(event);
     if (touchending) clearTimeout(touchending);
     touchending = setTimeout(function() {
       touchending = null;
     }, touchDelay);
     for (i = 0; i < n; ++i) {
-      t2 = touches[i];
-      if (g.touch0 && g.touch0[2] === t2.identifier) delete g.touch0;
-      else if (g.touch1 && g.touch1[2] === t2.identifier) delete g.touch1;
+      t4 = touches[i];
+      if (g.touch0 && g.touch0[2] === t4.identifier) delete g.touch0;
+      else if (g.touch1 && g.touch1[2] === t4.identifier) delete g.touch1;
     }
     if (g.touch1 && !g.touch0) g.touch0 = g.touch1, delete g.touch1;
     if (g.touch0) g.touch0[1] = this.__zoom.invert(g.touch0[0]);
     else {
       g.end();
       if (g.taps === 2) {
-        t2 = pointer_default(t2, this);
-        if (Math.hypot(touchfirst[0] - t2[0], touchfirst[1] - t2[1]) < tapDistance) {
-          var p = select_default2(this).on("dblclick.zoom");
+        t4 = pointer(t4, this);
+        if (Math.hypot(touchfirst[0] - t4[0], touchfirst[1] - t4[1]) < tapDistance) {
+          var p = select(this).on("dblclick.zoom");
           if (p) p.apply(this, arguments);
         }
       }
     }
   }
-  zoom.wheelDelta = function(_) {
-    return arguments.length ? (wheelDelta2 = typeof _ === "function" ? _ : constant_default4(+_), zoom) : wheelDelta2;
+  zoom3.wheelDelta = function(_) {
+    return arguments.length ? (wheelDelta2 = typeof _ === "function" ? _ : constant4(+_), zoom3) : wheelDelta2;
   };
-  zoom.filter = function(_) {
-    return arguments.length ? (filter2 = typeof _ === "function" ? _ : constant_default4(!!_), zoom) : filter2;
+  zoom3.filter = function(_) {
+    return arguments.length ? (filter2 = typeof _ === "function" ? _ : constant4(!!_), zoom3) : filter2;
   };
-  zoom.touchable = function(_) {
-    return arguments.length ? (touchable = typeof _ === "function" ? _ : constant_default4(!!_), zoom) : touchable;
+  zoom3.touchable = function(_) {
+    return arguments.length ? (touchable = typeof _ === "function" ? _ : constant4(!!_), zoom3) : touchable;
   };
-  zoom.extent = function(_) {
-    return arguments.length ? (extent = typeof _ === "function" ? _ : constant_default4([[+_[0][0], +_[0][1]], [+_[1][0], +_[1][1]]]), zoom) : extent;
+  zoom3.extent = function(_) {
+    return arguments.length ? (extent = typeof _ === "function" ? _ : constant4([[+_[0][0], +_[0][1]], [+_[1][0], +_[1][1]]]), zoom3) : extent;
   };
-  zoom.scaleExtent = function(_) {
-    return arguments.length ? (scaleExtent[0] = +_[0], scaleExtent[1] = +_[1], zoom) : [scaleExtent[0], scaleExtent[1]];
+  zoom3.scaleExtent = function(_) {
+    return arguments.length ? (scaleExtent[0] = +_[0], scaleExtent[1] = +_[1], zoom3) : [scaleExtent[0], scaleExtent[1]];
   };
-  zoom.translateExtent = function(_) {
-    return arguments.length ? (translateExtent[0][0] = +_[0][0], translateExtent[1][0] = +_[1][0], translateExtent[0][1] = +_[0][1], translateExtent[1][1] = +_[1][1], zoom) : [[translateExtent[0][0], translateExtent[0][1]], [translateExtent[1][0], translateExtent[1][1]]];
+  zoom3.translateExtent = function(_) {
+    return arguments.length ? (translateExtent[0][0] = +_[0][0], translateExtent[1][0] = +_[1][0], translateExtent[0][1] = +_[0][1], translateExtent[1][1] = +_[1][1], zoom3) : [[translateExtent[0][0], translateExtent[0][1]], [translateExtent[1][0], translateExtent[1][1]]];
   };
-  zoom.constrain = function(_) {
-    return arguments.length ? (constrain = _, zoom) : constrain;
+  zoom3.constrain = function(_) {
+    return arguments.length ? (constrain = _, zoom3) : constrain;
   };
-  zoom.duration = function(_) {
-    return arguments.length ? (duration = +_, zoom) : duration;
+  zoom3.duration = function(_) {
+    return arguments.length ? (duration = +_, zoom3) : duration;
   };
-  zoom.interpolate = function(_) {
-    return arguments.length ? (interpolate = _, zoom) : interpolate;
+  zoom3.interpolate = function(_) {
+    return arguments.length ? (interpolate2 = _, zoom3) : interpolate2;
   };
-  zoom.on = function() {
-    var value = listeners.on.apply(listeners, arguments);
-    return value === listeners ? zoom : value;
+  zoom3.on = function() {
+    var value2 = listeners.on.apply(listeners, arguments);
+    return value2 === listeners ? zoom3 : value2;
   };
-  zoom.clickDistance = function(_) {
-    return arguments.length ? (clickDistance2 = (_ = +_) * _, zoom) : Math.sqrt(clickDistance2);
+  zoom3.clickDistance = function(_) {
+    return arguments.length ? (clickDistance2 = (_ = +_) * _, zoom3) : Math.sqrt(clickDistance2);
   };
-  zoom.tapDistance = function(_) {
-    return arguments.length ? (tapDistance = +_, zoom) : tapDistance;
+  zoom3.tapDistance = function(_) {
+    return arguments.length ? (tapDistance = +_, zoom3) : tapDistance;
   };
-  return zoom;
+  return zoom3;
 }
 
-// node_modules/.pnpm/@xyflow+system@0.0.83/node_modules/@xyflow/system/dist/esm/index.js
+// ../../node_modules/.pnpm/@xyflow+system@0.0.84/node_modules/@xyflow/system/dist/esm/index.js
 var errorMessages = {
   error001: (lib = "react") => `Seems like you have not used ${lib === "svelte" ? "SvelteFlowProvider" : "ReactFlowProvider"} as an ancestor. Help: https://${lib}flow.dev/error#001`,
   error002: () => "It looks like you've created a new nodeTypes or edgeTypes object. If this wasn't on purpose please define the nodeTypes/edgeTypes outside of the component or memoize them.",
@@ -3501,11 +3621,11 @@ function clampPositionToParent(childPosition, childDimensions, parent) {
     [parentX + parentWidth, parentY + parentHeight]
   ], childDimensions);
 }
-var calcAutoPanVelocity = (value, min, max) => {
-  if (value < min) {
-    return clamp(Math.abs(value - min), 1, min) / min;
-  } else if (value > max) {
-    return -clamp(Math.abs(value - max), 1, min) / min;
+var calcAutoPanVelocity = (value2, min, max) => {
+  if (value2 < min) {
+    return clamp(Math.abs(value2 - min), 1, min) / min;
+  } else if (value2 > max) {
+    return -clamp(Math.abs(value2 - max), 1, min) / min;
   }
   return 0;
 };
@@ -3624,9 +3744,9 @@ function parsePaddings(padding, width, height) {
   }
   return { top: 0, right: 0, bottom: 0, left: 0, x: 0, y: 0 };
 }
-function calculateAppliedPaddings(bounds, x, y, zoom, width, height) {
-  const { x: left, y: top } = rendererPointToPoint(bounds, [x, y, zoom]);
-  const { x: boundRight, y: boundBottom } = rendererPointToPoint({ x: bounds.x + bounds.width, y: bounds.y + bounds.height }, [x, y, zoom]);
+function calculateAppliedPaddings(bounds, x, y, zoom3, width, height) {
+  const { x: left, y: top } = rendererPointToPoint(bounds, [x, y, zoom3]);
+  const { x: boundRight, y: boundBottom } = rendererPointToPoint({ x: bounds.x + bounds.width, y: bounds.y + bounds.height }, [x, y, zoom3]);
   const right = width - boundRight;
   const bottom = height - boundBottom;
   return {
@@ -3640,8 +3760,8 @@ var getViewportForBounds = (bounds, width, height, minZoom, maxZoom, padding) =>
   const p = parsePaddings(padding, width, height);
   const xZoom = (width - p.x) / bounds.width;
   const yZoom = (height - p.y) / bounds.height;
-  const zoom = Math.min(xZoom, yZoom);
-  const clampedZoom = clamp(zoom, minZoom, maxZoom);
+  const zoom3 = Math.min(xZoom, yZoom);
+  const clampedZoom = clamp(zoom3, minZoom, maxZoom);
   const boundsCenterX = bounds.x + bounds.width / 2;
   const boundsCenterY = bounds.y + bounds.height / 2;
   const x = width / 2 - boundsCenterX * clampedZoom;
@@ -3788,7 +3908,7 @@ var getEventPosition = (event, bounds) => {
     y: evtY - (bounds?.top ?? 0)
   };
 };
-var getHandleBounds = (type, nodeElement, nodeBounds, zoom, nodeId) => {
+var getHandleBounds = (type, nodeElement, nodeBounds, zoom3, nodeId) => {
   const handles = nodeElement.querySelectorAll(`.${type}`);
   if (!handles || !handles.length) {
     return null;
@@ -3800,8 +3920,8 @@ var getHandleBounds = (type, nodeElement, nodeBounds, zoom, nodeId) => {
       type,
       nodeId,
       position: handle.getAttribute("data-handlepos"),
-      x: (handleBounds.left - nodeBounds.left) / zoom,
-      y: (handleBounds.top - nodeBounds.top) / zoom,
+      x: (handleBounds.left - nodeBounds.left) / zoom3,
+      y: (handleBounds.top - nodeBounds.top) / zoom3,
       ...getDimensions(handle)
     };
   });
@@ -3949,6 +4069,7 @@ var getDirection = ({ source, sourcePosition = Position.Bottom, target }) => {
   return source.y < target.y ? { x: 0, y: 1 } : { x: 0, y: -1 };
 };
 var distance = (a, b) => Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2));
+var isBetween = (a, b, c) => a.x === b.x && b.x === c.x && (b.y - a.y) * (c.y - b.y) >= 0 || a.y === b.y && b.y === c.y && (b.x - a.x) * (c.x - b.x) >= 0;
 function getPoints({ source, sourcePosition = Position.Bottom, target, targetPosition = Position.Top, center, offset, stepPosition }) {
   const sourceDir = handleDirections[sourcePosition];
   const targetDir = handleDirections[targetPosition];
@@ -4035,14 +4156,14 @@ function getPoints({ source, sourcePosition = Position.Bottom, target, targetPos
   }
   const gappedSource = { x: sourceGapped.x + sourceGapOffset.x, y: sourceGapped.y + sourceGapOffset.y };
   const gappedTarget = { x: targetGapped.x + targetGapOffset.x, y: targetGapped.y + targetGapOffset.y };
-  const pathPoints = [
-    source,
-    // we only want to add the gapped source/target if they are different from the first/last point to avoid duplicates which can cause issues with the bends
-    ...gappedSource.x !== points[0].x || gappedSource.y !== points[0].y ? [gappedSource] : [],
-    ...points,
-    ...gappedTarget.x !== points[points.length - 1].x || gappedTarget.y !== points[points.length - 1].y ? [gappedTarget] : [],
-    target
-  ];
+  const pathPoints = [];
+  for (const point of [source, gappedSource, ...points, gappedTarget, target]) {
+    const [a, b] = pathPoints.slice(-2);
+    if (b && isBetween(a, b, point)) {
+      pathPoints.pop();
+    }
+    pathPoints.push(point);
+  }
   return [pathPoints, centerX, centerY, defaultOffsetX, defaultOffsetY];
 }
 function getBend(a, b, c, size) {
@@ -4428,7 +4549,7 @@ function updateNodeInternals(updates, nodeLookup, parentLookup, domNode, nodeOri
   }
   const changes = [];
   const style2 = window.getComputedStyle(viewportNode);
-  const { m22: zoom } = new window.DOMMatrixReadOnly(style2.transform);
+  const { m22: zoom3 } = new window.DOMMatrixReadOnly(style2.transform);
   const parentExpandChildren = [];
   for (const update of updates.values()) {
     const node = nodeLookup.get(update.id);
@@ -4468,8 +4589,8 @@ function updateNodeInternals(updates, nodeLookup, parentLookup, domNode, nodeOri
           ...node.internals,
           positionAbsolute,
           handleBounds: {
-            source: getHandleBounds("source", update.nodeElement, nodeBounds, zoom, node.id),
-            target: getHandleBounds("target", update.nodeElement, nodeBounds, zoom, node.id)
+            source: getHandleBounds("source", update.nodeElement, nodeBounds, zoom3, node.id),
+            target: getHandleBounds("target", update.nodeElement, nodeBounds, zoom3, node.id)
           }
         }
       };
@@ -4554,10 +4675,10 @@ function isParentSelected(node, nodeLookup) {
   }
   return isParentSelected(parentNode, nodeLookup);
 }
-function hasSelector(target, selector, domNode) {
+function hasSelector(target, selector2, domNode) {
   let current = target;
   do {
-    if (current?.matches?.(selector))
+    if (current?.matches?.(selector2))
       return true;
     if (current === domNode)
       return false;
@@ -4565,10 +4686,11 @@ function hasSelector(target, selector, domNode) {
   } while (current);
   return false;
 }
-function getDragItems(nodeLookup, nodesDraggable, mousePos, nodeId) {
+function getDragItems(nodeLookup, nodesDraggable, mousePos, nodeId, onlyDragNode) {
   const dragItems = /* @__PURE__ */ new Map();
   for (const [id2, node] of nodeLookup) {
-    if ((node.selected || node.id === nodeId) && (!node.parentId || !isParentSelected(node, nodeLookup)) && (node.draggable || nodesDraggable && typeof node.draggable === "undefined")) {
+    const isDragged = onlyDragNode ? node.id === nodeId : node.selected || node.id === nodeId;
+    if (isDragged && (onlyDragNode || !node.parentId || !isParentSelected(node, nodeLookup)) && (node.draggable || nodesDraggable && typeof node.draggable === "undefined")) {
       const internalNode = nodeLookup.get(id2);
       if (internalNode) {
         dragItems.set(id2, {
@@ -4648,7 +4770,7 @@ function XYDrag({ onNodeMouseDown, getStoreItems, onDragStart, onDrag, onDragSto
   let nodePositionsChanged = false;
   let dragEvent = null;
   function update({ noDragClassName, handleSelector, domNode, isSelectable, nodeId, nodeClickDistance = 0 }) {
-    d3Selection = select_default2(domNode);
+    d3Selection = select(domNode);
     function updateNodes({ x, y }) {
       const { nodeLookup, nodeExtent, snapGrid, snapToGrid, nodeOrigin, onNodeDrag, onSelectionDrag, onError, updateNodePositions } = getStoreItems();
       lastPos = { x, y };
@@ -4737,6 +4859,7 @@ function XYDrag({ onNodeMouseDown, getStoreItems, onDragStart, onDrag, onDragSto
     function startDrag(event) {
       const { nodeLookup, multiSelectionActive, nodesDraggable, transform: transform2, snapGrid, snapToGrid, selectNodesOnDrag, onNodeDragStart, onSelectionDragStart, unselectNodesAndEdges } = getStoreItems();
       dragStarted = true;
+      const isUnselectedNodeDrag = !!nodeId && !multiSelectionActive && !nodeLookup.get(nodeId)?.selected;
       if ((!selectNodesOnDrag || !isSelectable) && !multiSelectionActive && nodeId) {
         if (!nodeLookup.get(nodeId)?.selected) {
           unselectNodesAndEdges();
@@ -4747,7 +4870,7 @@ function XYDrag({ onNodeMouseDown, getStoreItems, onDragStart, onDrag, onDragSto
       }
       const pointerPos = getPointerPosition(event.sourceEvent, { transform: transform2, snapGrid, snapToGrid, containerBounds });
       lastPos = pointerPos;
-      dragItems = getDragItems(nodeLookup, nodesDraggable, pointerPos, nodeId);
+      dragItems = getDragItems(nodeLookup, nodesDraggable, pointerPos, nodeId, isUnselectedNodeDrag);
       if (dragItems.size > 0 && (onDragStart || onNodeDragStart || !nodeId && onSelectionDragStart)) {
         const [currentNode, currentNodes] = getEventHandlerParams({
           nodeId,
@@ -4761,7 +4884,7 @@ function XYDrag({ onNodeMouseDown, getStoreItems, onDragStart, onDrag, onDragSto
         }
       }
     }
-    const d3DragInstance = drag_default().clickDistance(nodeClickDistance).on("start", (event) => {
+    const d3DragInstance = drag().clickDistance(nodeClickDistance).on("start", (event) => {
       const { domNode: domNode2, nodeDragThreshold, transform: transform2, snapGrid, snapToGrid } = getStoreItems();
       containerBounds = domNode2?.getBoundingClientRect() || null;
       abortDrag = false;
@@ -5106,7 +5229,7 @@ var XYHandle = {
   isValid: isValidHandle
 };
 function XYMinimap({ domNode, panZoom, getTransform, getViewScale }) {
-  const selection2 = select_default2(domNode);
+  const selection2 = select(domNode);
   function update({ translateExtent, width, height, zoomStep = 1, pannable = true, zoomable = true, inversePan = false }) {
     const zoomHandler = (event) => {
       if (event.sourceEvent.type !== "wheel" || !panZoom) {
@@ -5153,7 +5276,7 @@ function XYMinimap({ domNode, panZoom, getTransform, getViewScale }) {
         zoom: transform2[2]
       }, extent, translateExtent);
     };
-    const zoomAndPanHandler = zoom_default2().on("start", panStartHandler).on("zoom", pannable ? panHandler : null).on("zoom.wheel", zoomable ? zoomHandler : null);
+    const zoomAndPanHandler = zoom2().on("start", panStartHandler).on("zoom", pannable ? panHandler : null).on("zoom.wheel", zoomable ? zoomHandler : null);
     selection2.call(zoomAndPanHandler, {});
   }
   function destroy() {
@@ -5162,7 +5285,7 @@ function XYMinimap({ domNode, panZoom, getTransform, getViewScale }) {
   return {
     update,
     destroy,
-    pointer: pointer_default
+    pointer
   };
 }
 var transformToViewport = (transform2) => ({
@@ -5170,10 +5293,10 @@ var transformToViewport = (transform2) => ({
   y: transform2.y,
   zoom: transform2.k
 });
-var viewportToTransform = ({ x, y, zoom }) => identity2.translate(x, y).scale(zoom);
+var viewportToTransform = ({ x, y, zoom: zoom3 }) => identity2.translate(x, y).scale(zoom3);
 var isWrappedWithClass = (event, className) => event.target.closest(`.${className}`);
 var isRightClickPan = (panOnDrag, usedButton) => usedButton === 2 && Array.isArray(panOnDrag) && panOnDrag.includes(2);
-var defaultEase = (t2) => ((t2 *= 2) <= 1 ? t2 * t2 * t2 : (t2 -= 2) * t2 * t2 + 2) / 2;
+var defaultEase = (t4) => ((t4 *= 2) <= 1 ? t4 * t4 * t4 : (t4 -= 2) * t4 * t4 + 2) / 2;
 var getD3Transition = (selection2, duration = 0, ease = defaultEase, onEnd = () => {
 }) => {
   const hasDuration = typeof duration === "number" && duration > 0;
@@ -5198,10 +5321,10 @@ function createPanOnScrollHandler({ zoomPanValues, noWheelClassName, d3Selection
     event.stopImmediatePropagation();
     const currentZoom = d3Selection.property("__zoom").k || 1;
     if (event.ctrlKey && zoomOnPinch) {
-      const point = pointer_default(event);
+      const point = pointer(event);
       const pinchDelta = wheelDelta(event);
-      const zoom = currentZoom * Math.pow(2, pinchDelta);
-      d3Zoom.scaleTo(d3Selection, zoom, point, event);
+      const zoom3 = currentZoom * Math.pow(2, pinchDelta);
+      d3Zoom.scaleTo(d3Selection, zoom3, point, event);
       return;
     }
     const deltaNormalize = event.deltaMode === 1 ? 20 : 1;
@@ -5360,7 +5483,7 @@ function XYPanZoom({ domNode, minZoom, maxZoom, translateExtent, viewport, onPan
   ];
   const extentResizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver((entries) => {
     const entry = entries[0];
-    if (entry) {
+    if (entry?.contentRect) {
       cachedExtent = [
         [0, 0],
         [entry.contentRect.width, entry.contentRect.height]
@@ -5368,8 +5491,8 @@ function XYPanZoom({ domNode, minZoom, maxZoom, translateExtent, viewport, onPan
     }
   }) : null;
   extentResizeObserver?.observe(domNode);
-  const d3ZoomInstance = zoom_default2().extent(() => cachedExtent).scaleExtent([minZoom, maxZoom]).translateExtent(translateExtent);
-  const d3Selection = select_default2(domNode).call(d3ZoomInstance);
+  const d3ZoomInstance = zoom2().extent(() => cachedExtent).scaleExtent([minZoom, maxZoom]).translateExtent(translateExtent);
+  const d3Selection = select(domNode).call(d3ZoomInstance);
   setViewportConstrained({
     x: viewport.x,
     y: viewport.y,
@@ -5384,14 +5507,14 @@ function XYPanZoom({ domNode, minZoom, maxZoom, translateExtent, viewport, onPan
   async function setTransform(transform2, options) {
     if (d3Selection) {
       return new Promise((resolve) => {
-        d3ZoomInstance?.interpolate(options?.interpolate === "linear" ? value_default : zoom_default).transform(getD3Transition(d3Selection, options?.duration, options?.ease, () => resolve(true)), transform2);
+        d3ZoomInstance?.interpolate(options?.interpolate === "linear" ? value : zoom).transform(getD3Transition(d3Selection, options?.duration, options?.ease, () => resolve(true)), transform2);
       });
     }
     return false;
   }
   function update({ noWheelClassName, noPanClassName, onPaneContextMenu, userSelectionActive, panOnScroll, panOnDrag, panOnScrollMode, panOnScrollSpeed, preventScrolling, zoomOnPinch, zoomOnScroll, zoomOnDoubleClick, panActivationKeyPressed = false, zoomActivationKeyPressed, lib, onTransformChange, connectionInProgress, paneClickDistance, selectionOnDrag }) {
     if (userSelectionActive && !zoomPanValues.isZoomingOrPanning) {
-      destroy();
+      d3ZoomInstance.on("zoom", null);
     }
     const isPanOnScroll = panOnScroll && !zoomActivationKeyPressed && !userSelectionActive;
     d3ZoomInstance.clickDistance(selectionOnDrag ? Infinity : !isNumeric(paneClickDistance) || paneClickDistance < 0 ? 0 : paneClickDistance);
@@ -5458,6 +5581,7 @@ function XYPanZoom({ domNode, minZoom, maxZoom, translateExtent, viewport, onPan
   }
   function destroy() {
     d3ZoomInstance.on("zoom", null);
+    extentResizeObserver?.disconnect();
   }
   async function setViewportConstrained(viewport2, extent, translateExtent2) {
     const nextTransform = viewportToTransform(viewport2);
@@ -5485,10 +5609,10 @@ function XYPanZoom({ domNode, minZoom, maxZoom, translateExtent, viewport, onPan
     const transform2 = d3Selection ? transform(d3Selection.node()) : { x: 0, y: 0, k: 1 };
     return { x: transform2.x, y: transform2.y, zoom: transform2.k };
   }
-  async function scaleTo(zoom, options) {
+  async function scaleTo(zoom3, options) {
     if (d3Selection) {
       return new Promise((resolve) => {
-        d3ZoomInstance?.interpolate(options?.interpolate === "linear" ? value_default : zoom_default).scaleTo(getD3Transition(d3Selection, options?.duration, options?.ease, () => resolve(true)), zoom);
+        d3ZoomInstance?.interpolate(options?.interpolate === "linear" ? value : zoom).scaleTo(getD3Transition(d3Selection, options?.duration, options?.ease, () => resolve(true)), zoom3);
       });
     }
     return false;
@@ -5496,7 +5620,7 @@ function XYPanZoom({ domNode, minZoom, maxZoom, translateExtent, viewport, onPan
   async function scaleBy(factor, options) {
     if (d3Selection) {
       return new Promise((resolve) => {
-        d3ZoomInstance?.interpolate(options?.interpolate === "linear" ? value_default : zoom_default).scaleBy(getD3Transition(d3Selection, options?.duration, options?.ease, () => resolve(true)), factor);
+        d3ZoomInstance?.interpolate(options?.interpolate === "linear" ? value : zoom).scaleBy(getD3Transition(d3Selection, options?.duration, options?.ease, () => resolve(true)), factor);
       });
     }
     return false;
@@ -5707,7 +5831,7 @@ function nodeToChildExtent(child, parent, nodeOrigin) {
   ];
 }
 function XYResizer({ domNode, nodeId, getStoreItems, onChange, onEnd }) {
-  const selection2 = select_default2(domNode);
+  const selection2 = select(domNode);
   let params = {
     controlDirection: getControlDirection("bottom-right"),
     boundaries: {
@@ -5734,7 +5858,7 @@ function XYResizer({ domNode, nodeId, getStoreItems, onChange, onEnd }) {
     let parentNode = void 0;
     let nodeExtent = void 0;
     let childExtent = void 0;
-    const dragHandler = drag_default().on("start", (event) => {
+    const dragHandler = drag().on("start", (event) => {
       const { nodeLookup, transform: transform2, snapGrid, snapToGrid, nodeOrigin, paneDomNode } = getStoreItems();
       node = nodeLookup.get(nodeId);
       if (!node) {
@@ -5896,11 +6020,11 @@ function XYResizer({ domNode, nodeId, getStoreItems, onChange, onEnd }) {
   };
 }
 
-// node_modules/.pnpm/zustand@4.5.7_react@18.3.1/node_modules/zustand/esm/traditional.mjs
+// ../../node_modules/.pnpm/zustand@4.5.7_@types+react@18.3.31_react@18.3.1/node_modules/zustand/esm/traditional.mjs
 var import_react = __toESM(require("react"), 1);
 var import_with_selector = __toESM(require_with_selector(), 1);
 
-// node_modules/.pnpm/zustand@4.5.7_react@18.3.1/node_modules/zustand/esm/vanilla.mjs
+// ../../node_modules/.pnpm/zustand@4.5.7_@types+react@18.3.31_react@18.3.1/node_modules/zustand/esm/vanilla.mjs
 var import_meta = {};
 var createStoreImpl = (createState) => {
   let state;
@@ -5933,16 +6057,16 @@ var createStoreImpl = (createState) => {
 };
 var createStore = (createState) => createState ? createStoreImpl(createState) : createStoreImpl;
 
-// node_modules/.pnpm/zustand@4.5.7_react@18.3.1/node_modules/zustand/esm/traditional.mjs
+// ../../node_modules/.pnpm/zustand@4.5.7_@types+react@18.3.31_react@18.3.1/node_modules/zustand/esm/traditional.mjs
 var { useDebugValue } = import_react.default;
 var { useSyncExternalStoreWithSelector } = import_with_selector.default;
 var identity3 = (arg) => arg;
-function useStoreWithEqualityFn(api, selector = identity3, equalityFn) {
+function useStoreWithEqualityFn(api, selector2 = identity3, equalityFn) {
   const slice = useSyncExternalStoreWithSelector(
     api.subscribe,
     api.getState,
     api.getServerState || api.getInitialState,
-    selector,
+    selector2,
     equalityFn
   );
   useDebugValue(slice);
@@ -5950,13 +6074,13 @@ function useStoreWithEqualityFn(api, selector = identity3, equalityFn) {
 }
 var createWithEqualityFnImpl = (createState, defaultEqualityFn) => {
   const api = createStore(createState);
-  const useBoundStoreWithEqualityFn = (selector, equalityFn = defaultEqualityFn) => useStoreWithEqualityFn(api, selector, equalityFn);
+  const useBoundStoreWithEqualityFn = (selector2, equalityFn = defaultEqualityFn) => useStoreWithEqualityFn(api, selector2, equalityFn);
   Object.assign(useBoundStoreWithEqualityFn, api);
   return useBoundStoreWithEqualityFn;
 };
 var createWithEqualityFn = (createState, defaultEqualityFn) => createState ? createWithEqualityFnImpl(createState, defaultEqualityFn) : createWithEqualityFnImpl;
 
-// node_modules/.pnpm/zustand@4.5.7_react@18.3.1/node_modules/zustand/esm/shallow.mjs
+// ../../node_modules/.pnpm/zustand@4.5.7_@types+react@18.3.31_react@18.3.1/node_modules/zustand/esm/shallow.mjs
 function shallow$1(objA, objB) {
   if (Object.is(objA, objB)) {
     return true;
@@ -5966,8 +6090,8 @@ function shallow$1(objA, objB) {
   }
   if (objA instanceof Map && objB instanceof Map) {
     if (objA.size !== objB.size) return false;
-    for (const [key, value] of objA) {
-      if (!Object.is(value, objB.get(key))) {
+    for (const [key, value2] of objA) {
+      if (!Object.is(value2, objB.get(key))) {
         return false;
       }
     }
@@ -5975,8 +6099,8 @@ function shallow$1(objA, objB) {
   }
   if (objA instanceof Set && objB instanceof Set) {
     if (objA.size !== objB.size) return false;
-    for (const value of objA) {
-      if (!objB.has(value)) {
+    for (const value2 of objA) {
+      if (!objB.has(value2)) {
         return false;
       }
     }
@@ -5994,17 +6118,17 @@ function shallow$1(objA, objB) {
   return true;
 }
 
-// node_modules/.pnpm/@xyflow+react@12.12.0_react_1b4487a84058fedfe8142ac7cadbbf3a/node_modules/@xyflow/react/dist/esm/index.js
+// ../../node_modules/.pnpm/@xyflow+react@12.12.1_@type_5cffb36229562c78dccf6e78a05e6785/node_modules/@xyflow/react/dist/esm/index.js
 var import_react_dom = require("react-dom");
 var StoreContext = (0, import_react2.createContext)(null);
 var Provider$1 = StoreContext.Provider;
 var zustandErrorMessage = errorMessages["error001"]("react");
-function useStore(selector, equalityFn) {
+function useStore(selector2, equalityFn) {
   const store = (0, import_react2.useContext)(StoreContext);
   if (store === null) {
     throw new Error(zustandErrorMessage);
   }
-  return useStoreWithEqualityFn(store, selector, equalityFn);
+  return useStoreWithEqualityFn(store, selector2, equalityFn);
 }
 function useStoreApi() {
   const store = (0, import_react2.useContext)(StoreContext);
@@ -6357,8 +6481,8 @@ var useViewportHelper = () => {
         return true;
       },
       getViewport: () => {
-        const [x, y, zoom] = store.getState().transform;
-        return { x, y, zoom };
+        const [x, y, zoom3] = store.getState().transform;
+        return { x, y, zoom: zoom3 };
       },
       setCenter: async (x, y, options) => {
         return store.getState().setCenter(x, y, options);
@@ -6503,14 +6627,11 @@ function createSelectionChange(id2, selected2) {
     selected: selected2
   };
 }
-function getSelectionChanges(items, selectedIds = /* @__PURE__ */ new Set(), mutateItem = false) {
+function getSelectionChanges(items, selectedIds = /* @__PURE__ */ new Set()) {
   const changes = [];
   for (const [id2, item] of items) {
     const willBeSelected = selectedIds.has(id2);
     if (!(item.selected === void 0 && !willBeSelected) && item.selected !== willBeSelected) {
-      if (mutateItem) {
-        item.selected = willBeSelected;
-      }
       changes.push(createSelectionChange(item.id, willBeSelected));
     }
   }
@@ -6628,8 +6749,8 @@ function BatchProvider({ children: children2 }) {
     }
   }, []);
   const edgeQueue = useQueue(edgeQueueHandler);
-  const value = (0, import_react2.useMemo)(() => ({ nodeQueue, edgeQueue }), []);
-  return (0, import_jsx_runtime.jsx)(BatchContext.Provider, { value, children: children2 });
+  const value2 = (0, import_react2.useMemo)(() => ({ nodeQueue, edgeQueue }), []);
+  return (0, import_jsx_runtime.jsx)(BatchContext.Provider, { value: value2, children: children2 });
 }
 function useBatchContext() {
   const batchContext = (0, import_react2.useContext)(BatchContext);
@@ -6662,7 +6783,7 @@ function useReactFlow() {
         width: nodeToUse.measured?.width ?? nodeToUse.width,
         height: nodeToUse.measured?.height ?? nodeToUse.height
       };
-      return nodeToRect(nodeWithPosition);
+      return nodeToRect(nodeWithPosition, nodeToUse.parentId ? void 0 : nodeOrigin);
     };
     const updateNode = (id2, nodeUpdate, options = { replace: false }) => {
       setNodes((prevNodes) => prevNodes.map((node) => {
@@ -6703,14 +6824,14 @@ function useReactFlow() {
       },
       toObject: () => {
         const { nodes = [], edges = [], transform: transform2 } = store.getState();
-        const [x, y, zoom] = transform2;
+        const [x, y, zoom3] = transform2;
         return {
           nodes: nodes.map((n) => ({ ...n })),
           edges: edges.map((e) => ({ ...e })),
           viewport: {
             x,
             y,
-            zoom
+            zoom: zoom3
           }
         };
       },
@@ -6752,12 +6873,13 @@ function useReactFlow() {
         if (!nodeRect) {
           return [];
         }
+        const { nodeOrigin } = store.getState();
         return (nodes || store.getState().nodes).filter((n) => {
           const internalNode = store.getState().nodeLookup.get(n.id);
           if (internalNode && !isRect && (n.id === nodeOrRect.id || !internalNode.internals.positionAbsolute)) {
             return false;
           }
-          const currNodeRect = nodeToRect(hasNodesOption ? n : internalNode);
+          const currNodeRect = nodeToRect(hasNodesOption ? n : internalNode, nodeOrigin);
           const overlappingArea = getOverlappingArea(currNodeRect, nodeRect);
           const partiallyVisible = partially && overlappingArea > 0;
           return partiallyVisible || overlappingArea >= currNodeRect.width * currNodeRect.height || overlappingArea >= nodeRect.width * nodeRect.height;
@@ -6847,9 +6969,7 @@ function useResizeHandler(domNode) {
       resizeObserver.observe(domNode.current);
       return () => {
         window.removeEventListener("resize", updateDimensions);
-        if (resizeObserver && domNode.current) {
-          resizeObserver.unobserve(domNode.current);
-        }
+        resizeObserver.disconnect();
       };
     }
   }, []);
@@ -6904,10 +7024,10 @@ function ZoomPane({ onPaneContextMenu, zoomOnScroll = true, zoomOnPinch = true, 
           onViewportChangeEnd?.(vp);
         }
       });
-      const { x, y, zoom } = panZoom.current.getViewport();
+      const { x, y, zoom: zoom3 } = panZoom.current.getViewport();
       store.setState({
         panZoom: panZoom.current,
-        transform: [x, y, zoom],
+        transform: [x, y, zoom3],
         domNode: zoomPane.current.closest(".react-flow")
       });
       return () => {
@@ -7010,8 +7130,16 @@ function Pane({ isSelecting, selectionKeyPressed, selectionMode = SelectionMode.
       connectionEndedOnPane.current = false;
       return;
     }
+    const { connectionClickStartHandle, connection, onClickConnectEnd, resetSelectedElements } = store.getState();
+    if (connectionClickStartHandle) {
+      const connectionClone = structuredClone(connection);
+      delete connectionClone.inProgress;
+      connectionClone.toPosition = connectionClone.toHandle ? connectionClone.toHandle.position : null;
+      onClickConnectEnd?.(event.nativeEvent, connectionClone);
+      store.setState({ connectionClickStartHandle: null });
+    }
     onPaneClick?.(event);
-    store.getState().resetSelectedElements();
+    resetSelectedElements();
     store.setState({ nodesSelectionActive: false });
   };
   const onContextMenu = (event) => {
@@ -7094,7 +7222,7 @@ function Pane({ isSelecting, selectionKeyPressed, selectionMode = SelectionMode.
       }
     }
     if (!areSetsEqual(prevSelectedNodeIds, selectedNodeIds.current)) {
-      const changes = getSelectionChanges(nodeLookup, selectedNodeIds.current, true);
+      const changes = getSelectionChanges(nodeLookup, selectedNodeIds.current);
       triggerNodeChanges(changes);
     }
     if (!areSetsEqual(prevSelectedEdgeIds, selectedEdgeIds.current)) {
@@ -8313,12 +8441,12 @@ function ConnectionLineWrapper({ containerStyle: containerStyle2, style: style2,
   return (0, import_jsx_runtime.jsx)("svg", { style: containerStyle2, width, height, className: "react-flow__connectionline react-flow__container", children: (0, import_jsx_runtime.jsx)("g", { className: cc(["react-flow__connection", getConnectionStatus(isValid)]), children: (0, import_jsx_runtime.jsx)(ConnectionLine, { style: style2, type, CustomComponent: component, isValid }) }) });
 }
 var ConnectionLine = ({ style: style2, type = ConnectionLineType.Bezier, CustomComponent, isValid }) => {
-  const { inProgress, from, fromNode, fromHandle, fromPosition, to, toNode, toHandle, toPosition, pointer } = useConnection();
+  const { inProgress, from, fromNode, fromHandle, fromPosition, to, toNode, toHandle, toPosition, pointer: pointer2 } = useConnection();
   if (!inProgress) {
     return;
   }
   if (CustomComponent) {
-    return (0, import_jsx_runtime.jsx)(CustomComponent, { connectionLineType: type, connectionLineStyle: style2, fromNode, fromHandle, fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, fromPosition, toPosition, connectionStatus: getConnectionStatus(isValid), toNode, toHandle, pointer });
+    return (0, import_jsx_runtime.jsx)(CustomComponent, { connectionLineType: type, connectionLineStyle: style2, fromNode, fromHandle, fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, fromPosition, toPosition, connectionStatus: getConnectionStatus(isValid), toNode, toHandle, pointer: pointer2 });
   }
   let path = "";
   const pathParams = {
@@ -8414,8 +8542,8 @@ var getInitialState = ({ nodes, edges, defaultNodes, defaultEdges, width, height
     const bounds = getInternalNodesBounds(nodeLookup, {
       filter: (node) => !!((node.width || node.initialWidth) && (node.height || node.initialHeight))
     });
-    const { x, y, zoom } = getViewportForBounds(bounds, width, height, minZoom, maxZoom, fitViewOptions?.padding ?? 0.1);
-    transform2 = [x, y, zoom];
+    const { x, y, zoom: zoom3 } = getViewportForBounds(bounds, width, height, minZoom, maxZoom, fitViewOptions?.padding ?? 0.1);
+    transform2 = [x, y, zoom3];
   }
   return {
     rfId: "1",
@@ -8679,7 +8807,7 @@ var createStore2 = ({ nodes, edges, defaultNodes, defaultEdges, width, height, f
         triggerNodeChanges(nodeChanges);
         return;
       }
-      triggerNodeChanges(getSelectionChanges(nodeLookup, /* @__PURE__ */ new Set([...selectedNodeIds]), true));
+      triggerNodeChanges(getSelectionChanges(nodeLookup, /* @__PURE__ */ new Set([...selectedNodeIds])));
       triggerEdgeChanges(getSelectionChanges(edgeLookup));
     },
     addSelectedEdges: (selectedEdgeIds) => {
@@ -8690,7 +8818,7 @@ var createStore2 = ({ nodes, edges, defaultNodes, defaultEdges, width, height, f
         return;
       }
       triggerEdgeChanges(getSelectionChanges(edgeLookup, /* @__PURE__ */ new Set([...selectedEdgeIds])));
-      triggerNodeChanges(getSelectionChanges(nodeLookup, /* @__PURE__ */ new Set(), true));
+      triggerNodeChanges(getSelectionChanges(nodeLookup, /* @__PURE__ */ new Set()));
     },
     unselectNodesAndEdges: ({ nodes: nodes2, edges: edges2 } = {}) => {
       const { edges: storeEdges, nodes: storeNodes, nodeLookup, triggerNodeChanges, triggerEdgeChanges } = get3();
@@ -8700,10 +8828,6 @@ var createStore2 = ({ nodes, edges, defaultNodes, defaultEdges, width, height, f
       for (const node of nodesToUnselect) {
         if (!node.selected) {
           continue;
-        }
-        const internalNode = nodeLookup.get(node.id);
-        if (internalNode) {
-          internalNode.selected = false;
         }
         nodeChanges.push(createSelectionChange(node.id, false));
       }
@@ -9270,8 +9394,8 @@ function ResizeControl({ nodeId, position, variant = ResizeControlVariant.Handle
 }
 var NodeResizeControl = (0, import_react2.memo)(ResizeControl);
 
-// node_modules/.pnpm/@xyflow+react@12.12.0_react_1b4487a84058fedfe8142ac7cadbbf3a/node_modules/@xyflow/react/dist/style.css
-var style_default3 = "/* this gets exported as style.css and can be used for the default theming */\n/* these are the necessary styles for React/Svelte Flow, they get used by base.css and style.css */\n.react-flow {\n  direction: ltr;\n\n  --xy-edge-stroke-default: #b1b1b7;\n  --xy-edge-stroke-width-default: 1;\n  --xy-edge-stroke-selected-default: #555;\n\n  --xy-connectionline-stroke-default: #b1b1b7;\n  --xy-connectionline-stroke-width-default: 1;\n\n  --xy-attribution-background-color-default: rgba(255, 255, 255, 0.5);\n\n  --xy-minimap-background-color-default: #fff;\n  --xy-minimap-mask-background-color-default: rgba(240, 240, 240, 0.6);\n  --xy-minimap-mask-stroke-color-default: transparent;\n  --xy-minimap-mask-stroke-width-default: 1;\n  --xy-minimap-node-background-color-default: #e2e2e2;\n  --xy-minimap-node-stroke-color-default: transparent;\n  --xy-minimap-node-stroke-width-default: 2;\n\n  --xy-background-color-default: transparent;\n  --xy-background-pattern-dots-color-default: #91919a;\n  --xy-background-pattern-lines-color-default: #eee;\n  --xy-background-pattern-cross-color-default: #e2e2e2;\n  background-color: var(--xy-background-color, var(--xy-background-color-default));\n  --xy-node-color-default: inherit;\n  --xy-node-border-default: 1px solid #1a192b;\n  --xy-node-background-color-default: #fff;\n  --xy-node-group-background-color-default: rgba(240, 240, 240, 0.25);\n  --xy-node-boxshadow-hover-default: 0 1px 4px 1px rgba(0, 0, 0, 0.08);\n  --xy-node-boxshadow-selected-default: 0 0 0 0.5px #1a192b;\n  --xy-node-border-radius-default: 3px;\n\n  --xy-handle-background-color-default: #1a192b;\n  --xy-handle-border-color-default: #fff;\n\n  --xy-selection-background-color-default: rgba(0, 89, 220, 0.08);\n  --xy-selection-border-default: 1px dotted rgba(0, 89, 220, 0.8);\n\n  --xy-controls-button-background-color-default: #fefefe;\n  --xy-controls-button-background-color-hover-default: #f4f4f4;\n  --xy-controls-button-color-default: inherit;\n  --xy-controls-button-color-hover-default: inherit;\n  --xy-controls-button-border-color-default: #eee;\n  --xy-controls-box-shadow-default: 0 0 2px 1px rgba(0, 0, 0, 0.08);\n\n  --xy-edge-label-background-color-default: #ffffff;\n  --xy-edge-label-color-default: inherit;\n  --xy-resize-background-color-default: #3367d9;\n}\n.react-flow.dark {\n  --xy-edge-stroke-default: #3e3e3e;\n  --xy-edge-stroke-width-default: 1;\n  --xy-edge-stroke-selected-default: #727272;\n\n  --xy-connectionline-stroke-default: #b1b1b7;\n  --xy-connectionline-stroke-width-default: 1;\n\n  --xy-attribution-background-color-default: rgba(150, 150, 150, 0.25);\n\n  --xy-minimap-background-color-default: #141414;\n  --xy-minimap-mask-background-color-default: rgba(60, 60, 60, 0.6);\n  --xy-minimap-mask-stroke-color-default: transparent;\n  --xy-minimap-mask-stroke-width-default: 1;\n  --xy-minimap-node-background-color-default: #2b2b2b;\n  --xy-minimap-node-stroke-color-default: transparent;\n  --xy-minimap-node-stroke-width-default: 2;\n\n  --xy-background-color-default: #141414;\n  --xy-background-pattern-dots-color-default: #555;\n  --xy-background-pattern-lines-color-default: #333;\n  --xy-background-pattern-cross-color-default: #333;\n  --xy-node-color-default: #f8f8f8;\n  --xy-node-border-default: 1px solid #3c3c3c;\n  --xy-node-background-color-default: #1e1e1e;\n  --xy-node-group-background-color-default: rgba(240, 240, 240, 0.25);\n  --xy-node-boxshadow-hover-default: 0 1px 4px 1px rgba(255, 255, 255, 0.08);\n  --xy-node-boxshadow-selected-default: 0 0 0 0.5px #999;\n\n  --xy-handle-background-color-default: #bebebe;\n  --xy-handle-border-color-default: #1e1e1e;\n\n  --xy-selection-background-color-default: rgba(200, 200, 220, 0.08);\n  --xy-selection-border-default: 1px dotted rgba(200, 200, 220, 0.8);\n\n  --xy-controls-button-background-color-default: #2b2b2b;\n  --xy-controls-button-background-color-hover-default: #3e3e3e;\n  --xy-controls-button-color-default: #f8f8f8;\n  --xy-controls-button-color-hover-default: #fff;\n  --xy-controls-button-border-color-default: #5b5b5b;\n  --xy-controls-box-shadow-default: 0 0 2px 1px rgba(0, 0, 0, 0.08);\n\n  --xy-edge-label-background-color-default: #141414;\n  --xy-edge-label-color-default: #f8f8f8;\n}\n.react-flow__background {\n  background-color: var(--xy-background-color-props, var(--xy-background-color, var(--xy-background-color-default)));\n  pointer-events: none;\n  z-index: -1;\n}\n.react-flow__container {\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  top: 0;\n  left: 0;\n}\n.react-flow__pane {\n  z-index: 1;\n  touch-action: none;\n}\n.react-flow__pane.draggable {\n    cursor: grab;\n  }\n.react-flow__pane.dragging {\n    cursor: grabbing;\n  }\n.react-flow__pane.selection {\n    cursor: pointer;\n  }\n.react-flow__viewport {\n  transform-origin: 0 0;\n  z-index: 2;\n  pointer-events: none;\n}\n.react-flow__renderer {\n  z-index: 4;\n}\n.react-flow__selection {\n  z-index: 6;\n}\n.react-flow__nodesselection-rect:focus,\n.react-flow__nodesselection-rect:focus-visible {\n  outline: none;\n}\n.react-flow__edge-path {\n  stroke: var(--xy-edge-stroke, var(--xy-edge-stroke-default));\n  stroke-width: var(--xy-edge-stroke-width, var(--xy-edge-stroke-width-default));\n  fill: none;\n}\n.react-flow__connection-path {\n  stroke: var(--xy-connectionline-stroke, var(--xy-connectionline-stroke-default));\n  stroke-width: var(--xy-connectionline-stroke-width, var(--xy-connectionline-stroke-width-default));\n  fill: none;\n}\n.react-flow .react-flow__edges {\n  position: absolute;\n}\n.react-flow .react-flow__edges svg {\n    overflow: visible;\n    position: absolute;\n    pointer-events: none;\n  }\n.react-flow__edge {\n  pointer-events: visibleStroke;\n}\n.react-flow__edge.selectable {\n    cursor: pointer;\n  }\n.react-flow__edge.animated path {\n    stroke-dasharray: 5;\n    animation: dashdraw 0.5s linear infinite;\n  }\n.react-flow__edge.animated path.react-flow__edge-interaction {\n    stroke-dasharray: none;\n    animation: none;\n  }\n.react-flow__edge.inactive {\n    pointer-events: none;\n  }\n.react-flow__edge.selected,\n  .react-flow__edge:focus,\n  .react-flow__edge:focus-visible {\n    outline: none;\n  }\n.react-flow__edge.selected .react-flow__edge-path,\n  .react-flow__edge.selectable:focus .react-flow__edge-path,\n  .react-flow__edge.selectable:focus-visible .react-flow__edge-path {\n    stroke: var(--xy-edge-stroke-selected, var(--xy-edge-stroke-selected-default));\n  }\n.react-flow__edge-textwrapper {\n    pointer-events: all;\n  }\n.react-flow__edge .react-flow__edge-text {\n    pointer-events: none;\n    -webkit-user-select: none;\n       -moz-user-select: none;\n            user-select: none;\n  }\n/* Arrowhead marker styles - use CSS custom properties as default */\n.react-flow__arrowhead polyline {\n  stroke: var(--xy-edge-stroke, var(--xy-edge-stroke-default));\n}\n.react-flow__arrowhead polyline.arrowclosed {\n  fill: var(--xy-edge-stroke, var(--xy-edge-stroke-default));\n}\n.react-flow__connection {\n  pointer-events: none;\n}\n.react-flow__connection .animated {\n    stroke-dasharray: 5;\n    animation: dashdraw 0.5s linear infinite;\n  }\nsvg.react-flow__connectionline {\n  z-index: 1001;\n  overflow: visible;\n  position: absolute;\n}\n.react-flow__nodes {\n  pointer-events: none;\n  transform-origin: 0 0;\n}\n.react-flow__node {\n  position: absolute;\n  -webkit-user-select: none;\n     -moz-user-select: none;\n          user-select: none;\n  pointer-events: all;\n  transform-origin: 0 0;\n  box-sizing: border-box;\n  cursor: default;\n}\n.react-flow__node.selectable {\n    cursor: pointer;\n  }\n.react-flow__node.draggable {\n    cursor: grab;\n    pointer-events: all;\n  }\n.react-flow__node.draggable.dragging {\n      cursor: grabbing;\n    }\n.react-flow__nodesselection {\n  z-index: 3;\n  transform-origin: left top;\n  pointer-events: none;\n}\n.react-flow__nodesselection-rect {\n    position: absolute;\n    pointer-events: all;\n    cursor: grab;\n  }\n.react-flow__handle {\n  position: absolute;\n  pointer-events: none;\n  min-width: 5px;\n  min-height: 5px;\n  width: 6px;\n  height: 6px;\n  background-color: var(--xy-handle-background-color, var(--xy-handle-background-color-default));\n  border: 1px solid var(--xy-handle-border-color, var(--xy-handle-border-color-default));\n  border-radius: 100%;\n}\n.react-flow__handle.connectingfrom {\n    pointer-events: all;\n  }\n.react-flow__handle.connectionindicator {\n    pointer-events: all;\n    cursor: crosshair;\n  }\n.react-flow__handle-bottom {\n    top: auto;\n    left: 50%;\n    bottom: 0;\n    transform: translate(-50%, 50%);\n  }\n.react-flow__handle-top {\n    top: 0;\n    left: 50%;\n    transform: translate(-50%, -50%);\n  }\n.react-flow__handle-left {\n    top: 50%;\n    left: 0;\n    transform: translate(-50%, -50%);\n  }\n.react-flow__handle-right {\n    top: 50%;\n    right: 0;\n    transform: translate(50%, -50%);\n  }\n.react-flow__edgeupdater {\n  cursor: move;\n  pointer-events: all;\n}\n.react-flow__pane.selection .react-flow__panel {\n  pointer-events: none;\n}\n.react-flow__panel {\n  position: absolute;\n  z-index: 5;\n  margin: 15px;\n}\n.react-flow__panel.top {\n    top: 0;\n  }\n.react-flow__panel.bottom {\n    bottom: 0;\n  }\n.react-flow__panel.top.center, .react-flow__panel.bottom.center {\n      left: 50%;\n      transform: translateX(-15px) translateX(-50%);\n    }\n.react-flow__panel.left {\n    left: 0;\n  }\n.react-flow__panel.right {\n    right: 0;\n  }\n.react-flow__panel.left.center, .react-flow__panel.right.center {\n      top: 50%;\n      transform: translateY(-15px) translateY(-50%);\n    }\n.react-flow__attribution {\n  font-size: 10px;\n  background: var(--xy-attribution-background-color, var(--xy-attribution-background-color-default));\n  padding: 2px 3px;\n  margin: 0;\n}\n.react-flow__attribution a {\n    text-decoration: none;\n    color: #999;\n  }\n@keyframes dashdraw {\n  from {\n    stroke-dashoffset: 10;\n  }\n}\n.react-flow__edgelabel-renderer {\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  pointer-events: none;\n  -webkit-user-select: none;\n     -moz-user-select: none;\n          user-select: none;\n  left: 0;\n  top: 0;\n}\n.react-flow__viewport-portal {\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  left: 0;\n  top: 0;\n  -webkit-user-select: none;\n     -moz-user-select: none;\n          user-select: none;\n}\n.react-flow__minimap {\n  background: var(\n    --xy-minimap-background-color-props,\n    var(--xy-minimap-background-color, var(--xy-minimap-background-color-default))\n  );\n}\n.react-flow__minimap-svg {\n    display: block;\n  }\n.react-flow__minimap-mask {\n    fill: var(\n      --xy-minimap-mask-background-color-props,\n      var(--xy-minimap-mask-background-color, var(--xy-minimap-mask-background-color-default))\n    );\n    stroke: var(\n      --xy-minimap-mask-stroke-color-props,\n      var(--xy-minimap-mask-stroke-color, var(--xy-minimap-mask-stroke-color-default))\n    );\n    stroke-width: var(\n      --xy-minimap-mask-stroke-width-props,\n      var(--xy-minimap-mask-stroke-width, var(--xy-minimap-mask-stroke-width-default))\n    );\n  }\n.react-flow__minimap-node {\n    fill: var(\n      --xy-minimap-node-background-color-props,\n      var(--xy-minimap-node-background-color, var(--xy-minimap-node-background-color-default))\n    );\n    stroke: var(\n      --xy-minimap-node-stroke-color-props,\n      var(--xy-minimap-node-stroke-color, var(--xy-minimap-node-stroke-color-default))\n    );\n    stroke-width: var(\n      --xy-minimap-node-stroke-width-props,\n      var(--xy-minimap-node-stroke-width, var(--xy-minimap-node-stroke-width-default))\n    );\n  }\n.react-flow__background-pattern.dots {\n    fill: var(\n      --xy-background-pattern-color-props,\n      var(--xy-background-pattern-color, var(--xy-background-pattern-dots-color-default))\n    );\n  }\n.react-flow__background-pattern.lines {\n    stroke: var(\n      --xy-background-pattern-color-props,\n      var(--xy-background-pattern-color, var(--xy-background-pattern-lines-color-default))\n    );\n  }\n.react-flow__background-pattern.cross {\n    stroke: var(\n      --xy-background-pattern-color-props,\n      var(--xy-background-pattern-color, var(--xy-background-pattern-cross-color-default))\n    );\n  }\n.react-flow__controls {\n  display: flex;\n  flex-direction: column;\n  box-shadow: var(--xy-controls-box-shadow, var(--xy-controls-box-shadow-default));\n}\n.react-flow__controls.horizontal {\n    flex-direction: row;\n  }\n.react-flow__controls-button {\n    display: flex;\n    justify-content: center;\n    align-items: center;\n    height: 26px;\n    width: 26px;\n    padding: 4px;\n    border: none;\n    background: var(--xy-controls-button-background-color, var(--xy-controls-button-background-color-default));\n    border-bottom: 1px solid\n      var(\n        --xy-controls-button-border-color-props,\n        var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default))\n      );\n    color: var(\n      --xy-controls-button-color-props,\n      var(--xy-controls-button-color, var(--xy-controls-button-color-default))\n    );\n    cursor: pointer;\n    -webkit-user-select: none;\n       -moz-user-select: none;\n            user-select: none;\n  }\n.react-flow__controls-button svg {\n      width: 100%;\n      max-width: 12px;\n      max-height: 12px;\n      fill: currentColor;\n    }\n.react-flow__edge.updating .react-flow__edge-path {\n      stroke: #777;\n    }\n.react-flow__edge-text {\n    font-size: 10px;\n  }\n.react-flow__node.selectable:focus,\n  .react-flow__node.selectable:focus-visible {\n    outline: none;\n  }\n.react-flow__node-input,\n.react-flow__node-default,\n.react-flow__node-output,\n.react-flow__node-group {\n  padding: 10px;\n  border-radius: var(--xy-node-border-radius, var(--xy-node-border-radius-default));\n  width: 150px;\n  font-size: 12px;\n  color: var(--xy-node-color, var(--xy-node-color-default));\n  text-align: center;\n  border: var(--xy-node-border, var(--xy-node-border-default));\n  background-color: var(--xy-node-background-color, var(--xy-node-background-color-default));\n}\n.react-flow__node-input.selectable:hover, .react-flow__node-default.selectable:hover, .react-flow__node-output.selectable:hover, .react-flow__node-group.selectable:hover {\n      box-shadow: var(--xy-node-boxshadow-hover, var(--xy-node-boxshadow-hover-default));\n    }\n.react-flow__node-input.selectable.selected,\n    .react-flow__node-input.selectable:focus,\n    .react-flow__node-input.selectable:focus-visible,\n    .react-flow__node-default.selectable.selected,\n    .react-flow__node-default.selectable:focus,\n    .react-flow__node-default.selectable:focus-visible,\n    .react-flow__node-output.selectable.selected,\n    .react-flow__node-output.selectable:focus,\n    .react-flow__node-output.selectable:focus-visible,\n    .react-flow__node-group.selectable.selected,\n    .react-flow__node-group.selectable:focus,\n    .react-flow__node-group.selectable:focus-visible {\n      box-shadow: var(--xy-node-boxshadow-selected, var(--xy-node-boxshadow-selected-default));\n    }\n.react-flow__node-group {\n  background-color: var(--xy-node-group-background-color, var(--xy-node-group-background-color-default));\n}\n.react-flow__nodesselection-rect,\n.react-flow__selection {\n  background: var(--xy-selection-background-color, var(--xy-selection-background-color-default));\n  border: var(--xy-selection-border, var(--xy-selection-border-default));\n}\n.react-flow__nodesselection-rect:focus,\n  .react-flow__nodesselection-rect:focus-visible,\n  .react-flow__selection:focus,\n  .react-flow__selection:focus-visible {\n    outline: none;\n  }\n.react-flow__controls-button:hover {\n      background: var(\n        --xy-controls-button-background-color-hover-props,\n        var(--xy-controls-button-background-color-hover, var(--xy-controls-button-background-color-hover-default))\n      );\n      color: var(\n        --xy-controls-button-color-hover-props,\n        var(--xy-controls-button-color-hover, var(--xy-controls-button-color-hover-default))\n      );\n    }\n.react-flow__controls-button:disabled {\n      pointer-events: none;\n    }\n.react-flow__controls-button:disabled svg {\n        fill-opacity: 0.4;\n      }\n.react-flow__controls-button:last-child {\n    border-bottom: none;\n  }\n.react-flow__controls.horizontal .react-flow__controls-button {\n    border-bottom: none;\n    border-right: 1px solid\n      var(\n        --xy-controls-button-border-color-props,\n        var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default))\n      );\n  }\n.react-flow__controls.horizontal .react-flow__controls-button:last-child {\n    border-right: none;\n  }\n.react-flow__resize-control {\n  position: absolute;\n}\n.react-flow__resize-control.left,\n.react-flow__resize-control.right {\n  cursor: ew-resize;\n}\n.react-flow__resize-control.top,\n.react-flow__resize-control.bottom {\n  cursor: ns-resize;\n}\n.react-flow__resize-control.top.left,\n.react-flow__resize-control.bottom.right {\n  cursor: nwse-resize;\n}\n.react-flow__resize-control.bottom.left,\n.react-flow__resize-control.top.right {\n  cursor: nesw-resize;\n}\n/* handle styles */\n.react-flow__resize-control.handle {\n  width: 5px;\n  height: 5px;\n  border: 1px solid #fff;\n  border-radius: 1px;\n  background-color: var(--xy-resize-background-color, var(--xy-resize-background-color-default));\n  translate: -50% -50%;\n}\n.react-flow__resize-control.handle.left {\n  left: 0;\n  top: 50%;\n}\n.react-flow__resize-control.handle.right {\n  left: 100%;\n  top: 50%;\n}\n.react-flow__resize-control.handle.top {\n  left: 50%;\n  top: 0;\n}\n.react-flow__resize-control.handle.bottom {\n  left: 50%;\n  top: 100%;\n}\n.react-flow__resize-control.handle.top.left {\n  left: 0;\n}\n.react-flow__resize-control.handle.bottom.left {\n  left: 0;\n}\n.react-flow__resize-control.handle.top.right {\n  left: 100%;\n}\n.react-flow__resize-control.handle.bottom.right {\n  left: 100%;\n}\n/* line styles */\n.react-flow__resize-control.line {\n  border-color: var(--xy-resize-background-color, var(--xy-resize-background-color-default));\n  border-width: 0;\n  border-style: solid;\n}\n.react-flow__resize-control.line.left,\n.react-flow__resize-control.line.right {\n  width: 1px;\n  transform: translate(-50%, 0);\n  top: 0;\n  height: 100%;\n}\n.react-flow__resize-control.line.left {\n  left: 0;\n  border-left-width: 1px;\n}\n.react-flow__resize-control.line.right {\n  left: 100%;\n  border-right-width: 1px;\n}\n.react-flow__resize-control.line.top,\n.react-flow__resize-control.line.bottom {\n  height: 1px;\n  transform: translate(0, -50%);\n  left: 0;\n  width: 100%;\n}\n.react-flow__resize-control.line.top {\n  top: 0;\n  border-top-width: 1px;\n}\n.react-flow__resize-control.line.bottom {\n  border-bottom-width: 1px;\n  top: 100%;\n}\n.react-flow__edge-textbg {\n  fill: var(--xy-edge-label-background-color, var(--xy-edge-label-background-color-default));\n}\n.react-flow__edge-text {\n  fill: var(--xy-edge-label-color, var(--xy-edge-label-color-default));\n}\n";
+// ../../node_modules/.pnpm/@xyflow+react@12.12.1_@type_5cffb36229562c78dccf6e78a05e6785/node_modules/@xyflow/react/dist/style.css
+var style_default = "/* this gets exported as style.css and can be used for the default theming */\n/* these are the necessary styles for React/Svelte Flow, they get used by base.css and style.css */\n.react-flow {\n  direction: ltr;\n\n  --xy-edge-stroke-default: #b1b1b7;\n  --xy-edge-stroke-width-default: 1;\n  --xy-edge-stroke-selected-default: #555;\n\n  --xy-connectionline-stroke-default: #b1b1b7;\n  --xy-connectionline-stroke-width-default: 1;\n\n  --xy-attribution-background-color-default: rgba(255, 255, 255, 0.5);\n\n  --xy-minimap-background-color-default: #fff;\n  --xy-minimap-mask-background-color-default: rgba(240, 240, 240, 0.6);\n  --xy-minimap-mask-stroke-color-default: transparent;\n  --xy-minimap-mask-stroke-width-default: 1;\n  --xy-minimap-node-background-color-default: #e2e2e2;\n  --xy-minimap-node-stroke-color-default: transparent;\n  --xy-minimap-node-stroke-width-default: 2;\n\n  --xy-background-color-default: transparent;\n  --xy-background-pattern-dots-color-default: #91919a;\n  --xy-background-pattern-lines-color-default: #eee;\n  --xy-background-pattern-cross-color-default: #e2e2e2;\n  background-color: var(--xy-background-color, var(--xy-background-color-default));\n  --xy-node-color-default: inherit;\n  --xy-node-border-default: 1px solid #1a192b;\n  --xy-node-background-color-default: #fff;\n  --xy-node-group-background-color-default: rgba(240, 240, 240, 0.25);\n  --xy-node-boxshadow-hover-default: 0 1px 4px 1px rgba(0, 0, 0, 0.08);\n  --xy-node-boxshadow-selected-default: 0 0 0 0.5px #1a192b;\n  --xy-node-border-radius-default: 3px;\n\n  --xy-handle-background-color-default: #1a192b;\n  --xy-handle-border-color-default: #fff;\n\n  --xy-selection-background-color-default: rgba(0, 89, 220, 0.08);\n  --xy-selection-border-default: 1px dotted rgba(0, 89, 220, 0.8);\n\n  --xy-controls-button-background-color-default: #fefefe;\n  --xy-controls-button-background-color-hover-default: #f4f4f4;\n  --xy-controls-button-color-default: inherit;\n  --xy-controls-button-color-hover-default: inherit;\n  --xy-controls-button-border-color-default: #eee;\n  --xy-controls-box-shadow-default: 0 0 2px 1px rgba(0, 0, 0, 0.08);\n\n  --xy-edge-label-background-color-default: #ffffff;\n  --xy-edge-label-color-default: inherit;\n  --xy-resize-background-color-default: #3367d9;\n}\n.react-flow.dark {\n  --xy-edge-stroke-default: #3e3e3e;\n  --xy-edge-stroke-width-default: 1;\n  --xy-edge-stroke-selected-default: #727272;\n\n  --xy-connectionline-stroke-default: #b1b1b7;\n  --xy-connectionline-stroke-width-default: 1;\n\n  --xy-attribution-background-color-default: rgba(150, 150, 150, 0.25);\n\n  --xy-minimap-background-color-default: #141414;\n  --xy-minimap-mask-background-color-default: rgba(60, 60, 60, 0.6);\n  --xy-minimap-mask-stroke-color-default: transparent;\n  --xy-minimap-mask-stroke-width-default: 1;\n  --xy-minimap-node-background-color-default: #2b2b2b;\n  --xy-minimap-node-stroke-color-default: transparent;\n  --xy-minimap-node-stroke-width-default: 2;\n\n  --xy-background-color-default: #141414;\n  --xy-background-pattern-dots-color-default: #555;\n  --xy-background-pattern-lines-color-default: #333;\n  --xy-background-pattern-cross-color-default: #333;\n  --xy-node-color-default: #f8f8f8;\n  --xy-node-border-default: 1px solid #3c3c3c;\n  --xy-node-background-color-default: #1e1e1e;\n  --xy-node-group-background-color-default: rgba(240, 240, 240, 0.25);\n  --xy-node-boxshadow-hover-default: 0 1px 4px 1px rgba(255, 255, 255, 0.08);\n  --xy-node-boxshadow-selected-default: 0 0 0 0.5px #999;\n\n  --xy-handle-background-color-default: #bebebe;\n  --xy-handle-border-color-default: #1e1e1e;\n\n  --xy-selection-background-color-default: rgba(200, 200, 220, 0.08);\n  --xy-selection-border-default: 1px dotted rgba(200, 200, 220, 0.8);\n\n  --xy-controls-button-background-color-default: #2b2b2b;\n  --xy-controls-button-background-color-hover-default: #3e3e3e;\n  --xy-controls-button-color-default: #f8f8f8;\n  --xy-controls-button-color-hover-default: #fff;\n  --xy-controls-button-border-color-default: #5b5b5b;\n  --xy-controls-box-shadow-default: 0 0 2px 1px rgba(0, 0, 0, 0.08);\n\n  --xy-edge-label-background-color-default: #141414;\n  --xy-edge-label-color-default: #f8f8f8;\n}\n.react-flow__background {\n  background-color: var(--xy-background-color-props, var(--xy-background-color, var(--xy-background-color-default)));\n  pointer-events: none;\n  z-index: -1;\n}\n.react-flow__container {\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  top: 0;\n  left: 0;\n}\n.react-flow__pane {\n  z-index: 1;\n  touch-action: none;\n}\n.react-flow__pane.draggable {\n    cursor: grab;\n  }\n.react-flow__pane.dragging {\n    cursor: grabbing;\n  }\n.react-flow__pane.selection {\n    cursor: pointer;\n  }\n.react-flow__viewport {\n  transform-origin: 0 0;\n  z-index: 2;\n  pointer-events: none;\n}\n.react-flow__renderer {\n  z-index: 4;\n}\n.react-flow__selection {\n  z-index: 6;\n}\n.react-flow__nodesselection-rect:focus,\n.react-flow__nodesselection-rect:focus-visible {\n  outline: none;\n}\n.react-flow__edge-path {\n  stroke: var(--xy-edge-stroke, var(--xy-edge-stroke-default));\n  stroke-width: var(--xy-edge-stroke-width, var(--xy-edge-stroke-width-default));\n  fill: none;\n}\n.react-flow__connection-path {\n  stroke: var(--xy-connectionline-stroke, var(--xy-connectionline-stroke-default));\n  stroke-width: var(--xy-connectionline-stroke-width, var(--xy-connectionline-stroke-width-default));\n  fill: none;\n}\n.react-flow .react-flow__edges {\n  position: absolute;\n}\n.react-flow .react-flow__edges svg {\n    overflow: visible;\n    position: absolute;\n    pointer-events: none;\n  }\n.react-flow__edge {\n  pointer-events: visibleStroke;\n}\n.react-flow__edge.selectable {\n    cursor: pointer;\n  }\n.react-flow__edge.animated path {\n    stroke-dasharray: 5;\n    animation: dashdraw 0.5s linear infinite;\n  }\n.react-flow__edge.animated path.react-flow__edge-interaction {\n    stroke-dasharray: none;\n    animation: none;\n  }\n.react-flow__edge.inactive {\n    pointer-events: none;\n  }\n.react-flow__edge.selected,\n  .react-flow__edge:focus,\n  .react-flow__edge:focus-visible {\n    outline: none;\n  }\n.react-flow__edge.selected .react-flow__edge-path,\n  .react-flow__edge.selectable:focus .react-flow__edge-path,\n  .react-flow__edge.selectable:focus-visible .react-flow__edge-path {\n    stroke: var(--xy-edge-stroke-selected, var(--xy-edge-stroke-selected-default));\n  }\n.react-flow__edge-textwrapper {\n    pointer-events: all;\n  }\n.react-flow__edge .react-flow__edge-text {\n    pointer-events: none;\n    -webkit-user-select: none;\n       -moz-user-select: none;\n            user-select: none;\n  }\n/* Arrowhead marker styles - use CSS custom properties as default */\n.react-flow__arrowhead polyline {\n  stroke: var(--xy-edge-stroke, var(--xy-edge-stroke-default));\n}\n.react-flow__arrowhead polyline.arrowclosed {\n  fill: var(--xy-edge-stroke, var(--xy-edge-stroke-default));\n}\n.react-flow__connection {\n  pointer-events: none;\n}\n.react-flow__connection .animated {\n    stroke-dasharray: 5;\n    animation: dashdraw 0.5s linear infinite;\n  }\nsvg.react-flow__connectionline {\n  z-index: 1001;\n  overflow: visible;\n  position: absolute;\n}\n.react-flow__nodes {\n  pointer-events: none;\n  transform-origin: 0 0;\n}\n.react-flow__node {\n  position: absolute;\n  -webkit-user-select: none;\n     -moz-user-select: none;\n          user-select: none;\n  pointer-events: all;\n  transform-origin: 0 0;\n  box-sizing: border-box;\n  cursor: default;\n}\n.react-flow__node.selectable {\n    cursor: pointer;\n  }\n.react-flow__node.draggable {\n    cursor: grab;\n    pointer-events: all;\n  }\n.react-flow__node.draggable.dragging {\n      cursor: grabbing;\n    }\n.react-flow__nodesselection {\n  z-index: 3;\n  transform-origin: left top;\n  pointer-events: none;\n}\n.react-flow__nodesselection-rect {\n    position: absolute;\n    pointer-events: all;\n    cursor: grab;\n  }\n.react-flow__handle {\n  position: absolute;\n  pointer-events: none;\n  min-width: 5px;\n  min-height: 5px;\n  width: 6px;\n  height: 6px;\n  background-color: var(--xy-handle-background-color, var(--xy-handle-background-color-default));\n  border: 1px solid var(--xy-handle-border-color, var(--xy-handle-border-color-default));\n  border-radius: 100%;\n}\n.react-flow__handle.connectingfrom {\n    pointer-events: all;\n  }\n.react-flow__handle.connectionindicator {\n    pointer-events: all;\n    cursor: crosshair;\n  }\n.react-flow__handle-bottom {\n    top: auto;\n    left: 50%;\n    bottom: 0;\n    transform: translate(-50%, 50%);\n  }\n.react-flow__handle-top {\n    top: 0;\n    left: 50%;\n    transform: translate(-50%, -50%);\n  }\n.react-flow__handle-left {\n    top: 50%;\n    left: 0;\n    transform: translate(-50%, -50%);\n  }\n.react-flow__handle-right {\n    top: 50%;\n    right: 0;\n    transform: translate(50%, -50%);\n  }\n.react-flow__edgeupdater {\n  cursor: move;\n  pointer-events: all;\n}\n.react-flow__pane.selection .react-flow__panel {\n  pointer-events: none;\n}\n.react-flow__panel {\n  position: absolute;\n  z-index: 5;\n  margin: 15px;\n}\n.react-flow__panel.top {\n    top: 0;\n  }\n.react-flow__panel.bottom {\n    bottom: 0;\n  }\n.react-flow__panel.top.center, .react-flow__panel.bottom.center {\n      left: 50%;\n      transform: translateX(-15px) translateX(-50%);\n    }\n.react-flow__panel.left {\n    left: 0;\n  }\n.react-flow__panel.right {\n    right: 0;\n  }\n.react-flow__panel.left.center, .react-flow__panel.right.center {\n      top: 50%;\n      transform: translateY(-15px) translateY(-50%);\n    }\n.react-flow__attribution {\n  font-size: 10px;\n  background: var(--xy-attribution-background-color, var(--xy-attribution-background-color-default));\n  padding: 2px 3px;\n  margin: 0;\n}\n.react-flow__attribution a {\n    text-decoration: none;\n    color: #999;\n  }\n@keyframes dashdraw {\n  from {\n    stroke-dashoffset: 10;\n  }\n}\n.react-flow__edgelabel-renderer {\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  pointer-events: none;\n  -webkit-user-select: none;\n     -moz-user-select: none;\n          user-select: none;\n  left: 0;\n  top: 0;\n}\n.react-flow__viewport-portal {\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  left: 0;\n  top: 0;\n  -webkit-user-select: none;\n     -moz-user-select: none;\n          user-select: none;\n}\n.react-flow__minimap {\n  background: var(\n    --xy-minimap-background-color-props,\n    var(--xy-minimap-background-color, var(--xy-minimap-background-color-default))\n  );\n}\n.react-flow__minimap-svg {\n    display: block;\n  }\n.react-flow__minimap-mask {\n    fill: var(\n      --xy-minimap-mask-background-color-props,\n      var(--xy-minimap-mask-background-color, var(--xy-minimap-mask-background-color-default))\n    );\n    stroke: var(\n      --xy-minimap-mask-stroke-color-props,\n      var(--xy-minimap-mask-stroke-color, var(--xy-minimap-mask-stroke-color-default))\n    );\n    stroke-width: var(\n      --xy-minimap-mask-stroke-width-props,\n      var(--xy-minimap-mask-stroke-width, var(--xy-minimap-mask-stroke-width-default))\n    );\n  }\n.react-flow__minimap-node {\n    fill: var(\n      --xy-minimap-node-background-color-props,\n      var(--xy-minimap-node-background-color, var(--xy-minimap-node-background-color-default))\n    );\n    stroke: var(\n      --xy-minimap-node-stroke-color-props,\n      var(--xy-minimap-node-stroke-color, var(--xy-minimap-node-stroke-color-default))\n    );\n    stroke-width: var(\n      --xy-minimap-node-stroke-width-props,\n      var(--xy-minimap-node-stroke-width, var(--xy-minimap-node-stroke-width-default))\n    );\n  }\n.react-flow__background-pattern.dots {\n    fill: var(\n      --xy-background-pattern-color-props,\n      var(--xy-background-pattern-color, var(--xy-background-pattern-dots-color-default))\n    );\n  }\n.react-flow__background-pattern.lines {\n    stroke: var(\n      --xy-background-pattern-color-props,\n      var(--xy-background-pattern-color, var(--xy-background-pattern-lines-color-default))\n    );\n  }\n.react-flow__background-pattern.cross {\n    stroke: var(\n      --xy-background-pattern-color-props,\n      var(--xy-background-pattern-color, var(--xy-background-pattern-cross-color-default))\n    );\n  }\n.react-flow__controls {\n  display: flex;\n  flex-direction: column;\n  box-shadow: var(--xy-controls-box-shadow, var(--xy-controls-box-shadow-default));\n}\n.react-flow__controls.horizontal {\n    flex-direction: row;\n  }\n.react-flow__controls-button {\n    display: flex;\n    justify-content: center;\n    align-items: center;\n    height: 26px;\n    width: 26px;\n    padding: 4px;\n    border: none;\n    background: var(--xy-controls-button-background-color, var(--xy-controls-button-background-color-default));\n    border-bottom: 1px solid\n      var(\n        --xy-controls-button-border-color-props,\n        var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default))\n      );\n    color: var(\n      --xy-controls-button-color-props,\n      var(--xy-controls-button-color, var(--xy-controls-button-color-default))\n    );\n    cursor: pointer;\n    -webkit-user-select: none;\n       -moz-user-select: none;\n            user-select: none;\n  }\n.react-flow__controls-button svg {\n      width: 100%;\n      max-width: 12px;\n      max-height: 12px;\n      fill: currentColor;\n    }\n.react-flow__edge.updating .react-flow__edge-path {\n      stroke: #777;\n    }\n.react-flow__edge-text {\n    font-size: 10px;\n  }\n.react-flow__node.selectable:focus,\n  .react-flow__node.selectable:focus-visible {\n    outline: none;\n  }\n.react-flow__node-input,\n.react-flow__node-default,\n.react-flow__node-output,\n.react-flow__node-group {\n  padding: 10px;\n  border-radius: var(--xy-node-border-radius, var(--xy-node-border-radius-default));\n  width: 150px;\n  font-size: 12px;\n  color: var(--xy-node-color, var(--xy-node-color-default));\n  text-align: center;\n  border: var(--xy-node-border, var(--xy-node-border-default));\n  background-color: var(--xy-node-background-color, var(--xy-node-background-color-default));\n}\n.react-flow__node-input.selectable:hover, .react-flow__node-default.selectable:hover, .react-flow__node-output.selectable:hover, .react-flow__node-group.selectable:hover {\n      box-shadow: var(--xy-node-boxshadow-hover, var(--xy-node-boxshadow-hover-default));\n    }\n.react-flow__node-input.selectable.selected,\n    .react-flow__node-input.selectable:focus,\n    .react-flow__node-input.selectable:focus-visible,\n    .react-flow__node-default.selectable.selected,\n    .react-flow__node-default.selectable:focus,\n    .react-flow__node-default.selectable:focus-visible,\n    .react-flow__node-output.selectable.selected,\n    .react-flow__node-output.selectable:focus,\n    .react-flow__node-output.selectable:focus-visible,\n    .react-flow__node-group.selectable.selected,\n    .react-flow__node-group.selectable:focus,\n    .react-flow__node-group.selectable:focus-visible {\n      box-shadow: var(--xy-node-boxshadow-selected, var(--xy-node-boxshadow-selected-default));\n    }\n.react-flow__node-group {\n  background-color: var(--xy-node-group-background-color, var(--xy-node-group-background-color-default));\n}\n.react-flow__nodesselection-rect,\n.react-flow__selection {\n  background: var(--xy-selection-background-color, var(--xy-selection-background-color-default));\n  border: var(--xy-selection-border, var(--xy-selection-border-default));\n}\n.react-flow__nodesselection-rect:focus,\n  .react-flow__nodesselection-rect:focus-visible,\n  .react-flow__selection:focus,\n  .react-flow__selection:focus-visible {\n    outline: none;\n  }\n.react-flow__controls-button:hover {\n      background: var(\n        --xy-controls-button-background-color-hover-props,\n        var(--xy-controls-button-background-color-hover, var(--xy-controls-button-background-color-hover-default))\n      );\n      color: var(\n        --xy-controls-button-color-hover-props,\n        var(--xy-controls-button-color-hover, var(--xy-controls-button-color-hover-default))\n      );\n    }\n.react-flow__controls-button:disabled {\n      pointer-events: none;\n    }\n.react-flow__controls-button:disabled svg {\n        fill-opacity: 0.4;\n      }\n.react-flow__controls-button:last-child {\n    border-bottom: none;\n  }\n.react-flow__controls.horizontal .react-flow__controls-button {\n    border-bottom: none;\n    border-right: 1px solid\n      var(\n        --xy-controls-button-border-color-props,\n        var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default))\n      );\n  }\n.react-flow__controls.horizontal .react-flow__controls-button:last-child {\n    border-right: none;\n  }\n.react-flow__resize-control {\n  position: absolute;\n}\n.react-flow__resize-control.left,\n.react-flow__resize-control.right {\n  cursor: ew-resize;\n}\n.react-flow__resize-control.top,\n.react-flow__resize-control.bottom {\n  cursor: ns-resize;\n}\n.react-flow__resize-control.top.left,\n.react-flow__resize-control.bottom.right {\n  cursor: nwse-resize;\n}\n.react-flow__resize-control.bottom.left,\n.react-flow__resize-control.top.right {\n  cursor: nesw-resize;\n}\n/* handle styles */\n.react-flow__resize-control.handle {\n  width: 5px;\n  height: 5px;\n  border: 1px solid #fff;\n  border-radius: 1px;\n  background-color: var(--xy-resize-background-color, var(--xy-resize-background-color-default));\n  translate: -50% -50%;\n}\n.react-flow__resize-control.handle.left {\n  left: 0;\n  top: 50%;\n}\n.react-flow__resize-control.handle.right {\n  left: 100%;\n  top: 50%;\n}\n.react-flow__resize-control.handle.top {\n  left: 50%;\n  top: 0;\n}\n.react-flow__resize-control.handle.bottom {\n  left: 50%;\n  top: 100%;\n}\n.react-flow__resize-control.handle.top.left {\n  left: 0;\n}\n.react-flow__resize-control.handle.bottom.left {\n  left: 0;\n}\n.react-flow__resize-control.handle.top.right {\n  left: 100%;\n}\n.react-flow__resize-control.handle.bottom.right {\n  left: 100%;\n}\n/* line styles */\n.react-flow__resize-control.line {\n  border-color: var(--xy-resize-background-color, var(--xy-resize-background-color-default));\n  border-width: 0;\n  border-style: solid;\n}\n.react-flow__resize-control.line.left,\n.react-flow__resize-control.line.right {\n  width: 1px;\n  transform: translate(-50%, 0);\n  top: 0;\n  height: 100%;\n}\n.react-flow__resize-control.line.left {\n  left: 0;\n  border-left-width: 1px;\n}\n.react-flow__resize-control.line.right {\n  left: 100%;\n  border-right-width: 1px;\n}\n.react-flow__resize-control.line.top,\n.react-flow__resize-control.line.bottom {\n  height: 1px;\n  transform: translate(0, -50%);\n  left: 0;\n  width: 100%;\n}\n.react-flow__resize-control.line.top {\n  top: 0;\n  border-top-width: 1px;\n}\n.react-flow__resize-control.line.bottom {\n  border-bottom-width: 1px;\n  top: 100%;\n}\n.react-flow__edge-textbg {\n  fill: var(--xy-edge-label-background-color, var(--xy-edge-label-background-color-default));\n}\n.react-flow__edge-text {\n  fill: var(--xy-edge-label-color, var(--xy-edge-label-color-default));\n}\n";
 
 // src/graph/model.ts
 var LIVE_TASK_STATES = ["queued", "dispatched", "running"];
@@ -9423,10 +9547,10 @@ var RING = {
   workspace: 0.82,
   task: 1.04
 };
-function clamp2(value, low, high) {
-  if (value < low) return low;
-  if (value > high) return high;
-  return value;
+function clamp2(value2, low, high) {
+  if (value2 < low) return low;
+  if (value2 > high) return high;
+  return value2;
 }
 function seedPositions(graph, width, height) {
   const cx = width / 2;
@@ -9671,10 +9795,10 @@ function readStore(key) {
     return {};
   }
 }
-function writeStore(key, value) {
+function writeStore(key, value2) {
   try {
     if (typeof localStorage === "undefined") return;
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(key, JSON.stringify(value2));
   } catch (error) {
   }
 }
@@ -9797,10 +9921,10 @@ var TopoBoundary = class extends React.Component {
   }
   render() {
     if (this.state.error !== "") {
-      var t2 = this.props.t;
+      var t4 = this.props.t;
       return jsx2.jsxs("div", { className: "dwm-topo-fallback", children: [
-        jsx2.jsx("p", { className: "dwm-note", "data-tone": "warn", children: (t2 ? t2("\u62D3\u6251\u753B\u5E03\u6E32\u67D3\u5931\u8D25\uFF1A", "Topology canvas failed: ") : "") + this.state.error }),
-        jsx2.jsx("button", { className: "dwm-ghost", type: "button", onClick: this.retry, children: t2 ? t2("\u91CD\u8BD5", "retry") : "retry" })
+        jsx2.jsx("p", { className: "dwm-note", "data-tone": "warn", children: (t4 ? t4("\u62D3\u6251\u753B\u5E03\u6E32\u67D3\u5931\u8D25\uFF1A", "Topology canvas failed: ") : "") + this.state.error }),
+        jsx2.jsx("button", { className: "dwm-ghost", type: "button", onClick: this.retry, children: t4 ? t4("\u91CD\u8BD5", "retry") : "retry" })
       ] });
     }
     return this.props.children;
@@ -9809,7 +9933,7 @@ var TopoBoundary = class extends React.Component {
 function TopologyCanvas(props) {
   var graph = props.graph;
   var signature = props.signature;
-  var t2 = props.t;
+  var t4 = props.t;
   var showTasks = props.showTasks;
   var onToggleTasks = props.onToggleTasks;
   var storeKey = PIN_PREFIX + signature;
@@ -10038,10 +10162,10 @@ function TopologyCanvas(props) {
       ]
     }),
     jsx2.jsx("div", { className: "dwm-topo-legend", children: [
-      jsx2.jsx("span", { className: "dwm-topo-key", "data-tone": "self", children: t2("\u672C\u673A", "this node") }),
-      jsx2.jsx("span", { className: "dwm-topo-key", "data-tone": "online", children: t2("\u5728\u7EBF", "online") }),
-      jsx2.jsx("span", { className: "dwm-topo-key", "data-tone": "unknown", children: t2("\u672A\u77E5", "unknown") }),
-      jsx2.jsx("span", { className: "dwm-topo-key", "data-tone": "offline", children: t2("\u79BB\u7EBF", "offline") })
+      jsx2.jsx("span", { className: "dwm-topo-key", "data-tone": "self", children: t4("\u672C\u673A", "this node") }),
+      jsx2.jsx("span", { className: "dwm-topo-key", "data-tone": "online", children: t4("\u5728\u7EBF", "online") }),
+      jsx2.jsx("span", { className: "dwm-topo-key", "data-tone": "unknown", children: t4("\u672A\u77E5", "unknown") }),
+      jsx2.jsx("span", { className: "dwm-topo-key", "data-tone": "offline", children: t4("\u79BB\u7EBF", "offline") })
     ] }),
     jsx2.jsxs("div", { className: "dwm-topo-toolbar", children: [
       jsx2.jsx("button", {
@@ -10049,17 +10173,17 @@ function TopologyCanvas(props) {
         className: "dwm-topo-tool",
         "data-on": showTasks ? "1" : "0",
         onClick: onToggleTasks,
-        children: t2("\u4EFB\u52A1\u5C42", "tasks")
+        children: t4("\u4EFB\u52A1\u5C42", "tasks")
       }),
       jsx2.jsx("button", {
         type: "button",
         className: "dwm-topo-tool",
         onClick: relayout,
-        title: t2("\u91CD\u65B0\u5347\u6E29\u5E76\u91CD\u6392\u6574\u5F20\u56FE", "warm the simulation up and lay the graph out again"),
-        children: t2("\u91CD\u7F6E\u5E03\u5C40", "relayout")
+        title: t4("\u91CD\u65B0\u5347\u6E29\u5E76\u91CD\u6392\u6574\u5F20\u56FE", "warm the simulation up and lay the graph out again"),
+        children: t4("\u91CD\u7F6E\u5E03\u5C40", "relayout")
       })
     ] }),
-    settling ? jsx2.jsx("div", { className: "dwm-topo-settling", children: t2("\u5E03\u5C40\u8BA1\u7B97\u4E2D\u2026", "laying out\u2026") }) : null,
+    settling ? jsx2.jsx("div", { className: "dwm-topo-settling", children: t4("\u5E03\u5C40\u8BA1\u7B97\u4E2D\u2026", "laying out\u2026") }) : null,
     selectedNode === null ? null : jsx2.jsxs("div", { className: "dwm-topo-inspector", children: [
       jsx2.jsxs("div", { className: "dwm-topo-inspector-head", children: [
         jsx2.jsx("span", { className: "dwm-topo-inspector-dot", "data-tone": selectedNode.status, "data-kind": selectedNode.kind }),
@@ -10077,7 +10201,7 @@ function TopologyCanvas(props) {
   ] });
 }
 function MeshTopology(props) {
-  var t2 = props.t;
+  var t4 = props.t;
   var peers = props.peers || [];
   var tasks = props.tasks || [];
   var selfLabel = props.selfLabel;
@@ -10096,26 +10220,26 @@ function MeshTopology(props) {
   var empty2 = graph.nodes.length <= 1;
   return jsx2.jsxs("div", { className: "dwm-form", children: [
     jsx2.jsxs("div", { className: "dwm-topo-head", children: [
-      jsx2.jsx("h3", { className: "dwm-h3", children: t2("\u4E92\u8054\u62D3\u6251", "Connectivity topology") }),
-      empty2 ? null : jsx2.jsx("span", { className: "dwm-topo-count", children: t2(
+      jsx2.jsx("h3", { className: "dwm-h3", children: t4("\u4E92\u8054\u62D3\u6251", "Connectivity topology") }),
+      empty2 ? null : jsx2.jsx("span", { className: "dwm-topo-count", children: t4(
         graph.nodes.length - 1 + " \u4E2A\u8282\u70B9 \xB7 " + graph.edges.length + " \u6761\u8FDE\u63A5",
         graph.nodes.length - 1 + " nodes \xB7 " + graph.edges.length + " links"
       ) })
     ] }),
-    empty2 ? jsx2.jsx("p", { className: "dwm-empty", children: t2("\u8FD8\u6CA1\u6709\u53EF\u7ED8\u5236\u7684\u8282\u70B9\u3002", "No peers to draw yet.") }) : jsx2.jsx(TopoBoundary, { t: t2, children: jsx2.jsx(TopologyCanvas, {
+    empty2 ? jsx2.jsx("p", { className: "dwm-empty", children: t4("\u8FD8\u6CA1\u6709\u53EF\u7ED8\u5236\u7684\u8282\u70B9\u3002", "No peers to draw yet.") }) : jsx2.jsx(TopoBoundary, { t: t4, children: jsx2.jsx(TopologyCanvas, {
       graph,
       signature,
-      t: t2,
+      t: t4,
       showTasks,
       onToggleTasks: function() {
         setShowTasks(!showTasks);
       }
     }) }),
-    empty2 ? null : jsx2.jsx("p", { className: "dwm-note", children: t2(
+    empty2 ? null : jsx2.jsx("p", { className: "dwm-note", children: t4(
       "\u4F4D\u7F6E\u7531\u529B\u5BFC\u5411\u5E03\u5C40\u7B97\u51FA\uFF0C\u4E0D\u662F\u624B\u5DE5\u6446\u7684\uFF1A\u672C\u673A\u5C45\u4E2D\uFF0C\u5BF9\u7AEF\u5728\u5916\u5708\uFF0C\u5DE5\u4F5C\u533A\u6302\u5728\u5176\u6240\u5C5E\u5BF9\u7AEF\u4E0B\uFF0C\u8FDB\u884C\u4E2D\u7684\u4EFB\u52A1\u518D\u5916\u4E00\u5C42\u3002\u62D6\u52A8\u4E00\u4E2A\u8282\u70B9\u65F6\u5B83\u4F1A\u5E26\u7740\u5468\u56F4\u4E00\u8D77\u52A8\uFF0C\u677E\u624B\u540E\u6574\u5F20\u56FE\u7EE7\u7EED\u6309\u53D7\u529B\u6536\u655B\uFF1B\u6EDA\u8F6E\u7F29\u653E\uFF0C\u7A7A\u767D\u5904\u62D6\u52A8\u5E73\u79FB\u3002",
       "Positions come from a force layout, not hand-placed rows: this node in the middle, peers on a ring, workspaces under their owner, live tasks one layer out. Dragging one node pulls its neighbours with it, and the graph keeps settling after you let go; wheel to zoom, drag the blank area to pan."
     ) }),
-    graph.orphanTasks > 0 ? jsx2.jsx("p", { className: "dwm-note", "data-tone": "warn", children: t2(
+    graph.orphanTasks > 0 ? jsx2.jsx("p", { className: "dwm-note", "data-tone": "warn", children: t4(
       "\u53E6\u6709 " + graph.orphanTasks + " \u4E2A\u8FDB\u884C\u4E2D\u4EFB\u52A1\u7684\u76EE\u6807\u4E0D\u5728\u5F53\u524D roster \u91CC\uFF0C\u56FE\u4E0A\u4E0D\u753B\uFF08\u4E0D\u4F2A\u9020\u8282\u70B9\uFF09\u3002",
       graph.orphanTasks + " live task(s) target a node outside the roster; they are counted, not drawn as invented nodes."
     ) }) : null
@@ -10128,7 +10252,7 @@ function ensureVendorCss() {
   var tag2 = document.createElement("style");
   tag2.dataset.plugin = "dsh-workspace-mesh";
   tag2.dataset.pluginCss = "dsh-workspace-mesh/xyflow";
-  tag2.textContent = style_default3;
+  tag2.textContent = style_default;
   document.head.appendChild(tag2);
 }
 
@@ -10138,17 +10262,17 @@ var ANCHOR_PATH = "/api/mesh/anchor";
 var ANCHORS_PATH = "/api/mesh/anchors";
 function readJson(response) {
   return response.text().then(function(text) {
-    var value;
+    var value2;
     try {
-      value = text ? JSON.parse(text) : void 0;
+      value2 = text ? JSON.parse(text) : void 0;
     } catch (error) {
-      value = void 0;
+      value2 = void 0;
     }
     if (!response.ok) {
-      var message = value && typeof value === "object" && "error" in value ? String(value.error) : "HTTP " + response.status;
+      var message = value2 && typeof value2 === "object" && "error" in value2 ? String(value2.error) : "HTTP " + response.status;
       throw new Error(message);
     }
-    return value;
+    return value2;
   });
 }
 function request(fetcher, path, init2) {
@@ -10364,10 +10488,10 @@ function ConfigSection(props) {
   if (state.phase === "missing") return jsx4.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "\u8BBE\u7F6E\u670D\u52A1\u672A\u66B4\u9732 mesh \u547D\u540D\u7A7A\u95F4 " + (state.message || "") });
   if (state.phase === "error") return jsx4.jsxs("p", { className: "dwm-status", "data-tone": "err", children: ["\u8BFB\u53D6\u5931\u8D25\uFF1A", state.message] });
   var dirtyKeys = Object.keys(state.dirty);
-  function setDirty(key, value) {
+  function setDirty(key, value2) {
     set3(function(s) {
       var d = Object.assign({}, s.dirty);
-      d[key] = value;
+      d[key] = value2;
       return Object.assign({}, s, { dirty: d });
     });
   }
@@ -10377,9 +10501,9 @@ function ConfigSection(props) {
       var key = dirtyKeys[i];
       var field = null;
       for (var j = 0; j < FIELDS.length; j++) if (FIELDS[j].key === key) field = FIELDS[j];
-      var value = state.dirty[key];
-      if (field && field.kind === "number") value = Number(value);
-      ops.push({ op: "set", path: [key], value });
+      var value2 = state.dirty[key];
+      if (field && field.kind === "number") value2 = Number(value2);
+      ops.push({ op: "set", path: [key], value: value2 });
     }
     set3(function(s) {
       return Object.assign({}, s, { message: "\u4FDD\u5B58\u4E2D\u2026", tone: "warn" });
@@ -10428,12 +10552,12 @@ function ConfigSection(props) {
     ] })
   ] });
 }
-function pad(value) {
-  return value < 10 ? "0" + value : String(value);
+function pad(value2) {
+  return value2 < 10 ? "0" + value2 : String(value2);
 }
 function fmtClock(ms) {
-  var date = new Date(ms);
-  return pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds());
+  var date2 = new Date(ms);
+  return pad(date2.getHours()) + ":" + pad(date2.getMinutes()) + ":" + pad(date2.getSeconds());
 }
 function fmtAgo(ms, now2) {
   if (!ms) return "\u2014";
@@ -10706,10 +10830,10 @@ function MeshSection(props) {
   }, [load]);
   var fs = React2.useState({ dirty: {}, saving: false, message: "", tone: "warn" });
   var form = fs[0], setForm = fs[1];
-  function setField(key, value) {
+  function setField(key, value2) {
     setForm(function(previous) {
       var dirty = Object.assign({}, previous.dirty);
-      dirty[key] = value;
+      dirty[key] = value2;
       return Object.assign({}, previous, { dirty, message: "", tone: "warn" });
     });
   }
@@ -10722,9 +10846,9 @@ function MeshSection(props) {
       var key = keys[i];
       var field = null;
       for (var j = 0; j < CONFIG_FIELDS.length; j++) if (CONFIG_FIELDS[j].key === key) field = CONFIG_FIELDS[j];
-      var value = dirty[key];
-      if (field && field.kind === "number") value = Number(value);
-      payload[key] = value;
+      var value2 = dirty[key];
+      if (field && field.kind === "number") value2 = Number(value2);
+      payload[key] = value2;
     }
     setForm(function(previous) {
       return Object.assign({}, previous, { saving: true, message: "\u4FDD\u5B58\u4E2D\u2026", tone: "warn" });

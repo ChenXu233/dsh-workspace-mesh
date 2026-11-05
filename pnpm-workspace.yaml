@@ -1,0 +1,13 @@
+packages:
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+
+# dsh-proton* is published from another repo we own; its releases are too fresh
+# for the default quarantine window, and pinning an older version would mean
+# developing against an API the workspace no longer has.
+minimumReleaseAgeExclude:
+  - dsh-proton
+  - dsh-proton-adapter-dsh
+  - dsh-proton-workspace

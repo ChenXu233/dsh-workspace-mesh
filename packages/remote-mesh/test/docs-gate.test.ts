@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -13,7 +14,18 @@ import { fileURLToPath } from 'node:url'
  * died. These cases pin the difference.
  */
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+// The gate lives at the repository root, and this file runs from both the
+// source tree and the compiled lib-test tree — walk up to the workspace marker
+// instead of counting directories.
+const repoRoot = (() => {
+  let dir = dirname(fileURLToPath(import.meta.url))
+  for (;;) {
+    if (existsSync(join(dir, 'pnpm-workspace.yaml'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) throw new Error('repository root not found')
+    dir = parent
+  }
+})()
 const script = join(repoRoot, 'scripts', 'check-docs.mjs')
 
 function runGate(root: string): { code: number; output: string } {
