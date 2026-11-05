@@ -11,12 +11,11 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { RemoteWorkspaceSection } from './remote-section'
-import { workspaceEntrySources } from './shipped'
 
 // The providers below read these services while drawing a shadowed entry; cordis
 // refuses an undeclared service access at runtime, so they are part of this
 // plugin's contract rather than an optional nicety.
-export const inject = ['slots', 'proton', 'locale', 'workspaces'] as const
+export const inject = ['slots', 'proton'] as const
 
 /**
  * Register the kit sources proton consults when it draws a shadowed entry, and
@@ -24,10 +23,6 @@ export const inject = ['slots', 'proton', 'locale', 'workspaces'] as const
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
-  ctx.effect(
-    () => ctx.proton.addEntrySources(entry => workspaceEntrySources(ctx, entry)),
-    'remote-mesh: workspace entry sources',
-  )
   ctx.inject(['protonWorkspace'], (scoped) => {
     const proton = scoped.protonWorkspace
     if (typeof proton?.addSection !== 'function') return
