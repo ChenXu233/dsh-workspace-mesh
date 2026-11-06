@@ -1,5 +1,5 @@
 import type { NodeDescriptor } from '../types.js'
-import type { MeshToolRuntime } from '../tools/types.js'
+import type { MeshToolRuntime, MeshWorkspaceView } from '../tools/types.js'
 import { workspaceViews } from '../tools/types.js'
 import { toMeshError } from '../tools/protocol.js'
 
@@ -13,12 +13,7 @@ import { toMeshError } from '../tools/protocol.js'
 export type PeerStatus = 'online' | 'offline' | 'unknown'
 export type PeerSource = 'assignment' | 'transport' | 'both'
 
-export interface PeerWorkspaceView {
-  workspaceId: string
-  name: string
-  path: string
-  sessions: number
-}
+export interface PeerWorkspaceView extends MeshWorkspaceView {}
 
 export interface PeerView {
   nodeId: string

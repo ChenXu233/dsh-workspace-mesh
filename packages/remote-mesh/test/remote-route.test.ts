@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -61,6 +62,14 @@ test('a peer browses directories, never files', async () => {
   } finally {
     await rm(root, { recursive: true, force: true })
   }
+})
+
+test('an empty browse path opens this machine home instead of failing', async () => {
+  const response = await handleRelay(await acceptedRequest('browse', {}), relayControl())
+  assert.equal(response.status, 200)
+  const payload = (await response.json()) as { ok: boolean; value?: { path: string } }
+  assert.equal(payload.ok, true)
+  assert.equal(payload.value?.path, await realpath(homedir()))
 })
 
 test('a relative browse path is refused instead of guessed', async () => {

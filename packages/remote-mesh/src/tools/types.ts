@@ -152,13 +152,18 @@ export function transportReport(runtime: MeshToolRuntime): TransportReport {
   return { configured: false, mode: runtime.config.transportMode, kind: '', reason }
 }
 
-export function workspaceViews(workspaces: readonly WorkspaceSummary[]): Array<{
+/** One Workspace a peer published, in the wire shape both the tool and the page consume. */
+export interface MeshWorkspaceView {
   workspaceId: string
   name: string
   path: string
+  /** Session count, so a caller can size the group without reading the list. */
   sessions: number
+  /** The Sessions themselves, newest first; read-only metadata, never a log. */
   sessionList: Array<{ sessionId: string; title: string; updatedAt: number; busy: boolean }>
-}> {
+}
+
+export function workspaceViews(workspaces: readonly WorkspaceSummary[]): MeshWorkspaceView[] {
   return workspaces.map((workspace) => ({
     workspaceId: workspace.workspaceId,
     name: workspace.name,

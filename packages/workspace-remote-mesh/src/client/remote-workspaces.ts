@@ -25,8 +25,20 @@ export interface RemoteWorkspaceRow {
   readonly remotePath: string
   /** Session slots the owning registry reports; this Host holds none of them. */
   readonly sessions: number
+  /** Those Sessions as the owning machine summarizes them; read-only on this Host. */
+  readonly sessionRows: readonly RemoteSessionRow[]
   /** Whether the last transport receipt called the owner online. */
   readonly online: boolean
+}
+
+/** One Session the owning machine reports inside a remote Workspace. */
+export interface RemoteSessionRow {
+  readonly sessionId: string
+  readonly title: string
+  /** Epoch ms of the last update on the owning machine; 0 when it did not say. */
+  readonly updatedAt: number
+  /** The Session is running work on its own machine. */
+  readonly busy: boolean
 }
 
 /** One peer node the remote section can talk to. */
@@ -79,6 +91,8 @@ interface PeerWorkspaceWire {
   name?: unknown
   path?: unknown
   sessions?: unknown
+  /** Session summaries the peer's own transport already collected. */
+  sessionList?: unknown
 }
 
 interface PeerWire {
@@ -93,6 +107,30 @@ function peersOf(payload: unknown): PeerWire[] {
   const peers = (payload as { peers?: unknown }).peers
   if (!Array.isArray(peers)) return []
   return (peers as PeerWire[]).filter((peer): peer is PeerWire => peer !== null && typeof peer === 'object')
+}
+
+/**
+ * Read one peer's Session summaries. The peer already reduced them to
+ * `{ sessionId, title, updatedAt, busy }`; anything else is dropped rather than
+ * guessed at, so a malformed entry costs a row and never a broken list.
+ * @param value - the wire field, untrusted.
+ * @returns summaries newest first, as the owner ordered them.
+ */
+export function sessionRowsOf(value: unknown): RemoteSessionRow[] {
+  if (!Array.isArray(value)) return []
+  const rows: RemoteSessionRow[] = []
+  for (const item of value as Array<Record<string, unknown> | null>) {
+    if (item === null || typeof item !== 'object') continue
+    const sessionId = text(item.sessionId)
+    if (sessionId === '') continue
+    rows.push({
+      sessionId,
+      title: text(item.title),
+      updatedAt: typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt) ? item.updatedAt : 0,
+      busy: item.busy === true,
+    })
+  }
+  return rows
 }
 
 /**
@@ -115,13 +153,15 @@ export function projectRemoteWorkspaces(payload: unknown): RemoteWorkspaceRow[] 
       const workspaceId = text(item.workspaceId)
       const remotePath = text(item.path)
       if (workspaceId === '' || remotePath === '') continue
+      const sessionRows = sessionRowsOf(item.sessionList)
       projected.push({
         nodeId,
         nodeLabel: label,
         workspaceId,
         title: text(item.name),
         remotePath,
-        sessions: typeof item.sessions === 'number' ? item.sessions : 0,
+        sessions: typeof item.sessions === 'number' ? item.sessions : sessionRows.length,
+        sessionRows,
         online,
       })
     }

@@ -37,10 +37,11 @@
 | D12 | 删除 `pairing` / `loopback` 适配器，跨机传输只做 Typert | accepted | 已实施 | 见 §3 D12 |
 | D13 | 跨机调用复用对端的 owner 登录 token（`/connect` 换 cookie），不实现 mesh-peer 凭据 | accepted | 已实施 | 见 §3 D13 |
 | D14 | 浏览器半区改为 esbuild 打包产物，拓扑画布用 `@xyflow/react`（构建期内联，不进 `dependencies`） | accepted | 已实施 | 见 §3 D14 |
-| D15 | 远程工作区是远端快照的投影：不建本地目录、不写原生 registry 记录，行由浏览器从 `/api/mesh/state` 的 `peers[].workspaces` 派生 | accepted | 已实施 | 见 §3 D15 |
+| D15 | 远程工作区是远端快照的投影：不建本地目录、不写原生 registry 记录，行由浏览器从 `/api/mesh/state` 的 `peers[].workspaces` 派生 | accepted | 已实施 | 见 §3 D15；会话子行由 D19 取代 |
 | D16 | 侧栏座位由质子影子托管：官方 entry 经 entry face 原样渲染，远程段是 region contribution，分栏比例存 client store | accepted | 已实施 | 见 §3 D16 |
 | D17 | 机器名是行上的后缀与悬浮卡，不写进标题 | accepted | 已实施 | 见 §3 D17 |
 | D18 | 对端管理（列目录 / 建 Workspace）走 `MeshTransport.control` + relay 两个 op，不进五方法数据面 | accepted | 已实施 | 见 §3 D18 |
+| D19 | 远程 Workspace 展开后的会话行是只读投影：摘要来自对端 `sessionList`，行只画标题/运行点/相对时间，点击不在本机打开会话 | accepted | 已实施 | 见 §3 D19 |
 
 ## 3. 需要展开的几条
 
@@ -179,3 +180,23 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 代价：传输多一个有名字的能力，mock 之外的适配器可以不做（可选方法）；对端版本领先/落后时表现为一条明确的拒绝，而不是一个安静的空列表。
 
 推翻它的条件：DSH 官方把「在远端机器上建 Workspace」做成一条 Remote，届时这里退回纯透传。
+
+### D19：远程会话行是只读投影，不伪装成本机会话
+
+三条决定：
+
+- 会话摘要来自对端快照：transport 用对端 registry 的 `sessionIds` 加 `session/list` 拼出 `{sessionId, title, updatedAt, busy}`，`wirePeer` 原样下发，浏览器的 `projectRemoteWorkspaces` 只做投影。这条路径不新增 relay op。
+- 展开后每行只画标题、运行点（busy）与相对时间，`aria-disabled`，悬浮提示写明「会话在 <机器> 上运行」；不挂本机动作，也不发 `openSession`。
+- 行的文案读官方 `workspace` 命名空间：行组件是官方源码的 vendor 副本，字典也归官方；区段只拥有自己的文案（`workspaceRemote`）。
+
+理由：
+
+- 本机没有那份 log：`uiWorkspace.openSession(id)` 会拿一个本机不认识的 id 去 Host 取记录，拿到的是错误。把行做成「可点但不做事」比只读更差。
+- 摘要本来就在传输层：为了画一行数字另开一条 relay op，会让同一份事实有两个来源。
+
+代价：
+
+- 行是死的：要读历史或继续对话，得先有跨机会话视图（`/api/mesh/session` 已能读对端日志尾部），那是另一条路。
+- 摘要随 `/api/mesh/state` 的读取节奏刷新（挂载、聚焦、重新可见，30 秒内合并），不是实时。
+
+推翻它的条件：跨机会话视图落地（本地能流式读对端日志），行可以变成入口。

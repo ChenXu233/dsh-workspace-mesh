@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -52,12 +53,16 @@ function believe(code: string, message: string): Error {
  * never file contents. Symlinks are not followed on purpose: the canonical path
  * is what the registry will store, and resolving a link chain here would make
  * the listing disagree with the Workspace it later creates.
- * @param value - the requested absolute path.
+ *
+ * An empty ask starts at this machine's home directory: the caller cannot know
+ * another machine's layout, and the answer names the path it landed on.
+ * @param value - the requested absolute path, or empty for the home directory.
  * @returns the canonical directory and its subdirectories.
  */
 export async function browseDirectories(value: unknown): Promise<RelayBrowseListing> {
-  const requested = typeof value === 'string' && value.trim() !== '' ? value : ''
-  if (requested === '' || !isAbsolute(requested)) {
+  const asked = typeof value === 'string' ? value.trim() : ''
+  const requested = asked === '' ? homedir() : asked
+  if (!isAbsolute(requested)) {
     throw believe('browse-invalid', 'path must be an absolute directory path')
   }
   let canonical: string

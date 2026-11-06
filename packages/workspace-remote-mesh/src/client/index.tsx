@@ -44,16 +44,16 @@ export function apply(ctx: Context): void {
   ctx.inject(['locale', 'protonWorkspace'], (scoped) => {
     scoped.effect(() => scoped.locale.register(NS, { zh, en }), 'remote-mesh: dictionaries')
     const t = scoped.locale.bind(NS) as unknown as RemoteTranslate
+    // Rows are drawn by the shipped browser's own component (vendor copy), so
+    // their copy belongs to the shipped `workspace` namespace: read that seat
+    // rather than duplicating the strings, and never trust the region owner to
+    // hand one over (its `t` is not the browser's).
+    const rowT = scoped.locale.bind('workspace') as never
     scoped.effect(
       () => scoped.protonWorkspace.addSection({
         id: 'remote',
         order: 10,
-        render: (context) => (
-          <RemoteSection
-            t={t}
-            rowT={(typeof context.t === 'function' ? context.t : t) as never}
-          />
-        ),
+        render: () => <RemoteSection t={t} rowT={rowT} />,
       }),
       'remote-mesh: remote section',
     )
