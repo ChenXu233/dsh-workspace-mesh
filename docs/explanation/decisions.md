@@ -42,7 +42,8 @@
 | D17 | 机器名是行上的后缀与悬浮卡，不写进标题 | accepted | 已实施 | 见 §3 D17 |
 | D18 | 对端管理（列目录 / 建 Workspace）走 `MeshTransport.control` + relay 两个 op，不进五方法数据面 | accepted | 已实施 | 见 §3 D18 |
 | D19 | 远程 Workspace 展开后的会话行是只读投影：摘要来自对端 `sessionList`，行只画标题/运行点/相对时间，点击不在本机打开会话 | accepted | 已实施 | 见 §3 D19 |
-| D20 | hero 的 workspace picker 由质子接管座位、只换 kit：远程行并进官方菜单；选中记为派遣目标，不建本机会话 | accepted | 已实施 | 见 §3 D20 |
+| D20 | hero 的 workspace picker 由质子接管座位、只换 kit：远程行并进官方菜单；选中记为派遣目标，不建本机会话 | accepted | 已实施 | 见 §3 D20；派遣面见 D21 |
+| D21 | 派遣不替换 composer：目标是 chip，派遣条是 composer 上方的独立输入，走 `/api/mesh/dispatch` | accepted | 已实施 | 见 §3 D21 |
 
 ## 3. 需要展开的几条
 
@@ -216,3 +217,18 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 - 远程行没有独立图标（官方菜单项统一文件夹图标），靠标题里的 `@机器` 区分来源。
 
 推翻它的条件：官方给 picker 开出“额外分组”的正式机制，届时合并 kit 可以退回普通注册。
+
+### D21：派遣条在 composer 上方，不替换 composer
+
+- `conversation.composer` 是 chain 槽，但条目靠**纯 selector** 路由（`select(owner) => matched | null`），规则要求选择器只读 owner props、不读外部可变状态。派遣目标是我们自己的 store，读它会让“选中/清除目标”不触发链重算，composer 会停在旧状态。
+- 入口改放在 `conversation.input.dock`（list、session 作用域、composer 卡片上方）：它自己订阅目标，目标一出现就重渲染，不需要替官方 composer 做决定。
+- 官方 composer 保留自己的语义（发给本机的 agent），派遣条写明“派遣到 <node> · <path>”，两者不混。
+- 发送走 `/api/mesh/dispatch`（与 `mesh_dispatch` 工具同一套校验、租约与回复收集），回复显示在派遣条里，仅内存。
+
+代价：
+
+- 两条输入并存；要做到“一个输入框随目标切换”，得先让链条目能订阅外部状态（DSH 目前不允许）。
+- 派遣结果不写进会话日志（本机没有那条会话），刷新即消失。
+- 对端失败时原样显示对端错误；超时沿用 dispatchTimeoutMs。
+
+推翻它的条件：DSH 的 chain selector 允许订阅外部状态，或官方给 composer 开出“发送拦截”，那时派遣可以并回输入框。

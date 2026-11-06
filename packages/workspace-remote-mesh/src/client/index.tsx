@@ -15,6 +15,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import { en, NS, zh } from './locales'
 import type { RemoteTranslate } from './locales'
+import { DispatchDock } from './dispatch-dock'
 import { createRemotePickerExtras } from './picker-source'
 import { RemoteSection } from './remote-section'
 import { DispatchTargetChip } from './target-chip'
@@ -89,6 +90,16 @@ export function apply(ctx: Context): void {
           () => <DispatchTargetChip t={t} />,
         )),
         'remote-mesh: dispatch target chip',
+      )
+      // The dispatch bar sits above the composer rather than replacing it: the
+      // shipped composer belongs to this machine's agent, and the bar can
+      // subscribe to the target and re-render the moment one is picked.
+      scoped.effect(
+        () => slots.inject('conversation.input.dock', () => slots.register(
+          { name: 'conversation.input.dock', id: 'remote-mesh.dispatch-dock' },
+          () => <DispatchDock t={t} />,
+        )),
+        'remote-mesh: dispatch dock',
       )
     }
   })
