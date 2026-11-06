@@ -42,6 +42,7 @@
 | D17 | 机器名是行上的后缀与悬浮卡，不写进标题 | accepted | 已实施 | 见 §3 D17 |
 | D18 | 对端管理（列目录 / 建 Workspace）走 `MeshTransport.control` + relay 两个 op，不进五方法数据面 | accepted | 已实施 | 见 §3 D18 |
 | D19 | 远程 Workspace 展开后的会话行是只读投影：摘要来自对端 `sessionList`，行只画标题/运行点/相对时间，点击不在本机打开会话 | accepted | 已实施 | 见 §3 D19 |
+| D20 | hero 的 workspace picker 由质子接管座位、只换 kit：远程行并进官方菜单；选中记为派遣目标，不建本机会话 | accepted | 已实施 | 见 §3 D20 |
 
 ## 3. 需要展开的几条
 
@@ -200,3 +201,18 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 - 摘要随 `/api/mesh/state` 的读取节奏刷新（挂载、聚焦、重新可见，30 秒内合并），不是实时。
 
 推翻它的条件：跨机会话视图落地（本地能流式读对端日志），行可以变成入口。
+
+### D20：远程工作区进 hero picker，选中是派遣目标
+
+- 座位与 kit：`conversation.hero.workspace` 由工作区域包接管（`alwaysShadow`，座位没有 contribution 也要占）。官方 picker 原样渲染，域包只把 `useWorkspaces` 的返回值并上一组远程行，并把 `onPick` 包一层。
+- 远程行 id 带 `remote:` 前缀，`pick` 返回 true：不调座位 owner 的 `onPick`，因此不会在本机建 Session（本机没有那个目录，也没有那条记录）。
+- 选中记的是**派遣目标**，不是“当前工作区”：hero 的文件夹芯片归会话壳所有，仍显示本机工作区；目标显示在 composer 工具行的芯片上，点一下清除。
+- 菜单行没有第二格，机器名写进标题（`<名字> @<节点>`）——这是 D17 在 picker 里的例外。
+- registry 快照不动：合并只发生在这一座位的 kit 里，侧栏与其他读 `useWorkspaces` 的地方看不到远程行。
+
+代价：
+
+- picker 菜单与官方一致，但选中远程行后 composer 仍是本机会话的输入框：把消息真的发到远端要另做派遣 composer（下一步）。
+- 远程行没有独立图标（官方菜单项统一文件夹图标），靠标题里的 `@机器` 区分来源。
+
+推翻它的条件：官方给 picker 开出“额外分组”的正式机制，届时合并 kit 可以退回普通注册。

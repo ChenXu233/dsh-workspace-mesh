@@ -295,6 +295,15 @@ export function useRemoteWorkspaces(): readonly RemoteWorkspaceRow[] {
 }
 
 /**
+ * The same snapshot as a plain observable, for readers that are not this
+ * package's hooks (the hero picker's merged workspace list).
+ */
+export const remoteWorkspaceSource = {
+  getSnapshot,
+  subscribe: (listener: () => void): (() => void) => subscribe(listener),
+}
+
+/**
  * Peer nodes the adding flow can target.
  * @returns nodes in label order.
  */
