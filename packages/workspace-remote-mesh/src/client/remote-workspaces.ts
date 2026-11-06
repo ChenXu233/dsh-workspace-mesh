@@ -37,11 +37,20 @@ export function remoteWorkspaceKey(row: RemoteWorkspaceRow): string {
 const EMPTY: readonly RemoteWorkspaceRow[] = []
 let rows: readonly RemoteWorkspaceRow[] = EMPTY
 let signature = ''
-let timer: ReturnType<typeof setInterval> | undefined
+let lastFetch = 0
+let fetching = false
+let listening = false
 const listeners = new Set<() => void>()
 
-/** Snapshot polling interval; peer receipts are minutes-scale facts. */
-const POLL_MS = 15_000
+/**
+ * Minimum gap between snapshot reads.
+ *
+ * /api/mesh/state fans out to every peer (registry + session list), so an idle
+ * timer here would repeat that cost for everyone on a screen nobody touched —
+ * the same reason the settings page reads it on demand instead of polling.
+ * Mount, focus, and becoming visible are user-driven and bounded by this gap.
+ */
+const MIN_GAP_MS = 30_000
 
 function publish(next: readonly RemoteWorkspaceRow[]): void {
   const nextSignature = JSON.stringify(next)
@@ -130,26 +139,49 @@ async function refresh(signal: AbortSignal): Promise<void> {
 /** One controller for the module lifetime; the list never outlives the page. */
 const controller = typeof AbortController === 'function' ? new AbortController() : undefined
 
-function start(): void {
-  if (timer !== undefined) return
-  const signal = controller?.signal ?? new AbortController().signal
-  void refresh(signal)
-  timer = setInterval(() => { void refresh(signal) }, POLL_MS)
+/**
+ * Read the snapshot, at most once per {@link MIN_GAP_MS}. A fetch already in
+ * flight owns the turn: overlapping reads would only repeat the fan-out.
+ */
+function request(): void {
+  if (fetching) return
+  const now = Date.now()
+  if (now - lastFetch < MIN_GAP_MS) return
+  lastFetch = now
+  fetching = true
+  void refresh(controller?.signal ?? new AbortController().signal).finally(() => { fetching = false })
 }
 
-function stop(): void {
-  if (timer === undefined) return
-  clearInterval(timer)
-  timer = undefined
+/** The page came back into view or the window regained focus. */
+function onWake(): void {
+  if (typeof document !== 'undefined' && document.hidden) return
+  request()
 }
 
-/** Start polling when the list is on screen, stop when it is not. */
+function startListening(): void {
+  if (listening || typeof window === 'undefined') return
+  listening = true
+  window.addEventListener('focus', onWake)
+  document.addEventListener('visibilitychange', onWake)
+}
+
+function stopListening(): void {
+  if (!listening || typeof window === 'undefined') return
+  listening = false
+  window.removeEventListener('focus', onWake)
+  document.removeEventListener('visibilitychange', onWake)
+}
+
+/** Read on first subscriber, then only when the page is brought back. */
 const subscribe = (listener: () => void): (() => void) => {
   listeners.add(listener)
-  if (listeners.size === 1) start()
+  if (listeners.size === 1) {
+    startListening()
+    request()
+  }
   return () => {
     listeners.delete(listener)
-    if (listeners.size === 0) stop()
+    if (listeners.size === 0) stopListening()
   }
 }
 

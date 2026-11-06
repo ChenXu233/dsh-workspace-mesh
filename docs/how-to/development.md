@@ -55,6 +55,20 @@ pwsh <pack>/scripts/sync-plugin.ps1 -Plugin dsh-workspace-mesh
 - 日志里 `[mesh] disposed` 是旧进程退出，别当成本次启动失败。
 - 本插件由 profile patch `insert` 挂载（仓库里的 `cordis.patch.yml` 故意是 `[]`），所以原生 settings 文档里没有它的命名空间。原因见 [decisions.md](../explanation/decisions.md) D7。
 
+### 1.5 工作区浏览器包（vendor 分叉）
+
+侧栏工作区整列由 `packages/workspace-remote-mesh` 渲染：它是官方 `ui-workspace` 的 vendor 分叉，作为**第二个** dev-plugin 目录 `dsh-proton-workspace-remote-mesh` 同步（`lib/`、`package.json`、`cordis.patch.yml`，`lib/client.js` 是构建产物）。
+
+组合里必须停掉官方 bundle，两个 owner 同时注册会让同一批 Session 行菜单出现两遍：
+
+```yaml
+- id: ui-workspace
+  disabled: true
+```
+
+改 vendor 的姿势固定三步：改 `vendor/ui-workspace/**` → `git diff` 落到 `packages/workspace-remote-mesh/patches/<主题>.patch` → `git checkout -- packages/workspace-remote-mesh/vendor`。`vendor` 目录本身永远保持上游原样；构建与 typecheck 走 `scripts/with-vendor-patches.mjs`，补丁套不上会直接失败。
+
+远程行只读 `assignment.yml` 与 `/api/mesh/state` 的 `peers[].workspaces`，不创建本地记录、不写目录；同一个远程工作区在本机没有文件树、终端或 LSP 根。
 ## 2. 别人要用同一种方式
 
 一句话：**自备一台开发服务器（或走 §3 本地），按 §1.1 配一次，之后同样用 `sync-plugin.ps1`。**
