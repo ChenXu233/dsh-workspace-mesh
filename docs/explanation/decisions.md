@@ -37,8 +37,9 @@
 | D12 | 删除 `pairing` / `loopback` 适配器，跨机传输只做 Typert | accepted | 已实施 | 见 §3 D12 |
 | D13 | 跨机调用复用对端的 owner 登录 token（`/connect` 换 cookie），不实现 mesh-peer 凭据 | accepted | 已实施 | 见 §3 D13 |
 | D14 | 浏览器半区改为 esbuild 打包产物，拓扑画布用 `@xyflow/react`（构建期内联，不进 `dependencies`） | accepted | 已实施 | 见 §3 D14 |
-| D15 | 远程工作区 = 本地锚点目录的真记录 + `assignment.yml` 旁路归属；「添加远程工作区」只占 `directoryFlow` 选择器位，不接管 `sidebar.workspaces` 席位 | accepted | 进行中 | 见 §3 D15 |
-| D16 | UI 扩展收敛到一个前置包（替换包）：下游插件只依赖它的 ProtonRegionMap 契约，不直接注册官方席位；占席位时复刻实现放进可抛弃的独立包 | accepted | 未开始 | 见 §3 D16 |
+| D15 | 远程工作区是远端快照的投影：不建本地目录、不写原生 registry 记录，行由浏览器从 `/api/mesh/state` 的 `peers[].workspaces` 派生 | accepted | 已实施 | 见 §3 D15 |
+| D16 | 工作区整列由 `ui-workspace` 的 vendor 分叉承接；组合里停用官方 bundle，改动只以补丁存在 | accepted | 已实施 | 见 §3 D16 |
+| D17 | 机器名是行上的后缀与悬浮卡，不写进标题 | accepted | 已实施 | 见 §3 D17 |
 
 ## 3. 需要展开的几条
 
@@ -115,65 +116,50 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 
 推翻它的条件：平台模块表直接提供画布库，或交互需求回落到「静态图 + 表格」。
 
-### D15：远程工作区做成「锚点目录 + 旁路归属」，不接管侧栏席位
+### D15：远程工作区是远端快照的投影，本机不落任何记录
 
 三条决定：
 
-- 远程工作区在原生 registry 里是**一条真记录**，`path` 指向本地锚点目录（`%LOCALAPPDATA%\dsh-mesh\anchors\<sha256(nodeId)>\<sha256(JSON.stringify([nodeId, workspaceId, remoteCwd]))>`），不是远端路径；归属（`workspaceId → nodeId / remoteCwd`）落在 `assignment.yml`，不进 workspace 记录。
-- 「添加远程工作区」不抢 `sidebar.workspaces` 席位，只占 `sidebar.workspaces.directoryFlow` 与 `conversation.hero.workspace.directoryFlow` 两个 single 槽，把选目录交互扩成「本地 / 远程」两路；本机那一半调 `remote.directoryPicker.pick()`，不重写 OS 选择器。
-- 来源只写进 `title`（`<仓库名> @<机器名>`）。
+- 远程工作区没有本地目录、也没有原生 registry 记录。唯一来源是 `/api/mesh/state` 的 `peers[].workspaces`，浏览器把它投影成列表里的行。
+- 行是派生的：分组键 `remote:<nodeId>:<workspaceId>`，路径取远端真实目录，`workspaceId` 为 `undefined`，所以本机动作（拖动排序、重命名、删除、新建会话）在派生这一刻就挂不上去。
+- 远端会话列表不在这一层：会话计数来自对端注册表回执，但本机没有这些会话的摘要，展开后是空的。
 
 理由：
 
-- 工作区在本地的定义就是真实目录：`create()` 走 `node:fs/promises` 的 `realpath` 与 `stat().isDirectory()`，`attachSession` 用同一套 canon 要求 `SessionHeader.cwd` 真实存在。远程路径过不去；锚点是唯一能让原生分组、排序、置顶、归档、会话归属、搜索全部免费复用的形态。
-- 记录加不了字段：`WorkspaceRecord` 是 `z.object({ path, title, sessionIds, createdAt, updatedAt })`，zod 默认剥掉未声明键，`nodeId` 存不进去；绕过它直接写 domain 表会跳过 `validateStoredState` 与实体缓存，升级时最先坏。
-- 工作区行没有 slot：`sidebar.session.row.*` 是会话行级，工作区那一层要加东西只能接管 `sidebar.workspaces`（single，占用方 `ui-workspace`），代价是复刻分组、搜索、排序、置顶、归档，且不能再 import 它的运行时值。
+- 工作区在本地的定义是真实目录：`create()` 走 `realpath` 与 `stat().isDirectory()`，`attachSession` 也要求 `SessionHeader.cwd` 真实存在，远端路径过不去。伪造一个本地空目录能让原生分组免费复用，代价是那条记录会出现在**普通工作区列表**里、文件树/终端/LSP 把空目录当项目根、锚点被删后记录变 `missing-dir`。这三个副作用都不是「远程工作区」该有的。
+- 记录加不了字段：`WorkspaceRecord` 是 `z.object({ path, title, sessionIds, createdAt, updatedAt })`，zod 默认剥掉未声明键，`nodeId` 存不进去。
 
-代价，六条都要记住：
+代价：
 
-- 锚点目录会被文件树、终端、LSP 当成真实项目根，里面是空的。放 `.dsh-remote.json` 与 README 让它自解释，但「本地空目录」消除不掉。
-- 一个远程工作区一个锚点目录，不能共用：`create()` 的唯一性是规范路径字符串相等，共用同一个目录只会得到一条记录。
-- 锚点被删 → `status()` 变 `missing-dir`，需要启动时按 `assignment.yml` 重建。
-- `rename` 要求 title 唯一非空，两台机器上的同名仓库必须靠机器名区分；title 只是显示，绑定只能按 `workspaceId` 查表。
-- 占 `directoryFlow` 就是替换选择器后端随附的 client half；`pick` 在 browse-only 部署会被拒，需要回退到 `list` / `createDirectory`。`busy` 期间 owner 拒绝重复打开，对话框必须尊重它。
-- 搜索只匹配标题与 id，所以「搜机器名」只能靠 title 里带机器名。
+- 远程行只有展开/收起与悬浮卡，没有本地动作；要新建远端会话得走 `mesh_dispatch`，不是点行上的按钮。
+- 投影每 15 秒读一次 `/api/mesh/state`，页面不可见时不轮询；对端离线时行还在，只是地球图标变淡。
 
-推翻它的条件：DSH 给工作区行开出 slot（哪怕只是行尾 seat），或 `WorkspaceRecord` 支持扩展字段。在那之前不要接管 `sidebar.workspaces`。
+推翻它的条件：relay 能给出远端会话摘要，届时远程行可以长出会话子行；或者 DSH 的 Workspace 记录接受远端身份。
 
-上述「工作区必须真实目录」「记录 schema」「`directoryFlow` 交互约定」「席位与 `panellist` 语义」四条依据来自 DSH 上游，不在本仓库内：`packages/workspace/workspace/src/paths.ts`、同包 `spec.ts`、`packages/client/ui-workspace/README.zh.md`、`packages/client/ui-sidebar/README.zh.md`，以及文档站 `reference/subsystems/workspace` 与 `reference/subsystems/slots`。
-
-### D16：UI 扩展收敛到一个前置包，前置只承诺契约不承诺席位
+### D16：工作区整列由 `ui-workspace` 的 vendor 分叉承接
 
 三条决定：
 
-- 所有 UI 扩展收敛到一个**前置包**，其他插件只依赖前置声明的 ProtonRegionMap 契约，不直接注册官方席位。前置的角色就是官方文档里的**替换包**。
-- 前置只做两件事：把下游的注册映射到官方**已有**的槽（如 `sidebar.session.row.trailing` 这类 list 槽）；官方没有的槽，由前置在自己占住的席位内部声明子槽并承载。
-- 占席位是降级手段，不是默认路径。真要占时，复刻实现放进单独的、可抛弃的包，前置只依赖它的接口；前置自己的键名按官方命名习惯设计，保证官方补槽后能原地对齐、实现可换。
+- 上游 `packages/client/ui-workspace` 源码整份放进 `packages/workspace-remote-mesh/vendor/ui-workspace`，`vendor/PROVENANCE.json` 记 tag 与 commit；该目录**永远保持上游原样**。
+- 本仓库的改动只以 `packages/workspace-remote-mesh/patches/*.patch` 存在，构建与 typecheck 由 `scripts/with-vendor-patches.mjs` 打上、跑完还原。补丁套不上直接失败，不会静默丢改动。
+- 组合里 `- id: ui-workspace` 用 `disabled: true` 停掉官方 bundle，本包的客户端半区注册同一批 slot：`sidebar.workspaces`（含 `directoryFlow` 与行菜单/行操作子槽）、`conversation.hero.workspace`、`shell.overlay`。
 
 理由：
 
-- `ui-sidebar` 的 README 把「替换包」写成了机制名：声明感知的 `slots.inject()` 让替换包无论先于还是后于侧边栏激活都能生效。一个包接管、其余往它里面注册，是这套 slot 系统预留的位置，不是变通。
-- 席位占用方是唯一有权声明子槽的一方（「只在拥有并渲染某个位置的组件中声明新的 child slot」）。所以前置一旦占位，就能给下游开一套自己的键；下游仍用 `ctx.proton.inject()` / `register()`，手感与官方槽无差别。
-- 多个插件各自抢同一个 single 席位时，rc5 由 `priority` 仲裁，低 `priority` 获胜（single 与已占用的 keyed cell 就是替换点）。收敛到一个前置，可以把下游映射与占位决策集中管理。
+- 远程行要和本地行同一套 CSS、同一套搜索与排序、同一个悬浮卡；只有这样它才不是「另一个列表」。官方组件不提供工作区行级 slot，唯一能复用的形态就是整列归我们。
+- 两套 apply 同时存在会让同一批 Session 行菜单注册两遍（条目 id 相同），菜单出现两条；所以停用官方 bundle 是硬条件，不是优化。
 
-代价，四条都要记住：
+代价：
 
-- 前置把「哪个键落到哪个官方槽」变成一份要维护的映射。官方改 key 或 cardinality 时，`import type` 引入的 ProtonRegionMap 声明会在编译期炸（早发现）；但行为漂移不会炸，只会慢慢不一致。
-- 一旦真占席位，等于复刻 `ui-workspace` 的整列行为（分组与树形、水位线、搜索、拖拽、置顶、归档、行菜单、悬浮卡、通知、`directoryFlow` 接洽、键盘导航）。这份复刻不属于前置，必须单独可抛弃。
-- 下游从此依赖前置的键而不是官方键：「官方补齐后丢掉前置」只在键名一一对应时成立，否则下游要跟着改。
-- 前置是额外的失效面：它挂了，所有依赖它的下游 UI 一起消失。
+- 上游动到补丁触碰的行时以冲突出现，要人工裁决；`node scripts/vendor-upstream.mjs --check` 负责发现 vendor 树被改过。
+- 官方 bundle 停用后它的 host 半区也不加载。该半区是空 `apply()`，没有副作用。
 
-推翻它的条件：官方为工作区行等位置开出正式槽，且键名能与前置契约一一映射 —— 那时把前置的实现换成「注册官方槽」，契约不动，或直接删除前置。若官方长期不开槽、而需求增长到 `sidebar.panellist` 承载不了，则重新评估是否值得长期维护那个复刻包。
+推翻它的条件：官方给工作区行开出 slot（哪怕只是行尾 seat），那时远程行可以退回普通插件，vendor 副本直接丢弃。
 
-上述三条机制依据来自 DSH 上游，不在本仓库内：`packages/client/ui-sidebar/README.zh.md`（替换包与声明感知 `inject`）、`packages/client/ui-workspace/README.zh.md`（被复刻的行为清单）、文档站 `reference/subsystems/slots`（owner 声明子槽、single 是替换点、每个声明只有一个存活 owner）。
+### D17：机器名是行上的后缀，不写进标题
 
-### D17：机器名由席位档在行上渲染，标题保留来源语义
+- 标题只有仓库名；`@机器名` 是标题后独立的小字（`.machine`），悬浮卡写「在 <机器> 上」并给远端真实路径。
+- 归属不新增字段、不新增槽：来源就是 `/api/mesh/state` 的 `nodeLabel`，行不知道自己被谁显示。
+- 理由：标题参与搜索与重命名唯一性，把来源塞进标题会把「搜机器名」和「重命名工作区」两件事绑死。远程行不属于本机 registry，没有唯一性约束，不需要这个折中。
 
-`title` 仍是 `<仓库名> @<机器名>`：搜索只匹配标题与 id，两台机器上的同名仓库也要靠它区分。区别在渲染——席位档（`dsh-proton-workspace-seat`）接管 `sidebar.workspaces`，把标题里那段 ` @<机器名>` 拆成独立的小字标签，并按 `GET /api/mesh/anchors` 的答案换图标、补 hover 卡片。
-
-- 归属不新增字段、不新增槽：来源用 `describe(path)` 回答「哪台机器、远端哪个路径」，它不知道自己被谁显示。
-- 远端答案来得比第一帧晚，所以来源还要实现 `subscribe()`；`WorkspaceSources` 汇成 `onMarkChange()`，席位据此让问过的那一行再问一次。
-- 席位是**替换**不是叠加：官方 `ui-workspace` 必须从 profile 停掉，否则两套 apply 各自往同一批 slot 注册行操作，菜单会出现两遍。
-- 代价：上游 UI 变成 vendor 副本 + 补丁。上游动到同一处时以补丁冲突出现，要人工裁决；`scripts/with-vendor-patches.mjs` 让「打过补丁的树」只存在于构建期间。
-
-推翻它的条件：官方给工作区行开出 slot（哪怕只是行尾 seat）。那时席位可以退回普通插件，vendor 副本直接丢弃。
+推翻它的条件：与 D16 相同——远程行有了自己的 slot，机器名可以做成行的独立 entry。

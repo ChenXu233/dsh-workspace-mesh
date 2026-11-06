@@ -11,7 +11,6 @@ import type { MeshTransport } from './transport/types.js'
 import { registerMeshStateRoute } from './api/index.js'
 import { registerMeshConfigRoute } from './api/config.js'
 import { registerMeshDispatchRoute } from './api/dispatch.js'
-import { registerMeshAnchorRoute, registerMeshAnchorsRoute } from './api/anchor.js'
 import { registerMeshWorkspacesRoute } from './api/workspaces.js'
 import { registerMeshSessionRoute } from './api/session.js'
 import { registerMeshHandshakeRoute } from './api/handshake.js'
@@ -172,9 +171,6 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   registerMeshDispatchRoute(ctx, toolRuntime)
   // Peers list this node's native workspaces; nothing is created or mutated here.
   registerMeshWorkspacesRoute(ctx, ctx)
-  // Remote ownership stays in assignment/roster; only the native record points at a local anchor.
-  registerMeshAnchorRoute(ctx, toolRuntime, ctx)
-  registerMeshAnchorsRoute(ctx, toolRuntime, ctx)
   registerMeshSessionRoute(ctx, toolRuntime)
   // Self-healing peer credential: handshake mints a short-lived mesh token, the
   // relay executes session operations locally. Neither touches the login token.
@@ -202,10 +198,6 @@ export type { MeshStateCounts, MeshStatePayload, MeshStateTaskView } from './api
 export { MESH_STATE_PATH, registerMeshStateRoute } from './api/index.js'
 export { handleConfigSave, HOT_CONFIG_KEYS, MESH_CONFIG_PATH, registerMeshConfigRoute, RESTART_CONFIG_KEYS } from './api/config.js'
 export { handleDispatch, MESH_DISPATCH_PATH, registerMeshDispatchRoute } from './api/dispatch.js'
-export {
-  handleAnchor, handleAnchors, MESH_ANCHOR_PATH, MESH_ANCHORS_PATH, mountMeshAnchorRoute,
-  mountMeshAnchorsRoute, prepareMeshAnchor, readMeshAnchors, registerMeshAnchorRoute, registerMeshAnchorsRoute,
-} from './api/anchor.js'
 export { buildWorkspacesPayload, MESH_WORKSPACES_PATH, readWorkspaceRegistry, registerMeshWorkspacesRoute } from './api/workspaces.js'
 export { handleSessionRead, MESH_SESSION_PATH, registerMeshSessionRoute } from './api/session.js'
 export { handleHandshake, MESH_HANDSHAKE_PATH, registerMeshHandshakeRoute } from './api/handshake.js'
