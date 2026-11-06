@@ -55,20 +55,23 @@ pwsh <pack>/scripts/sync-plugin.ps1 -Plugin dsh-workspace-mesh
 - 日志里 `[mesh] disposed` 是旧进程退出，别当成本次启动失败。
 - 本插件由 profile patch `insert` 挂载（仓库里的 `cordis.patch.yml` 故意是 `[]`），所以原生 settings 文档里没有它的命名空间。原因见 [decisions.md](../explanation/decisions.md) D7。
 
-### 1.5 工作区浏览器包（vendor 分叉）
+### 1.5 侧栏工作区：三个质子包 + 一个区段包
 
-侧栏工作区整列由 `packages/workspace-remote-mesh` 渲染：它是官方 `ui-workspace` 的 vendor 分叉，作为**第二个** dev-plugin 目录 `dsh-proton-workspace-remote-mesh` 同步（`lib/`、`package.json`、`cordis.patch.yml`，`lib/client.js` 是构建产物）。
+侧栏工作区座位由质子托管，组合里要挂四个 dev-plugin 目录：
 
-组合里必须停掉官方 bundle，两个 owner 同时注册会让同一批 Session 行菜单出现两遍：
+| 目录 | 包 | 作用 |
+| --- | --- | --- |
+| `dsh-proton` | `dsh-proton` | 通用 region / 条目 / 影子 / entry face / 分栏 |
+| `dsh-proton-adapter-dsh` | `dsh-proton-adapter-dsh` | 唯一的 DSH slot 键与子槽契约、分栏比例 store |
+| `dsh-proton-workspace` | `dsh-proton-workspace` | 官方工作区 entry 的 kit、区段入口 |
+| `dsh-proton-workspace-remote-mesh` | 本仓库的区段包 | 「远程工作区」一节 |
 
-```yaml
-- id: ui-workspace
-  disabled: true
-```
+**官方 `ui-workspace` 不要停用**：它仍是被渲染的组件，质子只是在它外面占座。profile patch 里保留官方的 `- id: ui-workspace`，另外 `insert` 上面四个包。
 
-改 vendor 的姿势固定三步：改 `vendor/ui-workspace/**` → `git diff` 落到 `packages/workspace-remote-mesh/patches/<主题>.patch` → `git checkout -- packages/workspace-remote-mesh/vendor`。`vendor` 目录本身永远保持上游原样；构建与 typecheck 走 `scripts/with-vendor-patches.mjs`，补丁套不上会直接失败。
+改 vendor 的姿势固定三步：改 `vendor/ui-workspace/**` → `git diff` 落到 `packages/workspace-remote-mesh/patches/<主题>.patch` → `git checkout -- packages/workspace-remote-mesh/vendor`。构建与 typecheck 走 `scripts/with-vendor-patches.mjs`，补丁套不上会直接失败。vendor 只用于**远程段的行组件**（`ProjectRowItem`）与其 CSS，官方段不经过它。
 
-远程行只读 `assignment.yml` 与 `/api/mesh/state` 的 `peers[].workspaces`，不创建本地记录、不写目录；同一个远程工作区在本机没有文件树、终端或 LSP 根。
+远程段只读 `assignment.yml` 与 `/api/mesh/state` 的 `peers[].workspaces`，不创建本地记录、不写目录。
+
 ## 2. 别人要用同一种方式
 
 一句话：**自备一台开发服务器（或走 §3 本地），按 §1.1 配一次，之后同样用 `sync-plugin.ps1`。**

@@ -1,0 +1,215 @@
+diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css
+index 6d35a23..11dd7ca 100644
+--- a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css
++++ b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css
+@@ -171,6 +171,20 @@
+   line-height: 20px;
+ }
+ 
++/* Machine suffix of a remote Workspace row: part of the name cell, one step
++   quieter than the name, so the row still scans as a directory. */
++.machine {
++  margin-left: 4px;
++  font-size: 11px;
++  color: var(--dsw-alias-label-tertiary);
++}
++
++/* Globe of a remote Workspace whose owner has no receipt: still a real
++   Workspace, just not one this Host heard from on the last probe. */
++.offline {
++  opacity: 0.45;
++}
++
+ .renameInput {
+   min-width: 0;
+   font-size: 14px;
+@@ -367,6 +381,12 @@
+   word-break: break-all;
+ }
+ 
++.hoverSource {
++  font-size: 12px;
++  line-height: 16px;
++  color: #CFD3D6;
++}
++
+ .hoverTime {
+   font-size: 12px;
+   line-height: 16px;
+diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.tsx b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.tsx
+index 216a6fc..97b7598 100644
+--- a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.tsx
++++ b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.tsx
+@@ -16,7 +16,7 @@ import clsx from 'clsx'
+ import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
+ import {
+   HoverCard, IconArchiveOutlineRegular, IconEditOutlineRegular,
+-  IconEllipsisOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular,
++  IconEllipsisOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular, IconGlobeOutlineRegular,
+   IconNewChatOutlineRegular, IconPinFillRegular, IconTrashOutlineRegular,
+   IconTriangleRightFillRegular, IconUnarchiveOutlineRegular, Menu, relativeTime, StateDot, Tooltip,
+ } from '@deepseek-ai/dsh-client-ui-primitives'
+@@ -24,7 +24,7 @@ import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/cli
+ import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
+ import { abbreviateHomePath } from '@deepseek-ai/dsh-util-workspace-path'
+ import type { MenuOpenState, WorkspaceBrowserProps } from '../contract/slots.ts'
+-import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
++import type { GroupNode, RemoteGroupMark, SearchResultNode, SessionNode } from '../tree.ts'
+ import css from './Rows.module.css'
+ 
+ /** The standard locale seat, prop-passed from the browser root. */
+@@ -157,18 +157,25 @@ function createdLabel(createdAt: number, t: RowTranslate): string {
+   return t('hover.created', { time: `${date} ${pad2(d.getHours())}:${pad2(d.getMinutes())}` })
+ }
+ 
+-/** Hover-card body: workspace title, display directory path, absolute creation time. */
+-function WorkspaceHoverContent({ label, cwd, createdAt, t }: {
++/**
++ * Hover-card body: workspace title, where it lives, absolute creation time.
++ *
++ * A remote Workspace names the machine and the directory that machine really
++ * serves; this Host holds no local copy to show instead.
++ */
++function WorkspaceHoverContent({ label, cwd, createdAt, remote, t }: {
+   label: string
+   cwd: string | undefined
+-  createdAt: number
++  createdAt: number | undefined
++  remote?: RemoteGroupMark | undefined
+   t: RowTranslate
+ }) {
+   return (
+     <div className={css.hoverContent}>
+       <div className={css.hoverTitle}>{label}</div>
+-      <div className={css.hoverPath}>{cwd}</div>
+-      <div className={css.hoverTime}>{createdLabel(createdAt, t)}</div>
++      {remote !== undefined && <div className={css.hoverSource}>{'@' + remote.nodeLabel}</div>}
++      <div className={css.hoverPath}>{remote === undefined ? cwd : remote.remotePath}</div>
++      {createdAt !== undefined && <div className={css.hoverTime}>{createdLabel(createdAt, t)}</div>}
+     </div>
+   )
+ }
+@@ -231,8 +238,10 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
+   t: RowTranslate
+ }) {
+   const row = group
+-  // The ungrouped bucket has no workspace title: its label is dictionary copy.
+-  const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
++  // A remote group carries its Workspace's own title; only the ungrouped bucket
++  // lacks one and falls back to dictionary copy.
++  const remote = row.remote
++  const label = remote === undefined && row.workspaceId === undefined ? t('group.ungrouped') : row.label
+   const active = containsCurrentDescendant || (group.expanded && group.containsCurrent)
+   const [menuOpen, setMenuOpen] = useState(false)
+   const workspaceMenuItems = [
+@@ -257,13 +266,18 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
+       onDragEnd={drag?.end}
+     >
+       <span className={clsx(css.slot, css.folder, active && css.folderActive)}>
+-        {row.expanded ? <IconFolderOpenRegular /> : <IconFolderCloseRegular />}
++        {remote === undefined
++          ? (row.expanded ? <IconFolderOpenRegular /> : <IconFolderCloseRegular />)
++          : <IconGlobeOutlineRegular className={clsx(!remote.online && css.offline)} />}
+       </span>
+       <span className={clsx(css.slot, css.chevron)}>
+         <IconTriangleRightFillRegular className={clsx(css.arrow, row.expanded && css.arrowOpen)} />
+       </span>
+       <span className={css.projectText}>
+-        <span className={css.title}>{label}</span>
++        <span className={css.title}>
++          {label}
++          {remote === undefined ? null : <span className={css.machine}>{'@' + remote.nodeLabel}</span>}
++        </span>
+       </span>
+       <span className={css.rowActions}>
+         {actions !== undefined && (
+@@ -294,22 +308,24 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
+             )}
+           />
+         )}
+-        <Tooltip label={t('actions.newSession')} shortcutKeys={newShortcut?.keys} side="bottom" align="end" delayMs={500} portal>
+-          <button
+-            type="button"
+-            className={css.iconButton}
+-            aria-keyshortcuts={newShortcut?.aria}
+-            aria-label={t('actions.newSession.aria', { name: label })}
+-            onClick={(e) => { e.stopPropagation(); onCreate() }}
+-          >
+-            <IconNewChatOutlineRegular />
+-          </button>
+-        </Tooltip>
++        {remote === undefined && (
++          <Tooltip label={t('actions.newSession')} shortcutKeys={newShortcut?.keys} side="bottom" align="end" delayMs={500} portal>
++            <button
++              type="button"
++              className={css.iconButton}
++              aria-keyshortcuts={newShortcut?.aria}
++              aria-label={t('actions.newSession.aria', { name: label })}
++              onClick={(e) => { e.stopPropagation(); onCreate() }}
++            >
++              <IconNewChatOutlineRegular />
++            </button>
++          </Tooltip>
++        )}
+       </span>
+     </div>
+   )
+   // The ungrouped bucket has no backing Workspace: no card to show.
+-  if (row.createdAt === undefined) return ownRow
++  if (row.createdAt === undefined && remote === undefined) return ownRow
+   return (
+     <HoverCard
+       anchor={ownRow}
+@@ -317,12 +333,13 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
+         label={row.label}
+         cwd={row.cwd === undefined ? undefined : abbreviateHomePath(row.cwd, home)}
+         createdAt={row.createdAt}
++        remote={remote}
+         t={t}
+       />}
+       openDelayMs={800}
+       grouped
+       disabled={menuOpen}
+-      copyText={row.cwd}
++      copyText={remote === undefined ? row.cwd : remote.remotePath}
+       copyLabel={t('copy')}
+       copiedLabel={t('hover.copied')}
+     />
+diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/tree.ts b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/tree.ts
+index eb67d0e..7f3a5c4 100644
+--- a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/tree.ts
++++ b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/tree.ts
+@@ -64,6 +64,24 @@ export interface SessionNode {
+ /** Session order selected by the Workspace browser. */
+ export type SessionOrderBy = 'manual' | 'updated'
+ 
++/**
++ * Where a group's Workspace really lives, when that is not this machine.
++ *
++ * A remote group has no local registry record and no local directory: the path
++ * below names a directory on the owning machine and is never resolvable here.
++ */
++export interface RemoteGroupMark {
++  nodeId: string
++  /** Operator-facing machine name; the row renders it as an @label suffix. */
++  nodeLabel: string
++  /** Workspace id on the owning machine. */
++  workspaceId: string
++  /** Absolute directory on the owning machine. */
++  remotePath: string
++  /** Whether the owning node answered the last transport probe. */
++  online: boolean
++}
++
+ /** One workspace group section: header row facts + visible top-level session rows. */
+ export interface GroupNode {
+   /** Group key: the workspace id or {@link UNGROUPED_KEY}. */
+@@ -81,6 +99,8 @@ export interface GroupNode {
+   containsCurrent: boolean
+   /** Visible session rows (empty while the group is folded). */
+   sessions: readonly SessionNode[]
++  /** Set only for a Workspace that lives on another machine. */
++  remote?: RemoteGroupMark
+ }
+ 
+ /** One flat search row combining list metadata with an optional content match. */

@@ -1,7 +1,7 @@
 {
   "name": "dsh-proton-workspace-remote-mesh",
   "version": "0.1.0",
-  "description": "官方工作区浏览器的 vendor 分叉：本地段原样，远程段由 mesh 快照提供",
+  "description": "侧栏「远程工作区」段：由质子托管的区段条目，只画对端的工作区",
   "type": "module",
   "license": "Apache-2.0",
   "main": "lib/index.js",
@@ -50,7 +50,8 @@
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-session",
-        "@deepseek-ai/dsh-client-ui-sidebar"
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "dsh-proton-workspace"
       ]
     }
   },

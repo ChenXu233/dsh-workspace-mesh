@@ -1,30 +1,61 @@
 /**
- * Workspace plugin, browser half.
+ * Remote workspace section, browser half.
  *
- * This package IS the shipped workspace browser: `vendor/ui-workspace` holds
- * the official `@deepseek-ai/dsh-client-ui-workspace` source at the vendored
- * tag, and this entry mounts it. The composition therefore disables the
- * shipped bundle and this one occupies its seats — same slots, same contract,
- * same row behaviour — with one addition: the list also draws Workspaces that
- * live on other machines (see `remote-workspaces.ts` and the vendored patch
- * that appends them to the derived groups).
- *
- * Proton is not involved: it does not own this seat, does not re-render the
- * official renderer, and knows nothing about workspaces.
+ * The proton adapter holds the sidebar seat: it renders the shipped workspace
+ * browser as the main pane and opens that region to sections. This package
+ * contributes exactly one section and one dialog; it does not register a
+ * workspace browser, does not wrap the shipped one, and does not read the local
+ * workspace registry.
  */
 import type { Context } from '@deepseek-ai/cordis'
-import { apply as applyVendor, inject as vendorInject } from '../../vendor/ui-workspace/src/client/index.ts'
-
-export { remoteWorkspaceKey, useRemoteWorkspaces } from './remote-workspaces'
-export type { RemoteWorkspaceRow } from './remote-workspaces'
-
-/** Services the shipped browser requires; the vendored source declares them. */
-export const inject = vendorInject
+import type { ReactNode } from 'react'
+import { en, NS, zh } from './locales'
+import type { RemoteTranslate } from './locales'
+import { RemoteSection } from './remote-section'
 
 /**
- * Mount the browser, picker, and row actions.
+ * The section seat the workspace domain provides. Declared here instead of
+ * imported so this package builds without the domain package: the runtime
+ * service is the contract, and the shape is all this package uses.
+ */
+export interface SectionSeat {
+  addSection(section: {
+    id: string
+    order?: number
+    render: (context: Record<string, unknown>) => ReactNode
+  }): () => void
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    protonWorkspace: SectionSeat
+  }
+}
+
+// The client root only has to exist before we inject; the section itself needs
+// the locale service (own namespace) and the workspace domain's section seat.
+export const inject = ['slots'] as const
+
+/**
+ * Register the section once the domain and locale services are up.
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
-  applyVendor(ctx)
+  ctx.inject(['locale', 'protonWorkspace'], (scoped) => {
+    scoped.effect(() => scoped.locale.register(NS, { zh, en }), 'remote-mesh: dictionaries')
+    const t = scoped.locale.bind(NS) as unknown as RemoteTranslate
+    scoped.effect(
+      () => scoped.protonWorkspace.addSection({
+        id: 'remote',
+        order: 10,
+        render: (context) => (
+          <RemoteSection
+            t={t}
+            rowT={(typeof context.t === 'function' ? context.t : t) as never}
+          />
+        ),
+      }),
+      'remote-mesh: remote section',
+    )
+  })
 }

@@ -8,17 +8,14 @@
  */
 import { useEffect, useState } from 'react'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { RemoteTranslate } from './locales'
 import { browseRemote, createRemoteWorkspace, useRemoteNodes } from './remote-workspaces'
 import type { RemoteBrowseListing } from './remote-workspaces'
-import type { WorkspaceBrowserProps } from '../../vendor/ui-workspace/src/client/contract/slots.ts'
-
-/** Translate seat the browser hands its rows; the picker speaks the same namespace. */
-type Translate = WorkspaceBrowserProps['t']
 
 export interface RemoteWorkspaceDialogProps {
   open: boolean
   onClose: () => void
-  t: Translate
+  t: RemoteTranslate
 }
 
 /** Last path segment, for the default workspace title. */
@@ -30,10 +27,10 @@ function baseName(path: string): string {
 const LIST_HEIGHT = 240
 
 /**
- * The adding flow lives in a dialog so a failed peer never takes the list down.
+ * The adding flow lives in a dialog so a failed peer never takes the section down.
  * @param props.open - whether the dialog is up.
- * @param props.onClose - dismiss request (the picker owns no other state).
- * @param props.t - the workspace namespace translate seat.
+ * @param props.onClose - dismiss request.
+ * @param props.t - this package's translate seat.
  * @returns the dialog element.
  */
 export function RemoteWorkspaceDialog({ open, onClose, t }: RemoteWorkspaceDialogProps): JSX.Element {
@@ -93,22 +90,22 @@ export function RemoteWorkspaceDialog({ open, onClose, t }: RemoteWorkspaceDialo
     <Modal
       open={open}
       onClose={onClose}
-      closeLabel={t('close')}
-      title={t('remote.add.title')}
-      {...{ description: t('remote.add.hint') }}
+      closeLabel={t('dialog.close')}
+      title={t('dialog.title')}
+      {...{ description: t('dialog.hint') }}
       footer={(
         <>
-          <Button variant="outline" disabled={busy} onClick={onClose}>{t('cancel')}</Button>
-          <Button variant="primary" disabled={busy || listing === undefined} onClick={commit}>{t('remote.add.create')}</Button>
+          <Button variant="outline" disabled={busy} onClick={onClose}>{t('dialog.cancel')}</Button>
+          <Button variant="primary" disabled={busy || listing === undefined} onClick={commit}>{t('dialog.create')}</Button>
         </>
       )}
     >
       {offline ? (
-        <div style={MUTED} role="status">{t('remote.add.noNodes')}</div>
+        <div style={MUTED} role="status">{t('dialog.noNodes')}</div>
       ) : (
         <>
           <div style={ROW}>
-            <span style={LABEL}>{t('remote.add.node')}</span>
+            <span style={LABEL}>{t('dialog.node')}</span>
             <div style={CHIPS}>
               {nodes.map(node => (
                 <button
@@ -119,14 +116,14 @@ export function RemoteWorkspaceDialog({ open, onClose, t }: RemoteWorkspaceDialo
                   style={node.nodeId === nodeId ? CHIP_ACTIVE : CHIP}
                 >
                   {node.label}
-                  {node.online ? '' : ' (' + t('remote.offline') + ')'}
+                  {node.online ? '' : ' (' + t('offline') + ')'}
                 </button>
               ))}
             </div>
           </div>
 
           <div style={ROW}>
-            <span style={LABEL}>{t('remote.add.path')}</span>
+            <span style={LABEL}>{t('dialog.path')}</span>
             <div style={PATH_ROW}>
               <code style={PATH}>{listing?.path ?? '…'}</code>
               <Button
@@ -134,14 +131,14 @@ export function RemoteWorkspaceDialog({ open, onClose, t }: RemoteWorkspaceDialo
                 disabled={busy || listing?.parent == null}
                 onClick={() => { if (listing?.parent != null) walk(listing.parent) }}
               >
-                {t('remote.add.up')}
+                {t('dialog.up')}
               </Button>
             </div>
           </div>
 
-          <div style={LIST} role="listbox" aria-busy={busy}>
-            {busy && listing === undefined && <div style={MUTED}>{t('remote.loading')}</div>}
-            {listing !== undefined && listing.entries.length === 0 && <div style={MUTED}>{t('remote.add.empty')}</div>}
+          <div style={LIST_BOX} role="listbox" aria-busy={busy}>
+            {busy && listing === undefined && <div style={MUTED}>{t('dialog.loading')}</div>}
+            {listing !== undefined && listing.entries.length === 0 && <div style={MUTED}>{t('dialog.empty')}</div>}
             {listing?.entries.map(entry => (
               <button
                 key={entry.path}
@@ -177,7 +174,7 @@ const PATH: React.CSSProperties = {
   flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   fontSize: 12, lineHeight: '20px', color: 'var(--dsw-alias-label-secondary)',
 }
-const LIST: React.CSSProperties = {
+const LIST_BOX: React.CSSProperties = {
   maxHeight: LIST_HEIGHT, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2,
   border: '0.5px solid var(--dsw-alias-border-l4)', borderRadius: 8, padding: 4,
 }

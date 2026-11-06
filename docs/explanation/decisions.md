@@ -38,7 +38,7 @@
 | D13 | 跨机调用复用对端的 owner 登录 token（`/connect` 换 cookie），不实现 mesh-peer 凭据 | accepted | 已实施 | 见 §3 D13 |
 | D14 | 浏览器半区改为 esbuild 打包产物，拓扑画布用 `@xyflow/react`（构建期内联，不进 `dependencies`） | accepted | 已实施 | 见 §3 D14 |
 | D15 | 远程工作区是远端快照的投影：不建本地目录、不写原生 registry 记录，行由浏览器从 `/api/mesh/state` 的 `peers[].workspaces` 派生 | accepted | 已实施 | 见 §3 D15 |
-| D16 | 工作区整列由 `ui-workspace` 的 vendor 分叉承接；组合里停用官方 bundle，改动只以补丁存在 | accepted | 已实施 | 见 §3 D16 |
+| D16 | 侧栏座位由质子影子托管：官方 entry 经 entry face 原样渲染，远程段是 region contribution，分栏比例存 client store | accepted | 已实施 | 见 §3 D16 |
 | D17 | 机器名是行上的后缀与悬浮卡，不写进标题 | accepted | 已实施 | 见 §3 D17 |
 | D18 | 对端管理（列目录 / 建 Workspace）走 `MeshTransport.control` + relay 两个 op，不进五方法数据面 | accepted | 已实施 | 见 §3 D18 |
 
@@ -139,25 +139,26 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 
 推翻它的条件：relay 能给出远端会话摘要，届时远程行可以长出会话子行；或者 DSH 的 Workspace 记录接受远端身份。
 
-### D16：工作区整列由 `ui-workspace` 的 vendor 分叉承接
+### D16：侧栏座位由质子托管，官方浏览器原样请回
 
 三条决定：
 
-- 上游 `packages/client/ui-workspace` 源码整份放进 `packages/workspace-remote-mesh/vendor/ui-workspace`，`vendor/PROVENANCE.json` 记 tag 与 commit；该目录**永远保持上游原样**。
-- 本仓库的改动只以 `packages/workspace-remote-mesh/patches/*.patch` 存在，构建与 typecheck 由 `scripts/with-vendor-patches.mjs` 打上、跑完还原。补丁套不上直接失败，不会静默丢改动。
-- 组合里 `- id: ui-workspace` 用 `disabled: true` 停掉官方 bundle，本包的客户端半区注册同一批 slot：`sidebar.workspaces`（含 `directoryFlow` 与行菜单/行操作子槽）、`conversation.hero.workspace`、`shell.overlay`。
+- `sidebar.workspaces` 由 `dsh-proton-adapter-dsh` 影子（outlet 的 priority 默认 -100，官方注册默认 0，低者占格）。官方 entry 仍在槽里，质子用 entry face 合成它需要的 kit 后渲染**官方原组件**；官方 bundle 不禁用、不替换，其他插件往官方声明的子槽（`directoryFlow`、`session.menu.item`、`session.row.action`、`sidebar.session.row.*`）注册的条目照常渲染。
+- 质子在这个座位里分栏：主栏是官方浏览器（`flex:1`，内部滚动），下栏是该 region 的 contributions（本仓库的「远程工作区」就是一条），中间是可拖拽分隔条；比例持久化在 `dsh.proton.split.v1`，与官方视图状态 `dsh.workspace.view` 用同一个 client store 引擎。
+- vendor 源码只服务**我们这一段的行**：`ProjectRowItem` 直接从 `vendor/ui-workspace` import，官方的段不经过我们的任何代码。
 
 理由：
 
-- 远程行要和本地行同一套 CSS、同一套搜索与排序、同一个悬浮卡；只有这样它才不是「另一个列表」。官方组件不提供工作区行级 slot，唯一能复用的形态就是整列归我们。
-- 两套 apply 同时存在会让同一批 Session 行菜单注册两遍（条目 id 相同），菜单出现两条；所以停用官方 bundle 是硬条件，不是优化。
+- 兼容性：官方仍是被渲染的组件，它的子槽与 store 都还在，别的插件不需要知道座位被影子过。
+- 远程行借用官方行组件，才有同一套排版、悬浮卡与机器后缀；这份改动只落在我们段里，改坏了也碰不到官方列表。
 
 代价：
 
-- 上游动到补丁触碰的行时以冲突出现，要人工裁决；`node scripts/vendor-upstream.mjs --check` 负责发现 vendor 树被改过。
-- 官方 bundle 停用后它的 host 半区也不加载。该半区是空 `apply()`，没有副作用。
+- 质子要维护 kit（locale 绑定、store 实例、selector hook）——这是质子的本职，不是额外的域逻辑。
+- vendor 目录留着一份上游源码（pin 在 `dsh-v0.2.1-rc.5`），补丁只动 `Rows.tsx` / `tree.ts` / `Rows.module.css`，构建期打上、跑完还原。
+- 分栏比例按槽名存一份；官方浏览器自己不知道下面还有一段。
 
-推翻它的条件：官方给工作区行开出 slot（哪怕只是行尾 seat），那时远程行可以退回普通插件，vendor 副本直接丢弃。
+推翻它的条件：官方给侧栏开出「多区段」的正式机制，那时分栏与 contribution 可以退回普通槽。
 
 ### D17：机器名是行上的后缀，不写进标题
 
