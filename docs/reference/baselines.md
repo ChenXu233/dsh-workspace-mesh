@@ -9,8 +9,8 @@
 
 | 口径名称 | 值 | 范围 | 测量日期 | 复现 |
 | --- | --- | --- | --- | --- |
-| 用例数 | 143 | `lib-test/test/*.test.js` 全部用例 | 2026-11-01 | `pnpm test` |
-| 测试文件数 | 16 | `test/*.ts` | 2026-11-01 | `ls test/*.ts` |
+| 用例数 | 151 | `lib-test/test/*.test.js` 全部用例 | 2026-11-06 | `pnpm test` |
+| 测试文件数 | 17 | `test/*.ts` | 2026-11-06 | `ls test/*.ts` |
 | host 半区 TS 行数 | 6494 | `src/**/*.ts`，含生成文件 `config-envelope.gen.ts` 与共用的 `src/graph/` | 2026-11-01 | `find src -name '*.ts' \| xargs wc -l` |
 | client bundle 行数 | 10983 | `client/client.js`（esbuild 构建产物，含内联的画布库与随附许可证） | 2026-11-01 | `wc -l < client/client.js` |
 

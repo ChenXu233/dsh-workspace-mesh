@@ -28,7 +28,20 @@ export interface MeshTransport {
    * history simply leaves it out and the UI hides the viewer.
    */
   readSession?(nodeId: string, sessionId: string, limit?: number): Promise<MeshSessionMessage[]>
+  /**
+   * Peer-control round trip: browse the peer's directories, or create a
+   * Workspace there.
+   *
+   * Deliberately outside the five-method task data plane (SPEC §6.2): these are
+   * administration calls made while the user is editing the workspace list, not
+   * part of how a task reaches a peer. Optional — a transport without the peer's
+   * relay cannot offer them.
+   */
+  control?(nodeId: string, op: MeshControlOp, args: Record<string, unknown>): Promise<unknown>
 }
+
+/** Administration operations a paired peer may serve outside the task data plane. */
+export type MeshControlOp = 'browse' | 'workspace-create'
 
 /** What an adapter throws when it cannot do its job — never return fake data instead. */
 export class TransportUnavailableError extends Error {

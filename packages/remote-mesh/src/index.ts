@@ -13,6 +13,7 @@ import { registerMeshConfigRoute } from './api/config.js'
 import { registerMeshDispatchRoute } from './api/dispatch.js'
 import { registerMeshWorkspacesRoute } from './api/workspaces.js'
 import { registerMeshSessionRoute } from './api/session.js'
+import { registerMeshRemoteRoute } from './api/remote.js'
 import { registerMeshHandshakeRoute } from './api/handshake.js'
 import { registerMeshRelayRoute } from './api/relay.js'
 import { buildWorkspacesPayload, readWorkspaceRegistry } from './api/workspaces.js'
@@ -172,13 +173,22 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Peers list this node's native workspaces; nothing is created or mutated here.
   registerMeshWorkspacesRoute(ctx, ctx)
   registerMeshSessionRoute(ctx, toolRuntime)
+  // Peer administration for the sidebar's remote section: browse a peer's
+  // directories, and let it register a Workspace there.
+  registerMeshRemoteRoute(ctx, toolRuntime)
   // Self-healing peer credential: handshake mints a short-lived mesh token, the
   // relay executes session operations locally. Neither touches the login token.
   const meshSecret = () => config.meshSecret ?? ''
   const peerRoutes = meshSecret() !== ''
   if (peerRoutes) {
     registerMeshHandshakeRoute(ctx, meshSecret)
-    registerMeshRelayRoute(ctx, ctx, meshSecret, () => buildWorkspacesPayload(readWorkspaceRegistry(ctx)))
+    registerMeshRelayRoute(
+      ctx,
+      ctx,
+      meshSecret,
+      () => buildWorkspacesPayload(readWorkspaceRegistry(ctx)),
+      () => readWorkspaceRegistry(ctx),
+    )
     console.info('[mesh] peer handshake + relay mounted (meshSecret configured)')
   }
 
@@ -200,6 +210,7 @@ export { handleConfigSave, HOT_CONFIG_KEYS, MESH_CONFIG_PATH, registerMeshConfig
 export { handleDispatch, MESH_DISPATCH_PATH, registerMeshDispatchRoute } from './api/dispatch.js'
 export { buildWorkspacesPayload, MESH_WORKSPACES_PATH, readWorkspaceRegistry, registerMeshWorkspacesRoute } from './api/workspaces.js'
 export { handleSessionRead, MESH_SESSION_PATH, registerMeshSessionRoute } from './api/session.js'
+export { handleRemote, MESH_REMOTE_PATH, mountMeshRemoteRoute, registerMeshRemoteRoute } from './api/remote.js'
 export { handleHandshake, MESH_HANDSHAKE_PATH, registerMeshHandshakeRoute } from './api/handshake.js'
 export { handleRelay, MESH_RELAY_PATH, readSessionController, registerMeshRelayRoute } from './api/relay.js'
 export type { MeshConfigControl } from './api/config.js'

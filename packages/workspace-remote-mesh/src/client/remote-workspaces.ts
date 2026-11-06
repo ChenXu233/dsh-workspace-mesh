@@ -29,13 +29,31 @@ export interface RemoteWorkspaceRow {
   readonly online: boolean
 }
 
+/** One peer node the remote section can talk to. */
+export interface RemoteNodeRow {
+  readonly nodeId: string
+  readonly label: string
+  readonly online: boolean
+  /** How many Workspaces the node already published. */
+  readonly workspaces: number
+}
+
+/** One directory listing a peer answered with. */
+export interface RemoteBrowseListing {
+  readonly path: string
+  readonly parent: string | null
+  readonly entries: ReadonlyArray<{ name: string; path: string }>
+}
+
 /** Stable identity for a remote row; also its group key in the list. */
 export function remoteWorkspaceKey(row: RemoteWorkspaceRow): string {
   return 'remote:' + row.nodeId + ':' + row.workspaceId
 }
 
-const EMPTY: readonly RemoteWorkspaceRow[] = []
-let rows: readonly RemoteWorkspaceRow[] = EMPTY
+const EMPTY_ROWS: readonly RemoteWorkspaceRow[] = []
+const EMPTY_NODES: readonly RemoteNodeRow[] = []
+let rows: readonly RemoteWorkspaceRow[] = EMPTY_ROWS
+let nodes: readonly RemoteNodeRow[] = EMPTY_NODES
 let signature = ''
 let lastFetch = 0
 let fetching = false
@@ -46,18 +64,14 @@ const listeners = new Set<() => void>()
  * Minimum gap between snapshot reads.
  *
  * /api/mesh/state fans out to every peer (registry + session list), so an idle
- * timer here would repeat that cost for everyone on a screen nobody touched —
+ * timer here would repeat that cost for everyone on a screen nobody touched --
  * the same reason the settings page reads it on demand instead of polling.
  * Mount, focus, and becoming visible are user-driven and bounded by this gap.
  */
 const MIN_GAP_MS = 30_000
 
-function publish(next: readonly RemoteWorkspaceRow[]): void {
-  const nextSignature = JSON.stringify(next)
-  if (nextSignature === signature) return
-  signature = nextSignature
-  rows = next.length === 0 ? EMPTY : next
-  for (const listener of [...listeners]) listener()
+function text(value: unknown): string {
+  return typeof value === 'string' ? value : ''
 }
 
 interface PeerWorkspaceWire {
@@ -74,8 +88,11 @@ interface PeerWire {
   workspaces?: unknown
 }
 
-function text(value: unknown): string {
-  return typeof value === 'string' ? value : ''
+function peersOf(payload: unknown): PeerWire[] {
+  if (payload === null || typeof payload !== 'object') return []
+  const peers = (payload as { peers?: unknown }).peers
+  if (!Array.isArray(peers)) return []
+  return (peers as PeerWire[]).filter((peer): peer is PeerWire => peer !== null && typeof peer === 'object')
 }
 
 /**
@@ -86,12 +103,8 @@ function text(value: unknown): string {
  * @returns rows in a stable, transport-independent order.
  */
 export function projectRemoteWorkspaces(payload: unknown): RemoteWorkspaceRow[] {
-  if (payload === null || typeof payload !== 'object') return []
-  const peers = (payload as { peers?: unknown }).peers
-  if (!Array.isArray(peers)) return []
   const projected: RemoteWorkspaceRow[] = []
-  for (const raw of peers as PeerWire[]) {
-    if (raw === null || typeof raw !== 'object') continue
+  for (const raw of peersOf(payload)) {
     const nodeId = text(raw.nodeId)
     if (nodeId === '') continue
     const label = text(raw.label) || nodeId
@@ -121,6 +134,39 @@ export function projectRemoteWorkspaces(payload: unknown): RemoteWorkspaceRow[] 
   return projected
 }
 
+/**
+ * Project the peer nodes of the same snapshot. The adding flow needs the nodes
+ * even when they publish no Workspace yet.
+ * @param payload - the /api/mesh/state body.
+ * @returns nodes in label order.
+ */
+export function projectRemoteNodes(payload: unknown): RemoteNodeRow[] {
+  const projected: RemoteNodeRow[] = []
+  for (const raw of peersOf(payload)) {
+    const nodeId = text(raw.nodeId)
+    if (nodeId === '') continue
+    projected.push({
+      nodeId,
+      label: text(raw.label) || nodeId,
+      online: raw.online === true,
+      workspaces: Array.isArray(raw.workspaces) ? raw.workspaces.length : 0,
+    })
+  }
+  projected.sort((left, right) => left.label.localeCompare(right.label) || left.nodeId.localeCompare(right.nodeId))
+  return projected
+}
+
+function publish(payload: unknown): void {
+  const nextRows = projectRemoteWorkspaces(payload)
+  const nextNodes = projectRemoteNodes(payload)
+  const nextSignature = JSON.stringify([nextRows, nextNodes])
+  if (nextSignature === signature) return
+  signature = nextSignature
+  rows = nextRows.length === 0 ? EMPTY_ROWS : nextRows
+  nodes = nextNodes.length === 0 ? EMPTY_NODES : nextNodes
+  for (const listener of [...listeners]) listener()
+}
+
 async function refresh(signal: AbortSignal): Promise<void> {
   try {
     const response = await fetch('/api/mesh/state', {
@@ -129,7 +175,7 @@ async function refresh(signal: AbortSignal): Promise<void> {
       signal,
     })
     if (!response.ok) return
-    publish(projectRemoteWorkspaces(await response.json()))
+    publish(await response.json())
   } catch {
     // A missing snapshot is not an error here: the list simply has no remote
     // half until the Host answers again.
@@ -150,6 +196,15 @@ function request(): void {
   lastFetch = now
   fetching = true
   void refresh(controller?.signal ?? new AbortController().signal).finally(() => { fetching = false })
+}
+
+/**
+ * Read the snapshot now, ignoring the gap. Called after this Host changed
+ * something on a peer, where waiting for the next wake-up would look broken.
+ */
+export function refreshRemoteWorkspaces(): void {
+  lastFetch = 0
+  request()
 }
 
 /** The page came back into view or the window regained focus. */
@@ -186,6 +241,7 @@ const subscribe = (listener: () => void): (() => void) => {
 }
 
 const getSnapshot = (): readonly RemoteWorkspaceRow[] => rows
+const getNodes = (): readonly RemoteNodeRow[] => nodes
 
 /**
  * The remote half of the workspace list.
@@ -196,4 +252,61 @@ const getSnapshot = (): readonly RemoteWorkspaceRow[] => rows
  */
 export function useRemoteWorkspaces(): readonly RemoteWorkspaceRow[] {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+}
+
+/**
+ * Peer nodes the adding flow can target.
+ * @returns nodes in label order.
+ */
+export function useRemoteNodes(): readonly RemoteNodeRow[] {
+  return useSyncExternalStore(subscribe, getNodes, getNodes)
+}
+
+interface RemoteCallResult { ok?: boolean; value?: unknown; error?: string; code?: string }
+
+/** One administration round trip through this Host to a peer. */
+async function callRemote(op: string, body: Record<string, unknown>): Promise<unknown> {
+  const response = await fetch('/api/mesh/remote', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ op, ...body }),
+  })
+  const payload = (await response.json().catch(() => undefined)) as RemoteCallResult | undefined
+  if (payload === undefined) throw new Error(`peer administration failed (HTTP ${String(response.status)})`)
+  if (payload.ok !== true) throw new Error(payload.error ?? `peer administration failed (HTTP ${String(response.status)})`)
+  return payload.value
+}
+
+/**
+ * List the directories below one path on a peer.
+ * @param nodeId - the peer to ask.
+ * @param path - absolute directory on that machine; empty asks for its root.
+ * @returns the canonical directory and its subdirectories.
+ */
+export async function browseRemote(nodeId: string, path: string): Promise<RemoteBrowseListing> {
+  const value = await callRemote('browse', { nodeId, path })
+  const listing = value as Partial<RemoteBrowseListing> | undefined
+  if (listing === undefined || typeof listing.path !== 'string' || !Array.isArray(listing.entries)) {
+    throw new Error('peer answered with an unexpected directory listing')
+  }
+  return {
+    path: listing.path,
+    parent: typeof listing.parent === 'string' ? listing.parent : null,
+    entries: listing.entries as Array<{ name: string; path: string }>,
+  }
+}
+
+/**
+ * Register a directory as a Workspace on the machine that owns it, then read the
+ * snapshot again so the row appears.
+ * @param nodeId - the peer that owns the directory.
+ * @param path - absolute directory on that machine.
+ * @param title - display name; the peer falls back to the directory name.
+ * @returns whatever the peer registry returned.
+ */
+export async function createRemoteWorkspace(nodeId: string, path: string, title: string): Promise<unknown> {
+  const value = await callRemote('workspace-create', { nodeId, path, title })
+  refreshRemoteWorkspaces()
+  return value
 }

@@ -1,6 +1,7 @@
 import { signHandshake } from '../api/mesh-auth.js'
 import type { NodeDescriptor, WorkspaceSummary } from '../types.js'
-import type { MeshSessionMessage, MeshTransport } from './types.js'
+import { TransportUnavailableError } from './types.js'
+import type { MeshControlOp, MeshSessionMessage, MeshTransport } from './types.js'
 
 /**
  * Cross-machine transport over DSH's own Typert RPC surface (roadmap increment 1).
@@ -249,9 +250,15 @@ class TypertClient {
         throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: relay rejected the mesh token`)
       }
       if (!res.ok) {
+        // The peer's own refusal is the useful part: "op must be one of ..." says
+        // the peer predates the operation, which a bare status code hides.
+        const detail = (await res.json().catch(() => undefined)) as { error?: unknown } | undefined
+        const reason = typeof detail?.error === 'string' && detail.error !== ''
+          ? detail.error
+          : `relay ${op} returned HTTP ${res.status}`
         throw new TypertRpcError(
           'remote-failure',
-          `peer ${this.peer.nodeId}: relay ${op} returned HTTP ${res.status}`,
+          `peer ${this.peer.nodeId}: ${reason}`,
           res.status >= 500,
         )
       }
@@ -697,6 +704,24 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
         }
       }
       return messages.sort((a, b) => a.seq - b.seq)
+    },
+
+    async control(nodeId: string, op: MeshControlOp, args: Record<string, unknown>): Promise<unknown> {
+      const client = requireClient(nodeId)
+      if (!client.relayMode) {
+        // The peer's control surface authenticates with the mesh secret; without
+        // one there is no credential to present, and inventing a result would be
+        // worse than refusing.
+        throw new TransportUnavailableError(
+          `peer ${nodeId}: control operations require meshSecret (relay mode)`,
+        )
+      }
+      try {
+        return await client.relayOp(op, args)
+      } catch (err) {
+        noteFailure(nodeId)
+        throw err
+      }
     },
 
     async follow(nodeId: string, sessionId: string, onEvent: (event: unknown) => void): Promise<() => void> {

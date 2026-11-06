@@ -10,8 +10,8 @@
 
 | 组 | 调用者 | 挂在哪 | 认证 |
 | --- | --- | --- | --- |
-| 设置页路由（§1–§5） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
-| 对端路由（§6–§7） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
+| 设置页路由（§1–§6） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
+| 对端路由（§7–§8） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
 
 对端路由不能放进 fence：调用方手里还没有 cookie，放进去会先被 401 挡掉，握手永远走不到自己的处理器。它们因此自带校验，且只服务这两个操作面。
 
@@ -110,7 +110,27 @@ GET /api/mesh/session?nodeId=<peer>&sessionId=<id>&limit=50
 
 和工具一样**阻塞到最终回复**（或 `dispatchTimeoutMs`），所以一次页面请求最长约两分钟。
 
-## 6. POST /api/mesh/handshake
+## 6. POST /api/mesh/remote
+
+浏览器替用户管理**对端**的工作区：列那台机器的目录，或在那台机器上登记一条 Workspace。设置页路由里只有它作用在别的机器上，所以它用 `meshSecret` 换来的 mesh token，而不是本页的登录 cookie。请求体：
+
+```text
+{ op: 'browse' | 'workspace-create', nodeId, path, title? }
+```
+
+`browse` 只回答目录名与绝对路径，不返回文件内容；`path` 为空表示从那台机器的主目录开始。`workspace-create` 直接调对端的 `workspaceRegistry.create(path, title)`，所以工作区真的出现在那台机器上，本机不建目录、不登记记录。
+
+透传层是 `MeshTransport.control`（可缺省）：没有这条能力的传输回答 503，而不是伪造一个空列表。对端把它落到 relay 的 `browse` / `workspace-create` 两个 op。
+
+返回 `{ ok: true, value }`（`value` 是对端的原样答案）或 `{ ok: false, code, error }`，HTTP 200。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 405 | 方法不是 POST |
+| 400 | 请求体不是 JSON、缺 `nodeId`/`op`、`op` 不在枚举内、`workspace-create` 的 `path` 不是绝对路径 |
+| 503 | 传输没有 `control` 能力，或对端组合里没有 `workspaceRegistry` |
+| 200 | 其余情况；对端拒绝也是 200 + `ok: false` |
+## 7. POST /api/mesh/handshake
 
 对端用共享密钥换一个短期 mesh token。这是 relay 模式的入口：调用方不需要对端那个每次重启都轮换的登录 token。
 
@@ -131,12 +151,12 @@ hmac = base64url(HMAC-SHA256(meshSecret, "mesh-handshake:<nodeId>:<ts>:<nonce>")
 
 nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒（防重放）。
 
-## 7. POST /api/mesh/relay
+## 8. POST /api/mesh/relay
 
-对端**在本机**执行一次会话操作。凭 §6 换到的 mesh token。
+对端**在本机**执行一次会话操作。凭 §7 换到的 mesh token。
 
 ```text
-{ token, op, args }        op ∈ list | create | prompt | page | workspaces
+{ token, op, args }        op ∈ list | create | prompt | page | workspaces | browse | workspace-create
 ```
 
 `args` 就是 Typert 的 `payload.args`：`list` 传 `{_request:{}}`，其余传 `{request:{...}}`。返回 `{ ok: true, value }`；业务失败是 200 + `{ ok: false, code?, error }`。
@@ -158,7 +178,7 @@ nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒
 
 把 source 传进 `prompt` 的第二位，报错是 `signal.throwIfAborted is not a function`——错误发生在对端，调用方只看到一句与参数无关的话。`test/relay-route.test.ts` 用「假控制器先调 `signal.throwIfAborted()`」把这条契约钉住。
 
-## 8. 为什么不用原生 settings 管道
+## 9. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

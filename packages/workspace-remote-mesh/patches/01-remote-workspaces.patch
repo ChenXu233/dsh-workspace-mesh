@@ -1,20 +1,44 @@
 diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/locales.ts b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/locales.ts
-index 0214ab9..4b0bf75 100644
+index 0214ab9..e30fab5 100644
 --- a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/locales.ts
 +++ b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/locales.ts
-@@ -125,6 +125,7 @@ export const zh = {
+@@ -125,6 +125,19 @@ export const zh = {
    'time.months': '{n}个月',
    'time.years': '{n}年',
    'time.ago': '{t}前',
 +  'remote.machine': '在 {node} 上',
++  'remote.section': '远程工作区',
++  'remote.add.aria': '添加远程工作区',
++  'remote.add.title': '添加远程工作区',
++  'remote.add.hint': '工作区会创建在选中的机器上；本机不复制目录，也不登记本地记录。',
++  'remote.add.node': '机器',
++  'remote.add.path': '位置',
++  'remote.add.up': '上一级',
++  'remote.add.empty': '没有子文件夹',
++  'remote.add.create': '在此新建工作区',
++  'remote.add.noNodes': '还没有可用的远端节点：先在 mesh 配置里配对一台机器。',
++  'remote.offline': '离线',
++  'remote.loading': '正在读取目录…',
  } satisfies Record<string, string>
  
  /** The workspace namespace key union. */
-@@ -251,4 +252,5 @@ export const en = {
+@@ -251,4 +264,17 @@ export const en = {
    'time.months': '{n}mo',
    'time.years': '{n}y',
    'time.ago': '{t} ago',
 +  'remote.machine': 'on {node}',
++  'remote.section': 'Remote workspaces',
++  'remote.add.aria': 'Add a remote workspace',
++  'remote.add.title': 'Add remote workspace',
++  'remote.add.hint': 'The workspace is created on the chosen machine; nothing is copied or recorded locally.',
++  'remote.add.node': 'Machine',
++  'remote.add.path': 'Location',
++  'remote.add.up': 'Up',
++  'remote.add.empty': 'No subfolders',
++  'remote.add.create': 'New workspace here',
++  'remote.add.noNodes': 'No peer node yet: pair a machine in the mesh configuration first.',
++  'remote.offline': 'offline',
++  'remote.loading': 'Reading directories…',
  } satisfies Record<WorkspaceKey, string>
 diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css
 index 6d35a23..bb43d2d 100644
@@ -203,21 +227,59 @@ index 216a6fc..0013626 100644
        copyLabel={t('copy')}
        copiedLabel={t('hover.copied')}
      />
+diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/WorkspaceBrowser.module.css b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/WorkspaceBrowser.module.css
+index ce49fcb..31ffc7d 100644
+--- a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/WorkspaceBrowser.module.css
++++ b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/WorkspaceBrowser.module.css
+@@ -140,6 +140,31 @@
+   transition-delay: 0s, 0s, 0s, 180ms;
+ }
+ 
++/* Remote section header: a second section inside the same scroll area, at the
++   section-label scale, with its own add action on the trailing edge. */
++.remoteHeader {
++  flex: none;
++  display: flex;
++  align-items: center;
++  gap: 4px;
++  height: 32px;
++  margin: 8px 0 2px;
++  padding-left: 4px;
++  box-sizing: border-box;
++  color: var(--dsw-alias-label-tertiary);
++}
++
++.remoteTitle {
++  flex: 1;
++  min-width: 0;
++  overflow: hidden;
++  white-space: nowrap;
++  text-overflow: ellipsis;
++  font-size: 12px;
++  line-height: 20px;
++  padding-left: 4px;
++}
++
+ /* Inline search always fills the room between the title and trailing actions;
+    it grows farther right when the action cluster collapses. */
+ .search {
 diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/WorkspaceBrowser.tsx b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/WorkspaceBrowser.tsx
-index df87165..2ebf297 100644
+index df87165..887dccb 100644
 --- a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/WorkspaceBrowser.tsx
 +++ b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/WorkspaceBrowser.tsx
-@@ -36,6 +36,9 @@ import {
+@@ -36,6 +36,11 @@ import {
    deriveFlat, deriveGroups, deriveSearchResults, orderByRecency, owningGroupKey, owningParentFolder,
    pinCurrentBlank, reconcileManualOrder, sessionMemberIds, UNGROUPED_KEY,
  } from '../tree.ts'
 +// Remote half of the list: the mesh package's view over peer workspaces.
 +import { remoteWorkspaceKey, useRemoteWorkspaces } from '../../../../../src/client/remote-workspaces.ts'
 +import type { RemoteWorkspaceRow } from '../../../../../src/client/remote-workspaces.ts'
++// The remote section's add flow: pick a machine, walk its directories, register one.
++import { RemoteWorkspaceDialog } from '../../../../../src/client/remote-picker.tsx'
  import { ProjectRowItem, SearchResultItem, SessionNodeItem } from './Rows.tsx'
  import { AnimatedRows } from './AnimatedRows.tsx'
  import { FLAT_SESSION_ORDER_KEY, type SessionGroupBy } from '../stores.ts'
-@@ -250,6 +253,50 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
+@@ -250,6 +255,50 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
    return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
  }
  
@@ -268,7 +330,16 @@ index df87165..2ebf297 100644
  type SessionTreeProps = Pick<
    WorkspaceBrowserProps,
    'useSessionStatus' | 'startSession' | 'open'
-@@ -367,17 +414,27 @@ function SessionTree({
+@@ -341,6 +390,8 @@ function SessionTree({
+   const [drag, setDrag] = useState<DragState | null>(null)
+   const sessionDropCommitted = useRef(false)
+   const [workspaceDrag, setWorkspaceDrag] = useState<WorkspaceDragState | null>(null)
++  // Adding a remote Workspace happens on a peer; this only drives the dialog.
++  const [remotePickerOpen, setRemotePickerOpen] = useState(false)
+   const workspaceDropCommitted = useRef(false)
+   const nativeDragActive = drag !== null || workspaceDrag !== null
+   useNativeDragAcceptance(nativeDragActive)
+@@ -367,17 +418,27 @@ function SessionTree({
      }
      return keys
    }, [currentGroup, parents])
@@ -303,6 +374,52 @@ index df87165..2ebf297 100644
    )
    useEffect(() => {
      for (let key = revealGroup; key !== undefined; key = parents.get(key)) {
+@@ -664,7 +725,12 @@ function SessionTree({
+     )
+   }
+ 
+-  const groupRows = rootGroups.map(group => renderGroup(group, 0))
++  // Remote groups get a section of their own: another machine's Workspaces are
++  // not more groups of this machine's list, and they are added through this
++  // section's own action.
++  const groupRows = rootGroups.filter(group => group.remote === undefined).map(group => renderGroup(group, 0))
++  rowKeys.push('remote:header')
++  const remoteGroupRows = rootGroups.filter(group => group.remote !== undefined).map(group => renderGroup(group, 0))
+   return (
+     <HoverCardGroup className={clsx(css.treeBody, css.wide)}>
+       {workspaceDropAtListStart && <span className={css.listTopDropIndicator} aria-hidden="true" />}
+@@ -679,8 +745,31 @@ function SessionTree({
+           <EmptySessions rowState={rowState} onLeaveArchivedOnly={onLeaveArchivedOnly} t={t} />
+         )}
+         {groupRows}
++        {/* Always rendered, even with no remote row yet: this header owns the
++            only action that adds one. */}
++        <div className={css.remoteHeader} data-row-key="remote:header">
++          <span className={css.remoteTitle}>{t('remote.section')}</span>
++          <div className={css.headerActions}>
++            <Tooltip label={t('remote.add.aria')} side="bottom" delayMs={500}>
++              <button
++                type="button"
++                className={css.iconButton}
++                aria-label={t('remote.add.aria')}
++                onClick={() => { setRemotePickerOpen(true) }}
++              >
++                <IconProjectAddOutlineRegular size={16} />
++              </button>
++            </Tooltip>
++          </div>
++        </div>
++        {remoteGroupRows}
+       </AnimatedRows>
+       <span className={css.fade} />
++      <RemoteWorkspaceDialog
++        open={remotePickerOpen}
++        onClose={() => { setRemotePickerOpen(false) }}
++        t={t}
++      />
+     </HoverCardGroup>
+   )
+ }
 diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/tree.ts b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/tree.ts
 index eb67d0e..7f3a5c4 100644
 --- a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/tree.ts

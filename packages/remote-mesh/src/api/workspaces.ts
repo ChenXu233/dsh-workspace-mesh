@@ -23,6 +23,8 @@ export interface RegistryWorkspace {
 
 export interface WorkspaceRegistryLike {
   list(): readonly RegistryWorkspace[]
+  /** Present on the real registry; a read-only composition may omit it. */
+  create?(path: string, title?: string): unknown
 }
 
 export interface MeshWorkspacesPayload {
