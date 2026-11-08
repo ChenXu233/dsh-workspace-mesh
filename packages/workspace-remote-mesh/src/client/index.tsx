@@ -16,7 +16,10 @@ import type { ReactNode } from 'react'
 import { en, NS, zh } from './locales'
 import type { RemoteTranslate } from './locales'
 import { DispatchDock } from './dispatch-dock'
+import { appendExchange, settleExchange } from './dispatch-log'
+import { currentDispatchTarget } from './dispatch-target'
 import { createRemotePickerExtras } from './picker-source'
+import { dispatchToTarget } from './remote-dispatch'
 import { RemoteSection } from './remote-section'
 import { DispatchTargetChip } from './target-chip'
 
@@ -47,9 +50,26 @@ interface SlotSeat {
   register(options: { name: string; id: string; order?: number }, component: unknown): () => void
 }
 
+/** One submit the shipped composer is about to perform (the adapter's tap). */
+export interface ComposerSubmitRequest {
+  readonly text: string
+  readonly mode: string
+  readonly source?: string | undefined
+  readonly sessionId?: string | undefined
+  readonly clear?: (() => void) | undefined
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     protonWorkspace: SectionSeat
+  }
+  interface Events {
+    /**
+     * A submit happened in the shipped composer. Returning true takes it over:
+     * the adapter skips the shipped send and the draft is cleared by the caller.
+     * @mode bail
+     */
+    'proton/composer-submit'(request: ComposerSubmitRequest): boolean | undefined
   }
 }
 
@@ -82,6 +102,24 @@ export function apply(ctx: Context): void {
     // pick itself is remembered as a dispatch target, never as a Session here.
     const extras = createRemotePickerExtras()
     scoped.effect(() => scoped.protonWorkspace.addPickerExtras(extras), 'remote-mesh: picker rows')
+    // The shipped composer asks plugins before it sends (the adapter taps its
+    // submit verb). While a target is set this claims the submit: the text goes
+    // to that machine, the composer keeps its single input, and the bar above
+    // it only records the exchange.
+    scoped.effect(() => scoped.on('proton/composer-submit', (request) => {
+      const target = currentDispatchTarget()
+      if (target === undefined) return undefined
+      const objective = typeof request?.text === 'string' ? request.text.trim() : ''
+      if (objective === '') return undefined
+      request.clear?.()
+      const id = appendExchange(target, objective)
+      void dispatchToTarget(target, objective)
+        .then((reply) => { settleExchange(id, { reply }) })
+        .catch((reason: unknown) => {
+          settleExchange(id, { failure: reason instanceof Error ? reason.message : String(reason) })
+        })
+      return true
+    }), 'remote-mesh: composer submit')
     const slots = (scoped as unknown as { slots?: SlotSeat }).slots
     if (slots !== undefined) {
       scoped.effect(
