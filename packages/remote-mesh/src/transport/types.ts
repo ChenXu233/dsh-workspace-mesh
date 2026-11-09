@@ -15,6 +15,42 @@ export interface MeshSessionMessage {
   time?: number
 }
 
+/**
+ * One durable session event exactly as the peer's log records it.
+ *
+ * The conversation renderer needs the event, not a summary: roles, tool calls,
+ * turn boundaries and status all come from the same event stream the peer's own
+ * page reads, so the remote transcript can be assembled by the same rules.
+ */
+export interface MeshSessionEvent {
+  seq: number
+  type?: string
+  time?: number
+  data?: unknown
+  [key: string]: unknown
+}
+
+/** One page of a peer's session log, newest events last. */
+export interface MeshEventPage {
+  events: MeshSessionEvent[]
+  /** True when older events exist before the returned window. */
+  hasMore: boolean
+  /** Highest durable seq the peer had for this session when it answered. */
+  endSeq?: number
+  /** Whether the session was running when the peer answered. */
+  running?: boolean
+}
+
+/** Which slice of one session log a caller asks for. */
+export interface MeshEventRequest {
+  /** Tail cursor; omitted means the peer's current head. */
+  throughSeq?: number
+  /** Page backwards from this seq (exclusive), for a follow-up page. */
+  beforeSeq?: number
+  /** Upper bound on returned events. */
+  maxMessages?: number
+}
+
 export interface MeshTransport {
   readonly kind: 'mock' | 'typert'
   listNodes(): Promise<NodeDescriptor[]>
@@ -23,6 +59,14 @@ export interface MeshTransport {
   prompt(nodeId: string, sessionId: string, text: string): Promise<void>
   /** Returns an unsubscribe function. */
   follow(nodeId: string, sessionId: string, onEvent: (event: unknown) => void): Promise<() => void>
+  /**
+   * Read one page of a session's raw event log.
+   *
+   * `readSession` flattens the log to chat lines for a summary; a conversation
+   * page renders the events themselves, so it needs them verbatim. Optional for
+   * the same reason as `readSession`.
+   */
+  readEvents?(nodeId: string, sessionId: string, request?: MeshEventRequest): Promise<MeshEventPage>
   /**
    * Read the tail of a session log. Optional: an adapter that cannot read
    * history simply leaves it out and the UI hides the viewer.

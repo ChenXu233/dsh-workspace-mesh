@@ -38,6 +38,9 @@
     },
     "client": {
       "platform": "web",
+      "external": [
+        "@deepseek-ai/dsh-client-ui-conversation/client"
+      ],
       "inject": [
         "@deepseek-ai/dsh-api-remote-access",
         "@deepseek-ai/dsh-api-remotes",

@@ -53,7 +53,12 @@ export function clearDispatchTarget(): void {
   changed()
 }
 
-const subscribe = (listener: () => void): (() => void) => {
+/**
+ * Subscribe to target changes (the remote page follows this).
+ * @param listener - change callback.
+ * @returns unsubscribe.
+ */
+export function subscribeDispatchTarget(listener: () => void): () => void {
   listeners.add(listener)
   return () => { listeners.delete(listener) }
 }
@@ -65,5 +70,5 @@ const getSnapshot = (): DispatchTarget | undefined => target
  * @returns the target, or undefined.
  */
 export function useDispatchTarget(): DispatchTarget | undefined {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  return useSyncExternalStore(subscribeDispatchTarget, getSnapshot, getSnapshot)
 }

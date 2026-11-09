@@ -10,8 +10,8 @@
 
 | 组 | 调用者 | 挂在哪 | 认证 |
 | --- | --- | --- | --- |
-| 设置页路由（§1–§6） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
-| 对端路由（§7–§8） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
+| 页面路由（§1–§8） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
+| 对端路由（§9–§10） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
 
 对端路由不能放进 fence：调用方手里还没有 cookie，放进去会先被 401 挡掉，握手永远走不到自己的处理器。它们因此自带校验，且只服务这两个操作面。
 
@@ -110,7 +110,54 @@ GET /api/mesh/session?nodeId=<peer>&sessionId=<id>&limit=50
 
 和工具一样**阻塞到最终回复**（或 `dispatchTimeoutMs`），所以一次页面请求最长约两分钟。
 
-## 6. POST /api/mesh/remote
+## 6. GET /api/mesh/session/events
+
+读远端会话的**原始事件**（一页），给会话页装配用。
+
+```text
+GET /api/mesh/session/events?nodeId=<peer>&sessionId=<id>&throughSeq=&beforeSeq=&maxMessages=200
+
+{ ok: true, events: [ { seq, type, time, data, ... } ], hasMore, endSeq, running }
+```
+
+事件原样来自对端的 `session/page`（写入时已校验无损 JSON），不裁剪、不翻译：页面用官方会话装配器按同一套规则渲染，少一个字段就可能让整类节点静默消失。`throughSeq` 省略表示对端当前日志末端，`beforeSeq` 用于向前翻页，`hasMore` 只表示「更旧还有」，`running` 来自对端的会话状态。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 400 | 缺 `nodeId` 或 `sessionId` |
+| 200 | 其余；读不到时 `ok: false` + `code`（`unavailable` / `unknown-session` 等） |
+
+## 7. POST /api/mesh/session/open
+
+在对端那个工作区里开一个会话（工作区必须是对端注册表里的 id）。
+
+```text
+{ nodeId, workspaceId } → { ok: true, nodeId, workspaceId, sessionId }
+```
+
+会话在对端跑：本机不建目录、不写日志，也不持有它的运行时。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 400 | 请求体不是 JSON、缺 `nodeId`/`workspaceId` |
+| 200 | 其余；对端拒绝也是 200 + `ok: false` + `code` |
+
+## 8. POST /api/mesh/session/prompt
+
+往对端的那个会话里发一条消息。
+
+```text
+{ nodeId, sessionId, text } → { ok: true }
+```
+
+走对端的 `session/prompt`（`mode: queue`）：排队语义由对端决定，本机只负责把字送过去。回复不在这条请求里——页面轮询 §6 的事件。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 400 | 请求体不是 JSON、缺字段或 `text` 为空 |
+| 200 | 其余；对端拒绝也是 200 + `ok: false` + `code` |
+
+## 9. POST /api/mesh/remote
 
 浏览器替用户管理**对端**的工作区：列那台机器的目录，或在那台机器上登记一条 Workspace。设置页路由里只有它作用在别的机器上，所以它用 `meshSecret` 换来的 mesh token，而不是本页的登录 cookie。请求体：
 
@@ -130,7 +177,7 @@ GET /api/mesh/session?nodeId=<peer>&sessionId=<id>&limit=50
 | 400 | 请求体不是 JSON、缺 `nodeId`/`op`、`op` 不在枚举内、`workspace-create` 的 `path` 不是绝对路径 |
 | 503 | 传输没有 `control` 能力，或对端组合里没有 `workspaceRegistry` |
 | 200 | 其余情况；对端拒绝也是 200 + `ok: false` |
-## 7. POST /api/mesh/handshake
+## 10. POST /api/mesh/handshake
 
 对端用共享密钥换一个短期 mesh token。这是 relay 模式的入口：调用方不需要对端那个每次重启都轮换的登录 token。
 
@@ -151,7 +198,7 @@ hmac = base64url(HMAC-SHA256(meshSecret, "mesh-handshake:<nodeId>:<ts>:<nonce>")
 
 nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒（防重放）。
 
-## 8. POST /api/mesh/relay
+## 11. POST /api/mesh/relay
 
 对端**在本机**执行一次会话操作。凭 §7 换到的 mesh token。
 
@@ -178,7 +225,7 @@ nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒
 
 把 source 传进 `prompt` 的第二位，报错是 `signal.throwIfAborted is not a function`——错误发生在对端，调用方只看到一句与参数无关的话。`test/relay-route.test.ts` 用「假控制器先调 `signal.throwIfAborted()`」把这条契约钉住。
 
-## 9. 为什么不用原生 settings 管道
+## 12. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

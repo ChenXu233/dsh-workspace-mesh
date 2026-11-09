@@ -20,6 +20,11 @@ const HOST_MODULES = [
   '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-client-store',
   '@deepseek-ai/dsh-client-ui-primitives',
+  // The conversation assembly class is a value this bundle needs (a second
+  // assembler over the shipped definitions). It must be the Host's own copy:
+  // the module table word is the peer package, and `/client` is stripped when
+  // the loader resolves the require.
+  '@deepseek-ai/dsh-client-ui-conversation/client',
 ]
 
 /** Browser-half source root: CSS tag ids are relative to it. */

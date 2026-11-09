@@ -1,7 +1,9 @@
 import { signHandshake } from '../api/mesh-auth.js'
 import type { NodeDescriptor, WorkspaceSummary } from '../types.js'
 import { TransportUnavailableError } from './types.js'
-import type { MeshControlOp, MeshSessionMessage, MeshTransport } from './types.js'
+import type {
+  MeshControlOp, MeshEventPage, MeshEventRequest, MeshSessionMessage, MeshTransport,
+} from './types.js'
 
 /**
  * Cross-machine transport over DSH's own Typert RPC surface (roadmap increment 1).
@@ -704,6 +706,33 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
         }
       }
       return messages.sort((a, b) => a.seq - b.seq)
+    },
+
+    async readEvents(nodeId: string, sessionId: string, request: MeshEventRequest = {}): Promise<MeshEventPage> {
+      const client = requireClient(nodeId)
+      const rows = await listSessions(client)
+      const row = findRow(rows, sessionId)
+      if (row === undefined) {
+        throw new TypertRpcError('unknown-session', `peer ${nodeId}: session "${sessionId}" is not on this node`)
+      }
+      // The durable cursor is the peer's own watermark: asking past it returns
+      // nothing, and a smaller cursor walks the window backwards.
+      const end = typeof row.projections?.asOfSeq === 'number' ? row.projections.asOfSeq : 0
+      const through = typeof request.throughSeq === 'number' ? Math.min(request.throughSeq, end) : end
+      if (through <= 0) return { events: [], hasMore: false, endSeq: end, running: row.running === true }
+      const maxMessages = Math.max(1, Math.min(request.maxMessages ?? 200, 400))
+      const page: Record<string, unknown> = {
+        address: { kind: 'session', sessionId },
+        throughSeq: through,
+        maxMessages,
+      }
+      if (typeof request.beforeSeq === 'number') page.beforeSeq = request.beforeSeq
+      const value = await client.call<{ records?: PageRecord[]; hasMore?: boolean }>('session/page', { request: page })
+      const events = (value.records ?? [])
+        .map((record) => record.event ?? record)
+        .filter((event): event is { type?: string; seq: number; data?: unknown } => typeof event.seq === 'number')
+        .sort((a, b) => a.seq - b.seq)
+      return { events, hasMore: value.hasMore === true, endSeq: end, running: row.running === true }
     },
 
     async control(nodeId: string, op: MeshControlOp, args: Record<string, unknown>): Promise<unknown> {

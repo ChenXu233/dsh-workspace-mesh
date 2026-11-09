@@ -43,7 +43,7 @@
 | D18 | 对端管理（列目录 / 建 Workspace）走 `MeshTransport.control` + relay 两个 op，不进五方法数据面 | accepted | 已实施 | 见 §3 D18 |
 | D19 | 远程 Workspace 展开后的会话行是只读投影：摘要来自对端 `sessionList`，行只画标题/运行点/相对时间，点击不在本机打开会话 | accepted | 已实施 | 见 §3 D19 |
 | D20 | hero 的 workspace picker 由质子接管座位、只换 kit：远程行并进官方菜单；选中记为派遣目标，不建本机会话 | accepted | 已实施 | 见 §3 D20；派遣面见 D21 |
-| D21 | 派遣输入就是 composer 本体：适配器包住官方提交动词，先 `ctx.bail`，有人认领才改道；派遣条只记回执 | accepted | 已实施 | 见 §3 D21 |
+| D21 | 目标存在时主区域变成对端会话页：座位由质子接管，消息与工具卡用官方装配、官方渲染；事件按需从对端拉取，没有生命周期，也没有回执条 | accepted | 已实施 | 见 §3 D21 |
 
 ## 3. 需要展开的几条
 
@@ -213,30 +213,34 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 
 代价：
 
-- 菜单只决定“目标是谁”；目标怎么接管输入由 D21 的提交 tap 负责，picker 本身不碰 composer。
+- 菜单只决定“目标是谁”；目标怎么显示会话、怎么把字送到对端由 D21 负责，picker 本身不碰 composer。
 - 远程行没有独立图标（官方菜单项统一文件夹图标），靠标题里的 `@机器` 区分来源。
 
 推翻它的条件：官方给 picker 开出“额外分组”的正式机制，届时合并 kit 可以退回普通注册。
 
-### D21：派遣输入就是 composer 本体（submit tap），派遣条只记回执
+### D21：对端会话页——座位由质子接管，消息走官方装配
 
-- 官方 composer 的提交动词（`ComposerKeyboard.submit`，回车与发送按钮共用）由适配器包一层：调用前先 `ctx.bail('proton/composer-submit', { text, mode, source, sessionId, clear })`。有监听者认领就不调原 `submit`，没人认领就走官方原路。
-- 草稿文本从 shell 的 Lexical 编辑器状态读（`keyboard.editor`）：文本节点拼接、段落换行，引用 chip 取自身 `text`。没有公开的序列化接口，这是唯一可达的读法。
-- 包动词的那一层在质子：座位渲染前可以给 kit 挂 `kitTap`，换掉 `keyboard`（Proxy 委托，只覆盖 `submit`）。质子本身不认识 composer。
-- 座位是 `session-maybe`：inject 工厂需要 `sessionId`，宿主渲染器从会话作用域取；质子接管后没有作用域，适配器从 `dsh.sessions.current` 读当前会话 id 作为 `scope.sessionId` 传下去，inject 结果按 session 缓存。
-- 座位里的子槽（权限、计划、附件）需要根标准 kit：适配器把 occupant props 里的 `use*` / `renderFactorySlot` 作为 `standard` 下传。
-- 派遣条（`conversation.input.dock`）不再有输入：它显示目标与每笔回执（问题、对端回复或错误），清除目标即回本机输入。
-- 发送仍走 `/api/mesh/dispatch`（与 `mesh_dispatch` 同一套校验、租约与回复收集），回执只存在派遣条，仅内存。
+**目标存在时**，主区域不是本机会话，而是对端那台机器的那个会话：
+
+- 质子接管三个座位：`conversation.session.header`（换成「机器 · 工作区 · 会话 + 回到本机」）、`conversation.session`（正文换成对端会话）、`main.conversation`（只把会话姿态从「空白首屏」改成「已开始」，让 composer 落到页面底部而不是首屏居中）。没有目标时三个座位都原样画回官方条目，本机页面一个像素都不变。
+- 正文不是自己画的聊天气泡：用官方装配器（`ConversationNodeAssembler`）配**同一份**官方节点/视图定义，把对端的事件流装配成 Chat 快照，再交给官方 `conversation.chat.flow` 条目渲染。消息、推理、工具卡、用时、用量都来自官方渲染器，质子只负责把数据接上。
+- 会话在对端：第一次发消息时调 `/api/mesh/session/open` 在对端工作区里开会话，之后 `/api/mesh/session/prompt` 发字，页面按 `/api/mesh/session/events` 拉事件（约 0.9s 一轮）。本机不建目录、不写日志、不持有运行时。
+- 没有「派遣任务」这个概念了：页面就是一个会话，你发它回，不做任务板、不做回执条、不展示任务状态。任务板仍归模型工具 `mesh_dispatch` 使用。
+- composer 仍是官方那一个：适配器包住提交动词先 `ctx.bail`，有目标时改道到对端会话，没目标时原样走官方发送。草稿、附件、模型选择都还是本机 composer 的。
 
 理由：
 
-- 官方 composer 的发送是组件内部动作：没有事件、没有可注入的 send。唯一合法的接缝是它的提交动词，而动词由座位交给组件，座位归质子。
-- 一个输入框是用户要的：目标存在时它是派遣输入，不存在时它是本机会话输入，切换不换 UI。
+- 官方渲染器只认「本机会话绑定」：它的事件窗口、注入面、图片缓存都按 sessionId 解析本机。要让对端的日志以官方样式出现，唯一不改宿主的办法是**自己装配、官方渲染**——装配器是公开类，节点定义与渲染器本来就在客户端注册表里。
+- 一个页面只有一个 composer：目标存在时它把字送到对端，视觉上和本机会话完全一致。
 
 代价：
 
-- 依赖 `ComposerKeyboard` 的 shape（package-internal）与 Lexical 的草稿 JSON；DSH 改这两处要跟着改。
-- 引用 chip 与附件按纯文本投影，附件不带过去。
-- 对端失败原样显示对端错误；超时沿用 dispatchTimeoutMs。
+- 事件是轮询拉取的耐久事件，没有 DSH 的流式增量：回答出现是整段落的，不是逐字；`assistant/stream` 这类 client-only 帧本来也不在日志里。
+- 对端附件（图片）拿不到字节：本机网关不认识对端 attachmentId，图片位是空的。
+- 远程消息里的文件链接指向对端的绝对路径，本机不打开它（`openFile` 是空实现）。
+- 折叠、Turn 过程折叠用的是「直接改 hidden」，没有官方的折叠动画；Turn 导航条与分组头不渲染（按扁平顺序画）。
+- 只拉尾部一页（`maxMessages=200`）：更早的历史目前不往回翻。
 
-推翻它的条件：DSH 给 composer 开正式的提交事件（带序列化草稿），或者给 `conversation.send` 开按会话注入的口子；那时适配器不用包动词。
+推翻它的条件：DSH 允许把外部事件源绑定成一个会话（或给装配器开正式的构造入口），那时质子不用自己装配，直接把对端当作一个会话来源即可。
+
+。
