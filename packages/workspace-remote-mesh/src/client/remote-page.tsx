@@ -18,7 +18,7 @@ import { clearDispatchTarget } from './dispatch-target'
 import type { DispatchTarget } from './dispatch-target'
 import { useRemoteChatView } from './remote-chat'
 import type { RemoteChatView } from './remote-chat'
-import { useRemotePageState } from './remote-session'
+import { setShellSession, useRemotePageState } from './remote-session'
 import type { RemotePageState } from './remote-session'
 import type { RemoteTranslate } from './locales'
 
@@ -343,6 +343,18 @@ export function RemoteSessionHeader({ ctx, owner, t, shipped }: RemotePageContex
 export function RemoteTranscript({ ctx, owner, t, shipped }: RemotePageContext & { owner: SeatOwner, shipped: StoredEntryLike }): ReactNode {
   const state = useRemotePageState()
   const flow = useMemo(() => findEntry(ctx, 'conversation.chat.flow'), [ctx])
+  // The page runs inside a local (blank) Session. While it does, that Session
+  // is a shell, not a conversation on this machine: publish it so the workspace
+  // list can leave it out.
+  const useSession = owner.useSession as ((selector: (snapshot: unknown) => unknown) => unknown) | undefined
+  const blank = useSession === undefined
+    ? undefined
+    : useSession((snapshot) => (snapshot as { blank?: boolean } | undefined)?.blank)
+  const shellId = typeof owner.sessionId === 'string' ? owner.sessionId : undefined
+  useEffect(() => {
+    setShellSession(state.target !== undefined && blank === true ? shellId : undefined)
+  }, [state.target !== undefined, blank, shellId])
+  useEffect(() => () => { setShellSession(undefined) }, [])
   const view = useRemoteChatView(ctx, state.events, state.hasMore)
   const snapshot = view.snapshot()
   const columnRef = useRef<HTMLDivElement | null>(null)

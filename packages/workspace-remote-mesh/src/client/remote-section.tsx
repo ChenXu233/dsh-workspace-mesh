@@ -16,7 +16,7 @@
  * the runtime and the working directory stay on that machine, so a row never
  * pretends it could open a local Session. Its hover card names the machine.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   IconProjectAddOutlineRegular, StateDot, Tooltip, relativeTime,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -26,6 +26,7 @@ import css from '../../vendor/ui-workspace/src/client/rows/Rows.module.css'
 import type { GroupNode } from '../../vendor/ui-workspace/src/client/tree.ts'
 import type { RemoteTranslate } from './locales'
 import { RemoteWorkspaceDialog } from './remote-picker'
+import { useRemotePageState } from './remote-session'
 import { remoteWorkspaceKey, useRemoteWorkspaces } from './remote-workspaces'
 import type { RemoteSessionRow, RemoteWorkspaceRow } from './remote-workspaces'
 
@@ -85,21 +86,25 @@ function timeLabel(updatedAt: number, now: number, t: RowTranslate): string {
  * @param props.rowT - the shipped browser's translate seat.
  * @returns the row element.
  */
-function RemoteSessionItem({ session, nodeLabel, now, t, rowT }: {
+function RemoteSessionItem({ session, nodeLabel, now, t, rowT, current = false }: {
   session: RemoteSessionRow
   nodeLabel: string
   now: number
   t: RemoteTranslate
   rowT: RowTranslate
+  /** This Session is the conversation the page is showing right now. */
+  current?: boolean
 }): JSX.Element {
   return (
     <Tooltip label={t('session.remoteHint', { node: nodeLabel })} side="right" delayMs={600}>
       <div
         className={css.sessionRow}
-        style={SESSION_ROW}
+        style={current ? { ...SESSION_ROW, ...CURRENT_ROW } : SESSION_ROW}
         role="treeitem"
         aria-disabled="true"
+        aria-current={current ? 'true' : undefined}
         data-remote-session={session.sessionId}
+        data-remote-current={current ? '' : undefined}
       >
         <span className={css.slot}>
           {session.busy ? <StateDot state="ongoing" size={10} /> : null}
@@ -111,6 +116,29 @@ function RemoteSessionItem({ session, nodeLabel, now, t, rowT }: {
       </div>
     </Tooltip>
   )
+}
+
+/**
+ * The row for the conversation this page shows.
+ *
+ * The peer's own summary is preferred once it has a title; before that (and for
+ * a Session the snapshot has not listed yet) the row says it is the current one
+ * instead of borrowing the "untitled" placeholder.
+ * @param row - the Workspace group the page runs on.
+ * @param sessionId - the Session the page shows.
+ * @param running - whether the peer is working on it right now.
+ * @param t - this package's translate seat.
+ * @returns the session row to draw.
+ */
+function currentRowOf(
+  row: RemoteWorkspaceRow,
+  sessionId: string,
+  running: boolean,
+  t: RemoteTranslate,
+): RemoteSessionRow {
+  const known = row.sessionRows.find(session => session.sessionId === sessionId)
+  if (known !== undefined && known.title !== '') return { ...known, busy: running || known.busy }
+  return { sessionId, title: t('section.current'), updatedAt: known?.updatedAt ?? 0, busy: running }
 }
 
 export interface RemoteSectionProps {
@@ -129,9 +157,13 @@ export interface RemoteSectionProps {
  */
 export function RemoteSection({ t, rowT }: RemoteSectionProps): JSX.Element {
   const rows = useRemoteWorkspaces()
+  const page = useRemotePageState()
   const [picking, setPicking] = useState(false)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   const now = Date.now()
+  const activeKey = page.target === undefined
+    ? undefined
+    : 'remote:' + page.target.nodeId + ':' + page.target.workspaceId
 
   const toggle = (key: string): void => {
     setExpanded((current) => {
@@ -141,6 +173,18 @@ export function RemoteSection({ t, rowT }: RemoteSectionProps): JSX.Element {
       return next
     })
   }
+
+  // The page's own Workspace opens itself: the conversation has to be visible
+  // under the Workspace it runs on, without asking the reader to expand it.
+  useEffect(() => {
+    if (activeKey === undefined) return
+    setExpanded((current) => {
+      if (current.has(activeKey)) return current
+      const next = new Set(current)
+      next.add(activeKey)
+      return next
+    })
+  }, [activeKey])
 
   return (
     <section data-remote-section="" style={SECTION}>
@@ -156,6 +200,7 @@ export function RemoteSection({ t, rowT }: RemoteSectionProps): JSX.Element {
         {rows.map((row) => {
           const key = remoteWorkspaceKey(row)
           const open = expanded.has(key)
+          const active = key === activeKey
           return (
             <div key={key} style={GROUP}>
               <ProjectRowItem
@@ -166,18 +211,31 @@ export function RemoteSection({ t, rowT }: RemoteSectionProps): JSX.Element {
               />
               {open && (
                 <div role="group" aria-label={row.title === '' ? baseName(row.remotePath) : row.title}>
-                  {row.sessionRows.length === 0
+                  {active && page.sessionId !== undefined ? (
+                    <RemoteSessionItem
+                      key={page.sessionId}
+                      session={currentRowOf(row, page.sessionId, page.running, t)}
+                      nodeLabel={row.nodeLabel}
+                      now={now}
+                      t={t}
+                      rowT={rowT}
+                      current
+                    />
+                  ) : null}
+                  {row.sessionRows.filter(session => !(active && session.sessionId === page.sessionId)).length === 0 && !(active && page.sessionId !== undefined)
                     ? <div style={EMPTY}>{t('section.noSessions')}</div>
-                    : row.sessionRows.map(session => (
-                      <RemoteSessionItem
-                        key={session.sessionId}
-                        session={session}
-                        nodeLabel={row.nodeLabel}
-                        now={now}
-                        t={t}
-                        rowT={rowT}
-                      />
-                    ))}
+                    : row.sessionRows
+                      .filter(session => !(active && session.sessionId === page.sessionId))
+                      .map(session => (
+                        <RemoteSessionItem
+                          key={session.sessionId}
+                          session={session}
+                          nodeLabel={row.nodeLabel}
+                          now={now}
+                          t={t}
+                          rowT={rowT}
+                        />
+                      ))}
                 </div>
               )}
             </div>
@@ -201,6 +259,13 @@ const ADD: React.CSSProperties = {
   color: 'var(--dsw-alias-label-secondary)', cursor: 'pointer',
 }
 const GROUP: React.CSSProperties = { display: 'flex', flexDirection: 'column' }
+/** The conversation this page shows: same row, marked as the current one. */
+const CURRENT_ROW: React.CSSProperties = {
+  background: 'var(--dsw-alias-bg-selection, rgba(120, 120, 120, 0.12))',
+  borderRadius: 'var(--dsw-radius-sm)',
+  fontWeight: 600,
+  cursor: 'default',
+}
 /** Same 32px row as the shipped list, indented under its group. */
 const SESSION_ROW: React.CSSProperties = { paddingInlineStart: 30, cursor: 'default' }
 const EMPTY: React.CSSProperties = {

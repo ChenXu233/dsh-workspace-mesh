@@ -12,6 +12,7 @@
  */
 import { useSyncExternalStore } from 'react'
 import { currentDispatchTarget } from './dispatch-target'
+import { refreshRemoteWorkspaces } from './remote-workspaces'
 import type { DispatchTarget } from './dispatch-target'
 
 /** One durable event, as the peer's log records it (already lossless JSON). */
@@ -121,6 +122,9 @@ async function ensureSession(target: DispatchTarget): Promise<string | undefined
       return undefined
     }
     publish({ ...state, sessionId, phase: 'live', error: undefined })
+    // The peer's Workspace row now owns one more Session: re-read the snapshot
+    // so the list can show it instead of waiting for the next wake-up.
+    refreshRemoteWorkspaces()
     return sessionId
   } catch (error) {
     publish({ ...state, phase: 'error', error: error instanceof Error ? error.message : String(error) })
@@ -200,6 +204,45 @@ function mergeEvents(previous: readonly RemoteEvent[], incoming: readonly Remote
   return [...bySeq.values()].sort((left, right) => left.seq - right.seq)
 }
 
+/**
+ * The local Session the page borrows as its composer shell.
+ *
+ * The page runs in a local (blank) Session's scope — the shipped composer and
+ * the chat renderer both need one — but that Session is not a conversation on
+ * this machine. The workspace list hides it while the page owns the screen, so
+ * the page never shows up under a local Workspace directory.
+ */
+let shellSession: string | undefined
+const EMPTY_HIDDEN: readonly string[] = []
+let shellSnapshot: readonly string[] = EMPTY_HIDDEN
+const shellListeners = new Set<() => void>()
+
+/**
+ * Publish (or clears) the borrowed shell Session.
+ * @param sessionId - the local Session, or undefined when the page is gone.
+ */
+export function setShellSession(sessionId: string | undefined): void {
+  if (shellSession === sessionId) return
+  shellSession = sessionId
+  shellSnapshot = sessionId === undefined ? EMPTY_HIDDEN : [sessionId]
+  for (const listener of [...shellListeners]) {
+    try {
+      listener()
+    } catch (error) {
+      console.error('[remote-mesh] hidden-session subscriber failed:', error)
+    }
+  }
+}
+
+/** The borrowed shell Session as an observable, for the workspace list. */
+export const shellSessionSource = {
+  getSnapshot: (): readonly string[] => shellSnapshot,
+  subscribe: (listener: () => void): (() => void) => {
+    shellListeners.add(listener)
+    return () => { shellListeners.delete(listener) }
+  },
+}
+
 /** Start (or keep) the page for one target. */
 function begin(target: DispatchTarget): void {
   if (sameTarget(state.target, target)) {
@@ -219,6 +262,7 @@ function startPolling(): void {
 /** Leave the page and forget the peer Session. */
 function end(): void {
   stopTimer()
+  setShellSession(undefined)
   if (state === IDLE) return
   publish({ ...IDLE, revision: state.revision + 1 })
 }

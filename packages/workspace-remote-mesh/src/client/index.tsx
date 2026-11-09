@@ -25,7 +25,7 @@ import { currentDispatchTarget, subscribeDispatchTarget } from './dispatch-targe
 import type { DispatchTarget } from './dispatch-target'
 import { createRemotePickerExtras } from './picker-source'
 import { protonOf, RemoteSessionHeader, RemoteTranscript, ShippedConversation } from './remote-page'
-import { sendRemoteMessage, syncRemoteSession } from './remote-session'
+import { sendRemoteMessage, shellSessionSource, syncRemoteSession } from './remote-session'
 import { RemoteSection } from './remote-section'
 import { DispatchTargetChip } from './target-chip'
 
@@ -56,6 +56,14 @@ export interface SectionSeat {
     }
     pick(workspaceId: string): boolean
     selectedId?(): string | undefined
+  }): () => void
+  /**
+   * Hide local Sessions from the workspace list while the remote page owns the
+   * screen (the page borrows one blank Session as its composer shell).
+   */
+  hideSessions?(source: {
+    getSnapshot(): readonly string[]
+    subscribe(listener: () => void): () => void
   }): () => void
 }
 
@@ -138,6 +146,16 @@ export function apply(ctx: Context): void {
       }),
       'remote-mesh: remote section',
     )
+    // The page borrows a local blank Session as its composer shell. While it
+    // owns the screen that Session must not appear under a local Workspace, so
+    // the workspace list is told which ids to leave out.
+    const hideSessions = scoped.protonWorkspace.hideSessions
+    if (hideSessions !== undefined) {
+      scoped.effect(
+        () => hideSessions.call(scoped.protonWorkspace, shellSessionSource),
+        'remote-mesh: hidden shell session',
+      )
+    }
     // The hero picker offers the peer's Workspaces beside the local ones; the
     // pick itself is remembered as a dispatch target, never as a Session here.
     const extras = createRemotePickerExtras()
