@@ -21,6 +21,8 @@ export const REMOTE_ROW_PREFIX = 'remote:'
 export interface RemotePickerRow {
   readonly workspaceId: string
   readonly title: string
+  /** Canonical path on the peer; the shipped picker uses it to tell same-titled rows apart. */
+  readonly path: string
 }
 
 /** What the workspace domain accepts as picker extras. */
@@ -59,6 +61,7 @@ function pickerRows(): readonly RemotePickerRow[] {
   cachedRows = source.map(row => ({
     workspaceId: remoteRowId(row),
     title: `${row.title === '' ? baseName(row.remotePath) : row.title} @${row.nodeLabel}`,
+    path: row.remotePath,
   }))
   return cachedRows
 }
