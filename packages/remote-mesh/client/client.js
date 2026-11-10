@@ -10450,8 +10450,11 @@ var css = [
   ".dwm-hint{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
   ".dwm-hint[data-tone=ok]{color:var(--dsw-alias-state-success)}",
   ".dwm-hint[data-tone=err]{color:var(--dsw-alias-state-danger)}",
-  ".dwm-select{height:36px;width:100%;box-sizing:border-box;padding:0 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-secondary);color:inherit;font:inherit;font-size:13px}",
+  ".dwm-select{display:flex;align-items:center;gap:12px;width:100%;height:36px;box-sizing:border-box;padding:0 14px;border:0;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;cursor:pointer;text-align:left}",
+  ".dwm-select:hover{background:var(--dsw-alias-interactive-bg-hover)}",
   ".dwm-select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
+  ".dwm-selectText{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+  ".dwm-selectChevron{flex:none}",
   ".dwm-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
   ".dwm-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--dsw-alias-label-caption)}",
   ".dwm-grid{display:flex;gap:48px;flex-wrap:wrap}",
@@ -10508,6 +10511,44 @@ function TextInput(props) {
     readOnly: props.readOnly === true,
     onChange: props.onChange,
     onFocus: props.onFocus
+  });
+}
+function SelectField(props) {
+  var openState = React2.useState(false);
+  var open = openState[0];
+  var setOpen = openState[1];
+  var shown = props.label;
+  for (var i = 0; i < props.options.length; i += 1) {
+    if (props.options[i].value === props.value && props.options[i].label) shown = props.options[i].label;
+  }
+  return jsx4.jsx(import_dsh_client_ui_primitives.Menu, {
+    open,
+    onClose: function() {
+      setOpen(false);
+    },
+    items: props.options.map(function(option) {
+      return { id: option.value, label: option.label };
+    }),
+    selectedId: props.value,
+    onSelect: function(id2) {
+      props.onChange(id2);
+      setOpen(false);
+    },
+    align: props.align || "start",
+    portal: true,
+    anchor: jsx4.jsxs("button", {
+      type: "button",
+      className: "dwm-select",
+      "aria-haspopup": "menu",
+      "aria-expanded": open,
+      onClick: function() {
+        setOpen(!open);
+      },
+      children: [
+        jsx4.jsx("span", { className: "dwm-selectText", children: shown }),
+        jsx4.jsx(import_dsh_client_ui_primitives.IconChevronDownOutlineRegular, { className: "dwm-selectChevron" })
+      ]
+    })
   });
 }
 function prefersChinese() {
@@ -10594,10 +10635,14 @@ function ConfigSection(props) {
       var control;
       if (f.kind === "select") {
         var opts = [];
-        for (var m = 0; m < f.options.length; m++) opts.push(jsx4.jsx("option", { value: f.options[m], children: f.options[m] }, f.options[m]));
-        control = jsx4.jsx("select", { className: "dwm-select", value: current, onChange: function(e) {
-          setDirty(f.key, e.target.value);
-        }, children: opts });
+        for (var m = 0; m < f.options.length; m++) opts.push({ value: f.options[m], label: f.options[m] });
+        control = jsx4.jsx(SelectField, {
+          value: current,
+          onChange: function(next) {
+            setDirty(f.key, next);
+          },
+          options: opts
+        });
       } else {
         control = jsx4.jsx(TextInput, { type: f.kind === "number" ? "number" : "text", value: current, onChange: function(e) {
           setDirty(f.key, e.target.value);
@@ -10800,33 +10845,28 @@ function RemoteWorkspacePanel(props) {
     ) }),
     jsx4.jsx("div", { className: "dwm-row", children: [
       jsx4.jsx("label", { className: "dwm-label", children: t("\u76EE\u6807\u5DE5\u4F5C\u533A", "Workspace") }),
-      jsx4.jsx("select", {
-        className: "dwm-select",
+      jsx4.jsx(SelectField, {
         value: selected2,
-        onChange: function(event) {
-          setSelected(event.target.value);
+        onChange: function(next) {
+          setSelected(next);
         },
-        children: options.map(function(row) {
-          return jsx4.jsx("option", {
+        options: options.map(function(row) {
+          return {
             value: row.nodeId + "/" + row.workspaceId,
-            children: (row.label || row.workspaceId) + " \xB7 " + (row.nodeLabel || row.nodeId) + (row.path ? " \xB7 " + row.path : "") + (row.status === "online" ? "" : " (" + t("\u79BB\u7EBF", "offline") + ")")
-          }, row.nodeId + "/" + row.workspaceId);
+            label: (row.label || row.workspaceId) + " \xB7 " + (row.nodeLabel || row.nodeId) + (row.path ? " \xB7 " + row.path : "") + (row.status === "online" ? "" : " (" + t("\u79BB\u7EBF", "offline") + ")")
+          };
         })
       })
     ] }, "pick"),
     jsx4.jsx("div", { className: "dwm-row", children: [
       jsx4.jsx("label", { className: "dwm-label", children: t("\u4F1A\u8BDD", "Session") }),
-      jsx4.jsx("select", {
-        className: "dwm-select",
+      jsx4.jsx(SelectField, {
         value: sessionId,
-        onChange: function(event) {
-          setSessionId(event.target.value);
+        onChange: function(next) {
+          setSessionId(next);
         },
-        children: [
-          jsx4.jsx("option", { value: "", children: t("\u65B0\u4F1A\u8BDD", "New session") }, "new")
-        ].concat(sessions.map(function(item) {
-          var label = (item.title || item.sessionId) + (item.busy ? " \xB7 " + t("\u8FD0\u884C\u4E2D", "running") : "");
-          return jsx4.jsx("option", { value: item.sessionId, children: label }, item.sessionId);
+        options: [{ value: "", label: t("\u65B0\u4F1A\u8BDD", "New session") }].concat(sessions.map(function(item) {
+          return { value: item.sessionId, label: (item.title || item.sessionId) + (item.busy ? " \xB7 " + t("\u8FD0\u884C\u4E2D", "running") : "") };
         }))
       })
     ] }, "sess"),
@@ -11005,14 +11045,13 @@ function MeshSection(props) {
     var current = form.dirty[field.key] !== void 0 ? form.dirty[field.key] : configValues[field.key] === void 0 ? "" : String(configValues[field.key]);
     var control;
     if (field.kind === "select") {
-      control = jsx4.jsx("select", {
-        className: "dwm-select",
+      control = jsx4.jsx(SelectField, {
         value: current,
-        onChange: function(event) {
-          setField(field.key, event.target.value);
+        onChange: function(next) {
+          setField(field.key, next);
         },
-        children: field.options.map(function(option) {
-          return jsx4.jsx("option", { value: option, children: option }, option);
+        options: field.options.map(function(option) {
+          return { value: option, label: option };
         })
       });
     } else {

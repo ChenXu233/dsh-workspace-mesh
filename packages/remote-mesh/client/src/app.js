@@ -5,7 +5,7 @@
 import * as React from "react";
 import * as jsx from "react/jsx-runtime";
 // Official atoms from the frozen platform table: buttons, inputs, tags.
-import { Button as OfficialButton, Input as OfficialInput, Tag as OfficialTag } from "@deepseek-ai/dsh-client-ui-primitives";
+import { Button as OfficialButton, IconChevronDownOutlineRegular, Input as OfficialInput, Menu as OfficialMenu } from "@deepseek-ai/dsh-client-ui-primitives";
 import { MeshTopology, TOPOLOGY_CSS, TopoBoundary, ensureVendorCss } from "./topology.jsx";
 import { createMeshWorkspaceSource } from "./proton-source.js";
     // The settings namespace equals this bundle's profile entry id (cordis.patch.yml: id: mesh).
@@ -62,8 +62,11 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       ".dwm-hint{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
       ".dwm-hint[data-tone=ok]{color:var(--dsw-alias-state-success)}",
       ".dwm-hint[data-tone=err]{color:var(--dsw-alias-state-danger)}",
-      ".dwm-select{height:36px;width:100%;box-sizing:border-box;padding:0 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-secondary);color:inherit;font:inherit;font-size:13px}",
+      ".dwm-select{display:flex;align-items:center;gap:12px;width:100%;height:36px;box-sizing:border-box;padding:0 14px;border:0;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;cursor:pointer;text-align:left}",
+      ".dwm-select:hover{background:var(--dsw-alias-interactive-bg-hover)}",
       ".dwm-select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
+      ".dwm-selectText{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".dwm-selectChevron{flex:none}",
       ".dwm-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
       ".dwm-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--dsw-alias-label-caption)}",
       ".dwm-grid{display:flex;gap:48px;flex-wrap:wrap}",
@@ -125,6 +128,48 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
         readOnly: props.readOnly === true,
         onChange: props.onChange,
         onFocus: props.onFocus
+      });
+    }
+
+    /**
+     * Official selector: a pill trigger that opens the same anchored Menu the
+     * language row uses, instead of a native <select>.
+     * @param props.value - selected option id.
+     * @param props.options - `{ value, label }` rows.
+     * @param props.onChange - called with the chosen id.
+     * @param props.label - trigger text (defaults to the selected row's label).
+     * @returns the trigger and its menu.
+     */
+    function SelectField(props) {
+      var openState = React.useState(false);
+      var open = openState[0];
+      var setOpen = openState[1];
+      var shown = props.label;
+      for (var i = 0; i < props.options.length; i += 1) {
+        if (props.options[i].value === props.value && props.options[i].label) shown = props.options[i].label;
+      }
+      return jsx.jsx(OfficialMenu, {
+        open: open,
+        onClose: function () { setOpen(false); },
+        items: props.options.map(function (option) { return { id: option.value, label: option.label }; }),
+        selectedId: props.value,
+        onSelect: function (id) {
+          props.onChange(id);
+          setOpen(false);
+        },
+        align: props.align || "start",
+        portal: true,
+        anchor: jsx.jsxs("button", {
+          type: "button",
+          className: "dwm-select",
+          "aria-haspopup": "menu",
+          "aria-expanded": open,
+          onClick: function () { setOpen(!open); },
+          children: [
+            jsx.jsx("span", { className: "dwm-selectText", children: shown }),
+            jsx.jsx(IconChevronDownOutlineRegular, { className: "dwm-selectChevron" })
+          ]
+        })
       });
     }
 
@@ -197,8 +242,12 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
           var control;
           if (f.kind === "select") {
             var opts = [];
-            for (var m = 0; m < f.options.length; m++) opts.push(jsx.jsx("option", { value: f.options[m], children: f.options[m] }, f.options[m]));
-            control = jsx.jsx("select", { className: "dwm-select", value: current, onChange: function (e) { setDirty(f.key, e.target.value); }, children: opts });
+            for (var m = 0; m < f.options.length; m++) opts.push({ value: f.options[m], label: f.options[m] });
+            control = jsx.jsx(SelectField, {
+              value: current,
+              onChange: function (next) { setDirty(f.key, next); },
+              options: opts
+            });
           } else {
             control = jsx.jsx(TextInput, { type: f.kind === "number" ? "number" : "text", value: current, onChange: function (e) { setDirty(f.key, e.target.value); } });
           }
@@ -419,29 +468,24 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
         ) }),
         jsx.jsx("div", { className: "dwm-row", children: [
           jsx.jsx("label", { className: "dwm-label", children: t("目标工作区", "Workspace") }),
-          jsx.jsx("select", {
-            className: "dwm-select",
+          jsx.jsx(SelectField, {
             value: selected,
-            onChange: function (event) { setSelected(event.target.value); },
-            children: options.map(function (row) {
-              return jsx.jsx("option", {
+            onChange: function (next) { setSelected(next); },
+            options: options.map(function (row) {
+              return {
                 value: row.nodeId + "/" + row.workspaceId,
-                children: (row.label || row.workspaceId) + " · " + (row.nodeLabel || row.nodeId) + (row.path ? " · " + row.path : "") + (row.status === "online" ? "" : " (" + t("离线", "offline") + ")")
-              }, row.nodeId + "/" + row.workspaceId);
+                label: (row.label || row.workspaceId) + " · " + (row.nodeLabel || row.nodeId) + (row.path ? " · " + row.path : "") + (row.status === "online" ? "" : " (" + t("离线", "offline") + ")")
+              };
             })
           })
         ] }, "pick"),
         jsx.jsx("div", { className: "dwm-row", children: [
           jsx.jsx("label", { className: "dwm-label", children: t("会话", "Session") }),
-          jsx.jsx("select", {
-            className: "dwm-select",
+          jsx.jsx(SelectField, {
             value: sessionId,
-            onChange: function (event) { setSessionId(event.target.value); },
-            children: [
-              jsx.jsx("option", { value: "", children: t("新会话", "New session") }, "new")
-            ].concat(sessions.map(function (item) {
-              var label = (item.title || item.sessionId) + (item.busy ? " · " + t("运行中", "running") : "");
-              return jsx.jsx("option", { value: item.sessionId, children: label }, item.sessionId);
+            onChange: function (next) { setSessionId(next); },
+            options: [{ value: "", label: t("新会话", "New session") }].concat(sessions.map(function (item) {
+              return { value: item.sessionId, label: (item.title || item.sessionId) + (item.busy ? " · " + t("运行中", "running") : "") };
             }))
           })
         ] }, "sess"),
@@ -649,11 +693,10 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
           : (configValues[field.key] === undefined ? "" : String(configValues[field.key]));
         var control;
         if (field.kind === "select") {
-          control = jsx.jsx("select", {
-            className: "dwm-select",
+          control = jsx.jsx(SelectField, {
             value: current,
-            onChange: function (event) { setField(field.key, event.target.value); },
-            children: field.options.map(function (option) { return jsx.jsx("option", { value: option, children: option }, option); })
+            onChange: function (next) { setField(field.key, next); },
+            options: field.options.map(function (option) { return { value: option, label: option }; })
           });
         } else {
           control = jsx.jsx(TextInput, {
