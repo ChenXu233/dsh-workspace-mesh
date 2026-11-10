@@ -201,10 +201,10 @@ data: { "type": "ping" }
 浏览器替用户管理**对端**的工作区：列那台机器的目录，或在那台机器上登记一条 Workspace。设置页路由里只有它作用在别的机器上，所以它用 `meshSecret` 换来的 mesh token，而不是本页的登录 cookie。请求体：
 
 ```text
-{ op: 'browse' | 'workspace-create', nodeId, path, title? }
+{ op: 'browse' | 'mkdir' | 'workspace-create', nodeId, path, title?, name? }
 ```
 
-`browse` 只回答目录名与绝对路径，不返回文件内容；`path` 为空表示从那台机器的主目录开始。`workspace-create` 直接调对端的 `workspaceRegistry.create(path, title)`，所以工作区真的出现在那台机器上，本机不建目录、不登记记录。
+`browse` 只回答目录名与绝对路径，不返回文件内容；`path` 为空表示从那台机器的主目录开始。答案的形状就是官方目录对话框要的：`path`、`home`、`crumbs`（根到当前目录每一跳）、`entries`（只列目录，带 `hidden`）、`truncated`。`mkdir` 在 `path` 下建一个名为 `name` 的文件夹（`name` 只能是单段路径，不能含分隔符），返回 `{ path }`。`workspace-create` 直接调对端的 `workspaceRegistry.create(path, title)`，所以工作区真的出现在那台机器上，本机不建目录、不登记记录。
 
 透传层是 `MeshTransport.control`（可缺省）：没有这条能力的传输回答 503，而不是伪造一个空列表。对端把它落到 relay 的 `browse` / `workspace-create` 两个 op。
 

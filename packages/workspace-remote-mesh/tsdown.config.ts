@@ -27,8 +27,8 @@ const HOST_MODULES = [
   '@deepseek-ai/dsh-client-ui-conversation/client',
 ]
 
-/** Browser-half source root: CSS tag ids are relative to it. */
-const CLIENT_SRC = resolve(import.meta.dirname, 'vendor/ui-workspace/src/client')
+/** Browser-half source root: CSS tag ids are relative to it (every vendored package lives under it). */
+const CLIENT_SRC = resolve(import.meta.dirname, 'vendor')
 
 export default dshPackageBuild(PACKAGE, 'src/client/index.tsx', {
   externals: HOST_MODULES,

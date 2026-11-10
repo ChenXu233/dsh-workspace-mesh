@@ -40,7 +40,7 @@
 | D15 | 远程工作区是远端快照的投影：不建本地目录、不写原生 registry 记录，行由浏览器从 `/api/mesh/state` 的 `peers[].workspaces` 派生 | accepted | 已实施 | 见 §3 D15；会话子行由 D19 取代 |
 | D16 | 侧栏座位由质子影子托管：官方 entry 经 entry face 原样渲染，远程段是 region contribution，分栏比例存 client store | accepted | 已实施 | 见 §3 D16 |
 | D17 | 机器名是行上的后缀与悬浮卡，不写进标题 | accepted | 已实施 | 见 §3 D17 |
-| D18 | 对端管理（列目录 / 建 Workspace）走 `MeshTransport.control` + relay 两个 op，不进五方法数据面 | accepted | 已实施 | 见 §3 D18 |
+| D18 | 对端管理（列目录 / 建目录 / 建 Workspace）走 `MeshTransport.control` + relay 三个 op，不进五方法数据面；加目录的对话框直接渲染官方 `DirectoryBrowser` | accepted | 已实施 | 见 §3 D18 |
 | D19 | 远程 Workspace 展开后的会话行是只读投影：摘要来自对端 `sessionList`，行只画标题/运行点/相对时间，点击不在本机打开会话 | accepted | 已实施 | 见 §3 D19 |
 | D20 | hero 的 workspace picker 由质子接管座位、只换 kit：远程行并进官方菜单；选中记为派遣目标，不建本机会话 | accepted | 已实施 | 见 §3 D20；派遣面见 D21 |
 | D21 | 目标存在时主区域变成对端会话页：座位由质子接管，消息与工具卡用官方装配、官方渲染；事件按需从对端拉取，没有生命周期，也没有回执条 | accepted | 已实施 | 见 §3 D21 |
@@ -173,7 +173,9 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 
 ### D18：对端管理不进五方法数据面
 
-- 侧栏添加远程工作区需要两件工具面没有的能力：列对端目录、在对端登记 Workspace。它们落在 `MeshTransport.control`（可缺省）与 relay 的 `browse` / `workspace-create` 两个 op 上，用 `meshSecret` 换来的 mesh token 鉴权。
+- 侧栏添加远程工作区需要三件工具面没有的能力：列对端目录、在对端建一个文件夹、在对端登记 Workspace。它们落在 `MeshTransport.control`（可缺省）与 relay 的 `browse` / `mkdir` / `workspace-create` 三个 op 上，用 `meshSecret` 换来的 mesh token 鉴权。
+- 目录列表按官方对话框要的形状回答：`path`、`home`、`crumbs`（根到当前目录每一跳）、`entries`（只列目录，带 `hidden`）、`truncated`。少一个字段，对话框就会给出错误的路径栏或把隐藏目录当普通目录画出来。
+- 对话框本身是官方 `ui-directory-picker-browse` 的 `DirectoryBrowser`（vendor 原样）：Miller 双栏、面包屑、路径编辑、新建文件夹、隐藏文件开关都由它负责；我们只提供那两个线调用与「确认即建 Workspace」的语义。
 - 五方法数据面（`workspace/list`、`session/create`、`session/prompt`、`session/follow`、`session/read`）一字不改：那是任务怎么到对端的路，这两条是人在编辑工作区列表时的管理动作。
 - 能力缺省时回答 503 并保留对端原文（例如旧对端的 `op must be one of …`），不伪造列表，也不降级成本地路径。
 

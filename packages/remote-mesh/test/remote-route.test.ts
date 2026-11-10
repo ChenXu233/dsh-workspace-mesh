@@ -59,6 +59,19 @@ test('a peer browses directories, never files', async () => {
     assert.deepEqual(payload.value?.entries.map((entry) => entry.name), ['a-first', 'b-second'])
     // The answer is the canonical path; Windows hands mkdtemp an 8.3 short form.
     assert.equal(payload.value?.path, await realpath(root))
+    // The shipped dialog renders a crumb trail and filters hidden rows: both
+    // have to arrive, or opening the browser on a peer shows the wrong tree.
+    const listing = payload.value as unknown as {
+      home: string
+      crumbs: Array<{ name: string; path: string }>
+      entries: Array<{ name: string; hidden: boolean }>
+      truncated: boolean
+    }
+    assert.equal(listing.home, await realpath(homedir()))
+    assert.equal(listing.crumbs[listing.crumbs.length - 1]?.path, await realpath(root))
+    assert.equal(listing.crumbs[0]?.path, listing.crumbs[0]?.name)
+    assert.deepEqual(listing.entries.map(entry => entry.hidden), [false, false])
+    assert.equal(listing.truncated, false)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -149,4 +162,49 @@ test('a peer failure keeps its message instead of becoming a generic error', asy
   assert.equal(payload.ok, false)
   assert.equal(payload.code, 'browse-missing')
   assert.match(payload.error ?? '', /directory is gone/)
+})
+
+test('a hidden folder is reported hidden instead of being dropped', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mesh-hidden-'))
+  try {
+    await mkdir(join(root, '.secret'))
+    await mkdir(join(root, 'visible'))
+    const response = await handleRelay(await acceptedRequest('browse', { path: root }), relayControl())
+    const payload = (await response.json()) as { value?: { entries: Array<{ name: string, hidden: boolean }> } }
+    assert.deepEqual(payload.value?.entries.map(entry => [entry.name, entry.hidden]), [
+      ['.secret', true],
+      ['visible', false],
+    ])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('a peer creates one folder inside a directory it can read', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mesh-mkdir-'))
+  try {
+    const response = await handleRelay(await acceptedRequest('mkdir', { path: root, name: 'fresh' }), relayControl())
+    const payload = (await response.json()) as { ok: boolean; value?: { path: string } }
+    assert.equal(payload.ok, true)
+    assert.equal(payload.value?.path, join(await realpath(root), 'fresh'))
+    const listed = await handleRelay(await acceptedRequest('browse', { path: root }), relayControl())
+    const listing = (await listed.json()) as { value?: { entries: Array<{ name: string }> } }
+    assert.deepEqual(listing.value?.entries.map(entry => entry.name), ['fresh'])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('folder names cannot escape their parent', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mesh-mkdir-bad-'))
+  try {
+    for (const name of ['', '..', '.', 'nested/path', 'nested\\path']) {
+      const response = await handleRelay(await acceptedRequest('mkdir', { path: root, name }), relayControl())
+      const payload = (await response.json()) as { ok: boolean; code?: string }
+      assert.equal(payload.ok, false, 'name ' + JSON.stringify(name) + ' must be refused')
+      assert.equal(payload.code, 'mkdir-invalid')
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })

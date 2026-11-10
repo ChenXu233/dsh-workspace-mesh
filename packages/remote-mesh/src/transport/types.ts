@@ -129,7 +129,7 @@ export interface MeshTransport {
 }
 
 /** Administration operations a paired peer may serve outside the task data plane. */
-export type MeshControlOp = 'browse' | 'workspace-create'
+export type MeshControlOp = 'browse' | 'workspace-create' | 'mkdir'
 
 /** What an adapter throws when it cannot do its job — never return fake data instead. */
 export class TransportUnavailableError extends Error {

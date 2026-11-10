@@ -26,7 +26,7 @@ export const MESH_RELAY_PATH = '/api/mesh/relay'
 /** The same credential, one open response: live frames pushed instead of polled. */
 export const MESH_RELAY_STREAM_PATH = '/api/mesh/relay/stream'
 
-export type MeshRelayOp = 'list' | 'create' | 'prompt' | 'page' | 'workspaces' | 'browse' | 'workspace-create' | 'assistant-live'
+export type MeshRelayOp = 'list' | 'create' | 'prompt' | 'page' | 'workspaces' | 'browse' | 'workspace-create' | 'mkdir' | 'assistant-live'
 
 /** Dictionaries a peer browse may return; a machine never answers with more. */
 const MAX_BROWSE_ENTRIES = 500
@@ -43,6 +43,12 @@ export interface RelayBrowseListing {
   path: string
   /** Parent directory, or null at a filesystem root. */
   parent: string | null
+  /** The owning account's home directory: breadcrumb "Home" roots here. */
+  home: string
+  /** Ancestors from the filesystem root down to `path`, inclusive; every crumb is a jump target. */
+  crumbs: Array<{ name: string, path: string, hidden: boolean }>
+  /** Entries cut at the read bound: the level has more children than reported. */
+  truncated: boolean
   /** Subdirectories only: a Workspace is a directory, never a file. */
   entries: Array<{ name: string; path: string }>
 }
@@ -64,6 +70,32 @@ function believe(code: string, message: string): Error {
  * @param value - the requested absolute path, or empty for the home directory.
  * @returns the canonical directory and its subdirectories.
  */
+/**
+ * The jump chain from the filesystem root to one directory.
+ *
+ * The browser dialog renders this as its breadcrumb trail, and every crumb is a
+ * click target, so the chain has to be complete rather than "the parent".
+ * @param canonical - absolute, already resolved path.
+ * @returns root-first crumbs, the listed directory last.
+ */
+function crumbsOf(canonical: string): Array<{ name: string, path: string, hidden: boolean }> {
+  const crumbs: Array<{ name: string, path: string, hidden: boolean }> = []
+  let current = canonical
+  while (true) {
+    const parent = dirname(current)
+    // A root crumb carries its full path as the name: nothing would label it.
+    // A child of the root drops only the separator (`/data` is "data", not "ata"),
+    // which is why the slice depends on where the parent ends.
+    const name = parent === current
+      ? current
+      : current.slice(parent.endsWith('/') ? parent.length : parent.length + 1)
+    crumbs.unshift({ name, path: current, hidden: false })
+    if (parent === current) break
+    current = parent
+  }
+  return crumbs
+}
+
 export async function browseDirectories(value: unknown): Promise<RelayBrowseListing> {
   const asked = typeof value === 'string' ? value.trim() : ''
   const requested = asked === '' ? homedir() : asked
@@ -81,14 +113,25 @@ export async function browseDirectories(value: unknown): Promise<RelayBrowseList
     throw believe('browse-invalid', `"${canonical}" is not a directory`)
   }
   const rows = await fs.readdir(canonical, { withFileTypes: true })
-  const entries: Array<{ name: string; path: string }> = []
+  const entries: Array<{ name: string; path: string; hidden: boolean }> = []
+  let truncated = false
   for (const row of rows.sort((left, right) => left.name.localeCompare(right.name))) {
     if (!row.isDirectory()) continue
-    entries.push({ name: row.name, path: join(canonical, row.name) })
-    if (entries.length >= MAX_BROWSE_ENTRIES) break
+    if (entries.length >= MAX_BROWSE_ENTRIES) {
+      truncated = true
+      break
+    }
+    entries.push({ name: row.name, path: join(canonical, row.name), hidden: row.name.startsWith('.') })
   }
   const parent = dirname(canonical)
-  return { path: canonical, parent: parent === canonical ? null : parent, entries }
+  return {
+    path: canonical,
+    parent: parent === canonical ? null : parent,
+    home: homedir(),
+    crumbs: crumbsOf(canonical),
+    entries,
+    truncated,
+  }
 }
 
 /**
@@ -122,7 +165,7 @@ export interface MeshRelayControl {
 }
 
 const RELAY_OPS: ReadonlySet<string> = new Set<MeshRelayOp>([
-  'list', 'create', 'prompt', 'page', 'workspaces', 'browse', 'workspace-create', 'assistant-live',
+  'list', 'create', 'prompt', 'page', 'workspaces', 'browse', 'workspace-create', 'mkdir', 'assistant-live',
 ])
 
 export async function handleRelay(request: Request, control: MeshRelayControl): Promise<Response> {
@@ -163,6 +206,25 @@ export async function handleRelay(request: Request, control: MeshRelayControl): 
       const message = err instanceof Error ? err.message : String(err)
       const code = typeof (err as { code?: unknown }).code === 'string' ? (err as { code: string }).code : 'browse-failed'
       return jsonResponse({ ok: false, code, error: message }, 200)
+    }
+  }
+  if (op === 'mkdir') {
+    const parent = typeof args.path === 'string' ? args.path.trim() : ''
+    const name = typeof args.name === 'string' ? args.name.trim() : ''
+    if (parent === '' || !isAbsolute(parent)) {
+      return jsonResponse({ ok: false, code: 'browse-invalid', error: 'path must be an absolute directory path' }, 200)
+    }
+    if (name === '' || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) {
+      return jsonResponse({ ok: false, code: 'mkdir-invalid', error: 'name must be a single path segment' }, 200)
+    }
+    try {
+      const base = await fs.realpath(parent)
+      const target = join(base, name)
+      await fs.mkdir(target)
+      return jsonResponse({ ok: true, value: { path: target } }, 200)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return jsonResponse({ ok: false, code: 'mkdir-failed', error: message }, 200)
     }
   }
   if (op === 'assistant-live') {

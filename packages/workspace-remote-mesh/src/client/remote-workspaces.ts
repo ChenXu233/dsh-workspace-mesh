@@ -54,7 +54,13 @@ export interface RemoteNodeRow {
 export interface RemoteBrowseListing {
   readonly path: string
   readonly parent: string | null
-  readonly entries: ReadonlyArray<{ name: string; path: string }>
+  /** The owning account's home; the dialog roots its "Home" crumb here. */
+  readonly home: string
+  /** Root-first jump chain, the listed directory last. */
+  readonly crumbs: ReadonlyArray<{ name: string; path: string; hidden: boolean }>
+  readonly entries: ReadonlyArray<{ name: string; path: string; hidden: boolean }>
+  /** The peer stopped reading at its bound: this level has more children. */
+  readonly truncated: boolean
 }
 
 /** Stable identity for a remote row; also its group key in the list. */
@@ -342,8 +348,30 @@ export async function browseRemote(nodeId: string, path: string): Promise<Remote
   return {
     path: listing.path,
     parent: typeof listing.parent === 'string' ? listing.parent : null,
-    entries: listing.entries as Array<{ name: string; path: string }>,
+    home: typeof listing.home === 'string' ? listing.home : listing.path,
+    crumbs: Array.isArray(listing.crumbs) ? listing.crumbs as Array<{ name: string; path: string; hidden: boolean }> : [],
+    entries: listing.entries as Array<{ name: string; path: string; hidden: boolean }>,
+    truncated: listing.truncated === true,
   }
+}
+
+/**
+ * Create one folder on the peer, inside an existing parent.
+ *
+ * The directory browser offers "new folder" while you are choosing where the
+ * Workspace should live; the folder has to appear on the machine that will own
+ * it, not here.
+ * @param nodeId - the owning machine.
+ * @param path - absolute parent path on that machine.
+ * @param name - one path segment.
+ * @returns the created directory's path.
+ */
+export async function mkdirRemote(nodeId: string, path: string, name: string): Promise<string> {
+  const value = await callRemote('mkdir', { nodeId, path, name }) as { path?: unknown } | undefined
+  const created = typeof value?.path === 'string' ? value.path : ''
+  if (created === '') throw new Error('peer answered with an unexpected folder result')
+  refreshRemoteWorkspaces()
+  return created
 }
 
 /**

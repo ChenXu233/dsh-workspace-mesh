@@ -1,16 +1,20 @@
 /**
- * Add a remote workspace: choose a machine, walk its directories, register the
- * one you stop in.
+ * Add a remote workspace: browse a machine's folders with the shipped dialog,
+ * then register the folder you stop in.
  *
- * The workspace is created on the machine that owns the directory -- this Host
- * only relays the call. Nothing is copied, mounted, or turned into a local
- * record here, which is why the dialog never offers a local path.
+ * The dialog is the official one (`ui-directory-picker-browse`, vendored
+ * unmodified): it owns the Miller columns, the breadcrumb trail, path editing,
+ * "new folder" and the hidden-files toggle. This file supplies the two wire
+ * calls — both aimed at the machine that will own the workspace — and turns a
+ * confirmed directory into `workspace-create` there. Nothing is copied,
+ * mounted, or recorded locally.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { DirectoryListing } from '@deepseek-ai/dsh-api-remotes/client'
+import { DirectoryBrowser } from '../../vendor/ui-directory-picker-browse/src/client/DirectoryBrowser'
 import type { RemoteTranslate } from './locales'
-import { browseRemote, createRemoteWorkspace, useRemoteNodes } from './remote-workspaces'
-import type { RemoteBrowseListing } from './remote-workspaces'
+import { browseRemote, createRemoteWorkspace, mkdirRemote, useRemoteNodes, useRemoteWorkspaces } from './remote-workspaces'
 
 export interface RemoteWorkspaceDialogProps {
   open: boolean
@@ -24,7 +28,17 @@ function baseName(path: string): string {
   return trimmed.split(/[\\/]/u).pop() || path
 }
 
-const LIST_HEIGHT = 240
+/**
+ * The directory one level above a path, or undefined at a root.
+ * @param path - absolute path on the peer.
+ * @returns its parent, when there is one.
+ */
+function parentOf(path: string): string | undefined {
+  const cleaned = path.replace(/[\\/]+$/u, '')
+  const cut = Math.max(cleaned.lastIndexOf('/'), cleaned.lastIndexOf('\\'))
+  if (cut <= 0) return undefined
+  return cleaned.slice(0, cut)
+}
 
 /**
  * The adding flow lives in a dialog so a failed peer never takes the section down.
@@ -35,151 +49,133 @@ const LIST_HEIGHT = 240
  */
 export function RemoteWorkspaceDialog({ open, onClose, t }: RemoteWorkspaceDialogProps): JSX.Element {
   const nodes = useRemoteNodes()
+  const workspaces = useRemoteWorkspaces()
   const [nodeId, setNodeId] = useState('')
-  const [listing, setListing] = useState<RemoteBrowseListing | undefined>(undefined)
+  /** Several machines: the owner is picked before the browser opens. */
+  const [choosing, setChoosing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Opening resets the walk; a single reachable node is chosen for the user.
   useEffect(() => {
     if (!open) return
-    setListing(undefined)
     setError(null)
     setBusy(false)
-    setNodeId(current => current !== '' && nodes.some(node => node.nodeId === current)
-      ? current
-      : (nodes[0]?.nodeId ?? ''))
-  }, [open, nodes])
+    const known = nodeId !== '' && nodes.some(node => node.nodeId === nodeId)
+    if (known) return
+    setNodeId(nodes[0]?.nodeId ?? '')
+    setChoosing(nodes.length > 1)
+  }, [open, nodes, nodeId])
 
-  // Browse the chosen node from its home directory.
-  useEffect(() => {
-    if (!open || nodeId === '') return
-    let cancelled = false
-    setBusy(true)
-    setError(null)
-    browseRemote(nodeId, '')
-      .then((next) => { if (!cancelled) setListing(next) })
-      .catch((reason: unknown) => { if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason)) })
-      .finally(() => { if (!cancelled) setBusy(false) })
-    return () => { cancelled = true }
-  }, [open, nodeId])
+  // Where the dialog opens: the folder this machine's workspaces live in, so the
+  // first screen already shows the tree the user came for. A container home is
+  // often only dot-directories, which the dialog hides by default — opening
+  // there would look like an empty folder.
+  const startPath = useMemo(() => {
+    const row = workspaces.find(candidate => candidate.nodeId === nodeId)
+    return row === undefined ? undefined : parentOf(row.remotePath)
+  }, [workspaces, nodeId])
 
-  const walk = (path: string): void => {
+  // The two wire calls the shipped dialog drives, pointed at the peer.
+  const calls = useMemo(() => ({
+    async listDirectory(path?: string, signal?: AbortSignal): Promise<DirectoryListing> {
+      if (nodeId === '') throw new Error(t('dialog.noNodes'))
+      const opening = path === undefined
+      const listing = await browseRemote(nodeId, path ?? startPath ?? '')
+      if (signal?.aborted === true) throw new Error('aborted')
+      return {
+        path: listing.path,
+        // The dialog roots its trail at "home" and treats a level outside it as
+        // a jump target, which splits the view in two on open. When the page
+        // starts somewhere more useful than the account home (where this
+        // machine's workspaces live), that place is the trail's root.
+        home: opening && startPath !== undefined ? listing.path : listing.home,
+        crumbs: listing.crumbs.map(crumb => ({ ...crumb })),
+        entries: listing.entries.map(entry => ({ ...entry })),
+        truncated: listing.truncated,
+      }
+    },
+    async createDirectory(path: string, name: string): Promise<string> {
+      return await mkdirRemote(nodeId, path, name)
+    },
+  }), [nodeId, t, startPath])
+
+  const commit = (path: string): void => {
     if (nodeId === '') return
     setBusy(true)
     setError(null)
-    browseRemote(nodeId, path)
-      .then(setListing)
-      .catch((reason: unknown) => { setError(reason instanceof Error ? reason.message : String(reason)) })
-      .finally(() => { setBusy(false) })
-  }
-
-  const commit = (): void => {
-    if (listing === undefined || nodeId === '') return
-    setBusy(true)
-    setError(null)
-    createRemoteWorkspace(nodeId, listing.path, baseName(listing.path))
+    createRemoteWorkspace(nodeId, path, baseName(path))
       .then(() => { onClose() })
       .catch((reason: unknown) => { setError(reason instanceof Error ? reason.message : String(reason)) })
       .finally(() => { setBusy(false) })
   }
 
-  const offline = nodes.length === 0
+  if (open && nodes.length === 0) {
+    return (
+      <Modal open onClose={onClose} closeLabel={t('dialog.close')} title={t('dialog.title')}
+        footer={<Button variant="outline" onClick={onClose}>{t('dialog.cancel')}</Button>}>
+        <div style={MUTED} role="status">{t('dialog.noNodes')}</div>
+      </Modal>
+    )
+  }
+
+  if (open && choosing) {
+    return (
+      <Modal open onClose={onClose} closeLabel={t('dialog.close')} title={t('dialog.chooseMachine')}
+        footer={<Button variant="outline" onClick={onClose}>{t('dialog.cancel')}</Button>}>
+        <div style={CHIPS}>
+          {nodes.map(node => (
+            <button
+              key={node.nodeId}
+              type="button"
+              onClick={() => { setNodeId(node.nodeId); setChoosing(false) }}
+              aria-pressed={node.nodeId === nodeId}
+              style={node.nodeId === nodeId ? CHIP_ACTIVE : CHIP}
+            >
+              {node.label}
+              {node.online ? '' : ' (' + t('offline') + ')'}
+            </button>
+          ))}
+        </div>
+      </Modal>
+    )
+  }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      closeLabel={t('dialog.close')}
-      title={t('dialog.title')}
-      {...{ description: t('dialog.hint') }}
-      footer={(
-        <>
-          <Button variant="outline" disabled={busy} onClick={onClose}>{t('dialog.cancel')}</Button>
-          <Button variant="primary" disabled={busy || listing === undefined} onClick={commit}>{t('dialog.create')}</Button>
-        </>
+    <>
+      <DirectoryBrowser
+        open={open && nodeId !== ''}
+        busy={busy}
+        listDirectory={calls.listDirectory}
+        createDirectory={calls.createDirectory}
+        onOpen={commit}
+        onClose={onClose}
+        t={t as unknown as (key: string, params?: Record<string, unknown>) => string}
+      />
+      {error === null ? null : (
+        <Modal open onClose={() => { setError(null) }} closeLabel={t('dialog.close')}
+          title={t('dialog.error')}
+          footer={<Button variant="outline" onClick={() => { setError(null) }}>{t('dialog.cancel')}</Button>}>
+          <div style={MUTED} role="alert">{error}</div>
+        </Modal>
       )}
-    >
-      {offline ? (
-        <div style={MUTED} role="status">{t('dialog.noNodes')}</div>
-      ) : (
-        <>
-          <div style={ROW}>
-            <span style={LABEL}>{t('dialog.node')}</span>
-            <div style={CHIPS}>
-              {nodes.map(node => (
-                <button
-                  key={node.nodeId}
-                  type="button"
-                  onClick={() => { setNodeId(node.nodeId) }}
-                  aria-pressed={node.nodeId === nodeId}
-                  style={node.nodeId === nodeId ? CHIP_ACTIVE : CHIP}
-                >
-                  {node.label}
-                  {node.online ? '' : ' (' + t('offline') + ')'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={ROW}>
-            <span style={LABEL}>{t('dialog.path')}</span>
-            <div style={PATH_ROW}>
-              <code style={PATH}>{listing?.path ?? '…'}</code>
-              <Button
-                variant="outline"
-                disabled={busy || listing?.parent == null}
-                onClick={() => { if (listing?.parent != null) walk(listing.parent) }}
-              >
-                {t('dialog.up')}
-              </Button>
-            </div>
-          </div>
-
-          <div style={LIST_BOX} role="listbox" aria-busy={busy}>
-            {busy && listing === undefined && <div style={MUTED}>{t('dialog.loading')}</div>}
-            {listing !== undefined && listing.entries.length === 0 && <div style={MUTED}>{t('dialog.empty')}</div>}
-            {listing?.entries.map(entry => (
-              <button
-                key={entry.path}
-                type="button"
-                role="option"
-                aria-selected={false}
-                style={ENTRY}
-                onClick={() => { walk(entry.path) }}
-              >
-                {entry.name}
-              </button>
-            ))}
-          </div>
-
-          {error !== null && <div style={ERROR} role="alert">{error}</div>}
-        </>
-      )}
-    </Modal>
+    </>
   )
 }
 
-const MUTED: React.CSSProperties = { fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' }
-const ROW: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }
-const LABEL: React.CSSProperties = { fontSize: 12, lineHeight: '16px', color: 'var(--dsw-alias-label-tertiary)' }
-const CHIPS: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6 }
+const MUTED: React.CSSProperties = { fontSize: 13, lineHeight: '20px', color: 'var(--dsw-alias-label-tertiary)' }
+const CHIPS: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 }
 const CHIP: React.CSSProperties = {
-  fontSize: 12, lineHeight: '20px', padding: '2px 10px', borderRadius: 999, cursor: 'pointer',
-  border: '0.5px solid var(--dsw-alias-border-l4)', background: 'transparent', color: 'inherit',
+  border: '1px solid var(--dsw-alias-border-secondary, rgba(0, 0, 0, 0.12))',
+  borderRadius: 999,
+  padding: '4px 12px',
+  background: 'transparent',
+  color: 'inherit',
+  fontSize: 13,
+  cursor: 'pointer',
 }
-const CHIP_ACTIVE: React.CSSProperties = { ...CHIP, background: 'var(--dsw-alias-interactive-bg-selected, rgba(255,255,255,0.12))' }
-const PATH_ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8 }
-const PATH: React.CSSProperties = {
-  flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-  fontSize: 12, lineHeight: '20px', color: 'var(--dsw-alias-label-secondary)',
+const CHIP_ACTIVE: React.CSSProperties = {
+  ...CHIP,
+  borderColor: 'var(--dsw-alias-state-business-primary, #4d6bfe)',
+  color: 'var(--dsw-alias-state-business-primary, #4d6bfe)',
 }
-const LIST_BOX: React.CSSProperties = {
-  maxHeight: LIST_HEIGHT, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2,
-  border: '0.5px solid var(--dsw-alias-border-l4)', borderRadius: 8, padding: 4,
-}
-const ENTRY: React.CSSProperties = {
-  textAlign: 'left', fontSize: 13, lineHeight: '24px', padding: '0 8px', borderRadius: 6, cursor: 'pointer',
-  border: 'none', background: 'transparent', color: 'inherit',
-}
-const ERROR: React.CSSProperties = { marginTop: 8, fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-state-warning-primary, #d97706)' }

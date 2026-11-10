@@ -19,7 +19,7 @@ import type { MeshControlOp } from '../transport/types.js'
 
 export const MESH_REMOTE_PATH = '/api/mesh/remote'
 
-const REMOTE_OPS: ReadonlySet<string> = new Set<MeshControlOp>(['browse', 'workspace-create'])
+const REMOTE_OPS: ReadonlySet<string> = new Set<MeshControlOp>(['browse', 'workspace-create', 'mkdir'])
 
 export interface MeshRemoteControl {
   runtime: MeshToolRuntime
@@ -60,6 +60,13 @@ export async function handleRemote(request: Request, control: MeshRemoteControl)
   const args: Record<string, unknown> = { path }
   const title = typeof record.title === 'string' ? record.title.trim() : ''
   if (title !== '') args.title = title
+  if (op === 'mkdir') {
+    const name = typeof record.name === 'string' ? record.name.trim() : ''
+    if (name === '' || name.includes('/') || name.includes('\\')) {
+      return jsonResponse({ ok: false, error: 'name must be a single path segment' }, 400)
+    }
+    args.name = name
+  }
   try {
     const value = await transport.control(nodeId, op as MeshControlOp, args)
     return jsonResponse({ ok: true, value }, 200)
