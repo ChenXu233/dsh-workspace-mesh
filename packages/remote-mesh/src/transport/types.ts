@@ -42,6 +42,28 @@ export interface MeshEventPage {
 }
 
 /** Which slice of one session log a caller asks for. */
+/** One live Assistant frame (start, chunk, or end) retained by the owning machine. */
+export interface MeshLiveFrame {
+  readonly type?: string
+  readonly revision?: number
+  readonly attemptId?: string
+  readonly index?: number
+  readonly time?: number
+  readonly turn?: number
+  readonly step?: number
+  readonly startedAfterSeq?: number
+  readonly chunk?: unknown
+  readonly outcome?: unknown
+}
+
+/** Everything one reader has not folded yet. */
+export interface MeshLivePage {
+  /** Highest revision the owning machine produced so far. */
+  readonly revision: number
+  /** Frames newer than the reader's revision, oldest first. */
+  readonly frames: readonly MeshLiveFrame[]
+}
+
 export interface MeshEventRequest {
   /** Tail cursor; omitted means the peer's current head. */
   throughSeq?: number
@@ -67,6 +89,14 @@ export interface MeshTransport {
    * the same reason as `readSession`.
    */
   readEvents?(nodeId: string, sessionId: string, request?: MeshEventRequest): Promise<MeshEventPage>
+  /**
+   * Read the live Assistant frames a peer retained for one Session.
+   *
+   * Durable events settle a turn only once it is finished; these frames are what
+   * paints the answer while it is being written. Optional: without them the page
+   * shows whole messages.
+   */
+  readAssistantLive?(nodeId: string, sessionId: string, since: number): Promise<MeshLivePage>
   /**
    * Read the tail of a session log. Optional: an adapter that cannot read
    * history simply leaves it out and the UI hides the viewer.

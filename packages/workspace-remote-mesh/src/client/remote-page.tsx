@@ -355,7 +355,7 @@ export function RemoteTranscript({ ctx, owner, t, shipped }: RemotePageContext &
     setShellSession(state.target !== undefined && blank === true ? shellId : undefined)
   }, [state.target !== undefined, blank, shellId])
   useEffect(() => () => { setShellSession(undefined) }, [])
-  const view = useRemoteChatView(ctx, state.events, state.hasMore)
+  const view = useRemoteChatView(ctx, state.events, state.live, state.hasMore)
   const snapshot = view.snapshot()
   const columnRef = useRef<HTMLDivElement | null>(null)
 

@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { MeshToolRuntime } from '../tools/types.js'
 import { jsonResponse, mountExactRoute, withConnection } from './mount.js'
 import type { MeshFetchRoute, MeshRouteContext } from './mount.js'
+import type { AssistantLiveHub } from '../live/assistant.js'
 
 /**
  * Read the tail of a remote session, for the page's conversation viewer.
@@ -14,6 +15,8 @@ export const MESH_SESSION_PATH = '/api/mesh/session'
 
 export interface MeshSessionControl {
   runtime: MeshToolRuntime
+  /** Frames this Host retained for its own Sessions; absent on a headless build. */
+  hub?: AssistantLiveHub
 }
 
 export async function handleSessionRead(request: Request, control: MeshSessionControl): Promise<Response> {
@@ -103,6 +106,40 @@ export async function handleSessionEvents(request: Request, control: MeshSession
   }
 }
 
+/** Live assistant frames; a page folds them into the answer while it is being written. */
+export const MESH_SESSION_LIVE_PATH = '/api/mesh/session/live'
+
+export async function handleSessionLive(request: Request, control: MeshSessionControl): Promise<Response> {
+  const url = new URL(request.url)
+  const sessionId = url.searchParams.get('sessionId') ?? ''
+  if (sessionId === '') {
+    return jsonResponse({ ok: false, error: 'sessionId is required' }, 400)
+  }
+  const rawSince = Number(url.searchParams.get('since') ?? '0')
+  const since = Number.isFinite(rawSince) && rawSince > 0 ? rawSince : 0
+  const nodeId = url.searchParams.get('nodeId') ?? ''
+  // A page on this machine asks about a Session on another one: forward.
+  if (nodeId !== '') {
+    const transport = control.runtime.transport
+    if (transport?.readAssistantLive === undefined) {
+      return jsonResponse({ ok: false, code: 'unavailable', error: 'the active transport cannot read live frames' }, 200)
+    }
+    try {
+      const page = await transport.readAssistantLive(nodeId, sessionId, since)
+      return jsonResponse({ ok: true, ...page }, 200)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      const code = typeof (err as { code?: unknown }).code === 'string' ? (err as { code: string }).code : undefined
+      return jsonResponse(code === undefined ? { ok: false, error: message } : { ok: false, code, error: message }, 200)
+    }
+  }
+  // Otherwise the Session runs here and the frames are ours to hand out.
+  if (control.hub === undefined) {
+    return jsonResponse({ ok: false, code: 'unavailable', error: 'this Host does not retain live frames' }, 200)
+  }
+  return jsonResponse({ ok: true, ...control.hub.read(sessionId, since) }, 200)
+}
+
 /** Open a Session on the peer's machine inside the picked Workspace. */
 export const MESH_SESSION_OPEN_PATH = '/api/mesh/session/open'
 
@@ -164,9 +201,9 @@ export async function handleSessionPrompt(request: Request, control: MeshSession
   }
 }
 
-/** Mount the three page-facing routes on one Connection-bearing context. */
-export function registerMeshSessionPageRoutes(ctx: Context, runtime: MeshToolRuntime): void {
-  const control: MeshSessionControl = { runtime }
+/** Mount the page-facing routes on one Connection-bearing context. */
+export function registerMeshSessionPageRoutes(ctx: Context, runtime: MeshToolRuntime, hub?: AssistantLiveHub): void {
+  const control: MeshSessionControl = hub === undefined ? { runtime } : { runtime, hub }
   withConnection(ctx, (inner) => {
     const mounted = [
       mountExactRoute(inner, {
@@ -175,6 +212,17 @@ export function registerMeshSessionPageRoutes(ctx: Context, runtime: MeshToolRun
         fetch: async (request) => {
           try {
             return await handleSessionEvents(request, control)
+          } catch (err) {
+            return jsonResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500)
+          }
+        },
+      }),
+      mountExactRoute(inner, {
+        path: MESH_SESSION_LIVE_PATH,
+        methods: ['GET'],
+        fetch: async (request) => {
+          try {
+            return await handleSessionLive(request, control)
           } catch (err) {
             return jsonResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500)
           }
@@ -206,4 +254,3 @@ export function registerMeshSessionPageRoutes(ctx: Context, runtime: MeshToolRun
     return mounted.every(Boolean)
   })
 }
-

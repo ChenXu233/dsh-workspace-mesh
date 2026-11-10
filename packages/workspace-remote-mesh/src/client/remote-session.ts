@@ -11,9 +11,11 @@
  * workspaces must not create Sessions on the peer.
  */
 import { useSyncExternalStore } from 'react'
-import { currentDispatchTarget } from './dispatch-target'
+import { currentDispatchTarget, setDispatchTarget } from './dispatch-target'
 import { refreshRemoteWorkspaces } from './remote-workspaces'
 import type { DispatchTarget } from './dispatch-target'
+import { dropEntries, EMPTY_LIVE, foldFrames } from './remote-live'
+import type { LiveEntry, LiveState } from './remote-live'
 
 /** One durable event, as the peer's log records it (already lossless JSON). */
 export interface RemoteEvent {
@@ -39,6 +41,12 @@ export interface RemotePageState {
   readonly hasMore: boolean
   /** Whether the peer's Session is running right now. */
   readonly running: boolean
+  /**
+   * Rows folded from the peer's live frames: the answer being written. They are
+   * client-only, exactly like the owning browser's, and disappear when the
+   * durable message settles the turn.
+   */
+  readonly live: readonly LiveEntry[]
   /** Bumped whenever the event window actually changed. */
   readonly revision: number
 }
@@ -51,6 +59,7 @@ const IDLE: RemotePageState = {
   events: [],
   hasMore: false,
   running: false,
+  live: [],
   revision: 0,
 }
 
@@ -58,6 +67,12 @@ let state: RemotePageState = IDLE
 const listeners = new Set<() => void>()
 let timer: ReturnType<typeof setInterval> | undefined
 let inflight = false
+/** Live frames arrive far more often than durable events, so they get their own clock. */
+let liveTimer: ReturnType<typeof setInterval> | undefined
+let liveInflight = false
+/** Consecutive polls with nothing new; a quiet turn stops the timer. */
+let liveIdle = 0
+let liveState: LiveState = EMPTY_LIVE
 
 function publish(next: RemotePageState): void {
   state = next
@@ -105,6 +120,71 @@ async function post(path: string, body: unknown): Promise<Record<string, unknown
 function stopTimer(): void {
   if (timer !== undefined) clearInterval(timer)
   timer = undefined
+}
+
+/** Fast clock while the peer is writing: the answer is painted from these frames. */
+function startLivePolling(): void {
+  if (liveTimer !== undefined || state.sessionId === undefined) return
+  liveIdle = 0
+  liveTimer = setInterval(() => { void pollLive() }, 150)
+  void pollLive()
+}
+
+function stopLivePolling(): void {
+  if (liveTimer !== undefined) clearInterval(liveTimer)
+  liveTimer = undefined
+  liveIdle = 0
+}
+
+/** Forget every folded row (session switch, settlement, leaving the page). */
+function resetLive(): void {
+  liveState = EMPTY_LIVE
+  if (state.live.length !== 0) publish({ ...state, live: [], revision: state.revision + 1 })
+}
+
+/**
+ * Read the peer's live frames and fold them into rows.
+ *
+ * The peer keeps a rolling copy per Session; `since` is the last revision this
+ * page folded, so a poll returns only what is new. Nothing here waits for the
+ * durable log: the rows are what the answer looks like while it is written.
+ */
+async function pollLive(): Promise<void> {
+  if (liveInflight) return
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  const { target, sessionId } = state
+  if (target === undefined || sessionId === undefined) { stopLivePolling(); return }
+  liveInflight = true
+  try {
+    const url = new URL('/api/mesh/session/live', globalThis.location.origin)
+    url.searchParams.set('nodeId', target.nodeId)
+    url.searchParams.set('sessionId', sessionId)
+    url.searchParams.set('since', String(liveState.revision))
+    const response = await fetch(url, { credentials: 'same-origin', headers: { accept: 'application/json' }, cache: 'no-store' })
+    const payload = (await response.json().catch(() => undefined)) as Record<string, unknown> | undefined
+    if (payload === undefined || payload.ok !== true) {
+      // A peer that cannot serve live frames (older build, relay without the
+      // route) just means the page settles per message; no error surface for it.
+      stopLivePolling()
+      return
+    }
+    const frames = Array.isArray(payload.frames) ? payload.frames as never[] : []
+    const cursor = state.events.length === 0 ? 0 : state.events[state.events.length - 1]!.seq
+    const folded = foldFrames(liveState, frames, cursor)
+    if (folded === liveState) {
+      liveIdle += 1
+      if (liveIdle >= 8 && state.running === false) stopLivePolling()
+      return
+    }
+    liveIdle = 0
+    liveState = folded
+    publish({ ...state, live: folded.entries, revision: state.revision + 1 })
+  } catch {
+    liveIdle += 1
+    if (liveIdle >= 8) stopLivePolling()
+  } finally {
+    liveInflight = false
+  }
 }
 
 /** Open the peer Session for the current target (idempotent). */
@@ -160,8 +240,13 @@ async function poll(): Promise<void> {
     const incoming = Array.isArray(payload.events) ? payload.events as RemoteEvent[] : []
     const events = mergeEvents(state.events, incoming)
     const running = payload.running === true
+    // The durable message replaces the rows that painted it — but only the one
+    // for this attempt: a multi-step turn commits earlier messages while the
+    // next step is already streaming, and dropping there would blink.
+    if (incoming.some(event => settlesLive(event))) liveState = dropEntries(liveState)
     const hasMore = payload.hasMore === true
     const changed = events !== state.events || running !== state.running || hasMore !== state.hasMore
+    const liveChanged = liveState.entries !== state.live
     publish({
       ...state,
       phase: 'live',
@@ -169,8 +254,11 @@ async function poll(): Promise<void> {
       events,
       hasMore,
       running,
-      revision: changed ? state.revision + 1 : state.revision,
+      live: liveState.entries,
+      revision: changed || liveChanged ? state.revision + 1 : state.revision,
     })
+    if (running) startLivePolling()
+    else if (liveState.entries.length === 0 && liveState.attemptId === undefined) stopLivePolling()
   } catch (error) {
     if (state.phase !== 'error') {
       publish({ ...state, phase: 'error', error: error instanceof Error ? error.message : String(error) })
@@ -249,9 +337,14 @@ function begin(target: DispatchTarget): void {
     if (timer === undefined && state.phase !== 'error') startPolling()
     return
   }
+  const adoption = adoptFor !== undefined && sameTarget(adoptFor.target, target) ? adoptFor.sessionId : undefined
+  adoptFor = undefined
   stopTimer()
-  publish({ ...IDLE, target, revision: state.revision + 1 })
+  stopLivePolling()
+  liveState = EMPTY_LIVE
+  publish({ ...IDLE, target, sessionId: adoption, phase: adoption === undefined ? 'idle' : 'live', revision: state.revision + 1 })
   startPolling()
+  if (adoption !== undefined) void poll()
 }
 
 function startPolling(): void {
@@ -262,6 +355,8 @@ function startPolling(): void {
 /** Leave the page and forget the peer Session. */
 function end(): void {
   stopTimer()
+  stopLivePolling()
+  liveState = EMPTY_LIVE
   setShellSession(undefined)
   if (state === IDLE) return
   publish({ ...IDLE, revision: state.revision + 1 })
@@ -274,6 +369,38 @@ function end(): void {
 export function syncRemoteSession(target: DispatchTarget | undefined): void {
   if (target === undefined) end()
   else begin(target)
+}
+
+/**
+ * Open one existing peer Session in the page.
+ *
+ * Clicking a Session in the sidebar is a read: it must not create anything on
+ * the peer, and it must not append to whatever the page was showing before.
+ * @param target - the Workspace the Session lives in.
+ * @param sessionId - the Session to show.
+ */
+export function openRemoteSession(target: DispatchTarget, sessionId: string): void {
+  if (sameTarget(state.target, target)) {
+    adopt(target, sessionId)
+    return
+  }
+  // The target store is the page's switch; the subscription that follows it
+  // resets the page, so the Session to adopt travels with the switch.
+  adoptFor = { target, sessionId }
+  setDispatchTarget(target)
+}
+
+/** One Session to adopt as soon as the page for this target exists. */
+let adoptFor: { target: DispatchTarget, sessionId: string } | undefined
+
+/** Show one Session now: new window, new fold, polling restarted. */
+function adopt(target: DispatchTarget, sessionId: string): void {
+  stopTimer()
+  stopLivePolling()
+  liveState = EMPTY_LIVE
+  publish({ ...IDLE, target, sessionId, phase: 'live', revision: state.revision + 1 })
+  void poll()
+  startPolling()
 }
 
 /**
@@ -306,12 +433,30 @@ export async function sendRemoteMessage(text: string): Promise<void> {
       })
       return
     }
-    // Show the user's own row without waiting a full poll interval.
+    // Show the user's own row without waiting a full poll interval, and start
+    // folding the answer as soon as the peer begins writing it.
     void poll()
     startPolling()
+    startLivePolling()
   } catch (error) {
     publish({ ...state, phase: 'error', error: error instanceof Error ? error.message : String(error) })
   }
+}
+
+/**
+ * Whether one durable event ends the attempt the live rows belong to.
+ * @param event - a freshly read durable event.
+ * @returns true when the rows painted by that attempt must go.
+ */
+function settlesLive(event: RemoteEvent): boolean {
+  if (liveState.entries.length === 0 && liveState.attemptId === undefined) return false
+  if (event.type === 'turn/end') return true
+  if (event.type !== 'assistant/message') return false
+  const data = event.data as { turn?: unknown, step?: unknown } | undefined
+  if (typeof data?.turn !== 'number') return true
+  if (data.turn > liveState.turn) return true
+  if (data.turn < liveState.turn) return false
+  return typeof data.step !== 'number' || data.step >= liveState.step
 }
 
 /** Read the page state as React state. */

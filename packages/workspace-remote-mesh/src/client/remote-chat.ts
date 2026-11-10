@@ -11,6 +11,7 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import { ConversationNodeAssembler } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { RemoteEvent } from './remote-session'
+import type { LiveEntry } from './remote-live'
 
 /** One durable event in the window shape the assembler consumes. */
 interface EventEntry {
@@ -70,10 +71,11 @@ export interface RemoteChatView {
   readonly hooks: Readonly<Record<string, unknown>>
   /**
    * Replace the assembled window.
-   * @param events - the peer's events, ascending.
+   * @param events - the peer's durable events, ascending.
+   * @param live - client-only rows folded from the peer's live frames.
    * @param hasMore - whether older events exist.
    */
-  replace(events: readonly RemoteEvent[], hasMore: boolean): void
+  replace(events: readonly RemoteEvent[], live: readonly LiveEntry[], hasMore: boolean): void
   /** @returns the current Chat snapshot, or undefined before the first window. */
   snapshot(): ChatSnapshotLike | undefined
   /** @returns unsubscribe. */
@@ -161,8 +163,11 @@ export function createRemoteChatView(ctx: Context): RemoteChatView {
 
   return {
     hooks,
-    replace(events, hasMore) {
-      const entries: EventEntry[] = events.map(event => ({ type: 'event', event }))
+    replace(events, live, hasMore) {
+      const entries: unknown[] = events.map(event => ({ type: 'event', event }))
+      // The live rows sort right after the last durable seq, so appending them
+      // keeps the window in the order the assembler expects.
+      entries.push(...live)
       assembler.replaceWindow(entries as never, hasMore)
       if (!activated) {
         // The view target only materializes after activation; the first window
@@ -200,6 +205,7 @@ function useObservable<T>(source: NodeSourceLike | undefined): T | undefined {
 export function useRemoteChatView(
   ctx: Context,
   events: readonly RemoteEvent[],
+  live: readonly LiveEntry[],
   hasMore: boolean,
 ): RemoteChatView {
   const view = useMemo(() => createRemoteChatView(ctx), [ctx])
@@ -208,7 +214,7 @@ export function useRemoteChatView(
     // An empty window is a blank page, not an assembly: replaceWindow would
     // clear whatever the view already published.
     if (events.length === 0) return
-    view.replace(events, hasMore)
-  }, [view, events, hasMore])
+    view.replace(events, live, hasMore)
+  }, [view, events, live, hasMore])
   return view
 }

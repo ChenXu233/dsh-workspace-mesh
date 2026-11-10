@@ -13,6 +13,7 @@ import { registerMeshConfigRoute } from './api/config.js'
 import { registerMeshDispatchRoute } from './api/dispatch.js'
 import { registerMeshWorkspacesRoute } from './api/workspaces.js'
 import { registerMeshSessionPageRoutes, registerMeshSessionRoute } from './api/session.js'
+import { AssistantLiveHub } from './live/assistant.js'
 import { registerMeshRemoteRoute } from './api/remote.js'
 import { registerMeshHandshakeRoute } from './api/handshake.js'
 import { registerMeshRelayRoute } from './api/relay.js'
@@ -173,9 +174,11 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Peers list this node's native workspaces; nothing is created or mutated here.
   registerMeshWorkspacesRoute(ctx, ctx)
   registerMeshSessionRoute(ctx, toolRuntime)
-  // The conversation page reads the peer's raw event log and drives the session
-  // that lives there: open, prompt, and page the events back for rendering.
-  registerMeshSessionPageRoutes(ctx, toolRuntime)
+  // This Host's own live Assistant frames, retained so a page on another machine
+  // can paint an answer while it is being written instead of when it lands.
+  const liveHub = new AssistantLiveHub(ctx)
+  ctx.effect(() => () => { liveHub.release() }, 'mesh: assistant live frames')
+  registerMeshSessionPageRoutes(ctx, toolRuntime, liveHub)
   // Peer administration for the sidebar's remote section: browse a peer's
   // directories, and let it register a Workspace there.
   registerMeshRemoteRoute(ctx, toolRuntime)
@@ -191,6 +194,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
       meshSecret,
       () => buildWorkspacesPayload(readWorkspaceRegistry(ctx)),
       () => readWorkspaceRegistry(ctx),
+      () => liveHub,
     )
     console.info('[mesh] peer handshake + relay mounted (meshSecret configured)')
   }

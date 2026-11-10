@@ -26,7 +26,8 @@ import css from '../../vendor/ui-workspace/src/client/rows/Rows.module.css'
 import type { GroupNode } from '../../vendor/ui-workspace/src/client/tree.ts'
 import type { RemoteTranslate } from './locales'
 import { RemoteWorkspaceDialog } from './remote-picker'
-import { useRemotePageState } from './remote-session'
+import { openRemoteSession, useRemotePageState } from './remote-session'
+import type { DispatchTarget } from './dispatch-target'
 import { remoteWorkspaceKey, useRemoteWorkspaces } from './remote-workspaces'
 import type { RemoteSessionRow, RemoteWorkspaceRow } from './remote-workspaces'
 
@@ -86,7 +87,7 @@ function timeLabel(updatedAt: number, now: number, t: RowTranslate): string {
  * @param props.rowT - the shipped browser's translate seat.
  * @returns the row element.
  */
-function RemoteSessionItem({ session, nodeLabel, now, t, rowT, current = false }: {
+function RemoteSessionItem({ session, nodeLabel, now, t, rowT, current = false, onOpen }: {
   session: RemoteSessionRow
   nodeLabel: string
   now: number
@@ -94,26 +95,30 @@ function RemoteSessionItem({ session, nodeLabel, now, t, rowT, current = false }
   rowT: RowTranslate
   /** This Session is the conversation the page is showing right now. */
   current?: boolean
+  /** Open this Session in the page; it runs on the owning machine. */
+  onOpen?: () => void
 }): JSX.Element {
+  const label = session.title === '' ? rowT('session.untitled') : session.title
   return (
     <Tooltip label={t('session.remoteHint', { node: nodeLabel })} side="right" delayMs={600}>
-      <div
+      <button
+        type="button"
         className={css.sessionRow}
         style={current ? { ...SESSION_ROW, ...CURRENT_ROW } : SESSION_ROW}
-        role="treeitem"
-        aria-disabled="true"
         aria-current={current ? 'true' : undefined}
         data-remote-session={session.sessionId}
         data-remote-current={current ? '' : undefined}
+        onClick={current ? undefined : onOpen}
+        disabled={current || onOpen === undefined}
       >
         <span className={css.slot}>
           {session.busy ? <StateDot state="ongoing" size={10} /> : null}
         </span>
-        <span className={css.title}>{session.title === '' ? rowT('session.untitled') : session.title}</span>
+        <span className={css.title}>{label}</span>
         {session.updatedAt > 0 && (
           <span className={css.time}>{timeLabel(session.updatedAt, now, rowT)}</span>
         )}
-      </div>
+      </button>
     </Tooltip>
   )
 }
@@ -139,6 +144,18 @@ function currentRowOf(
   const known = row.sessionRows.find(session => session.sessionId === sessionId)
   if (known !== undefined && known.title !== '') return { ...known, busy: running || known.busy }
   return { sessionId, title: t('section.current'), updatedAt: known?.updatedAt ?? 0, busy: running }
+}
+
+/** The dispatch target one remote Workspace row stands for. */
+function targetOf(row: RemoteWorkspaceRow): DispatchTarget {
+  return {
+    nodeId: row.nodeId,
+    nodeLabel: row.nodeLabel,
+    workspaceId: row.workspaceId,
+    title: row.title,
+    remotePath: row.remotePath,
+    online: row.online,
+  }
 }
 
 export interface RemoteSectionProps {
@@ -234,6 +251,7 @@ export function RemoteSection({ t, rowT }: RemoteSectionProps): JSX.Element {
                           now={now}
                           t={t}
                           rowT={rowT}
+                          onOpen={() => { openRemoteSession(targetOf(row), session.sessionId) }}
                         />
                       ))}
                 </div>
@@ -267,7 +285,16 @@ const CURRENT_ROW: React.CSSProperties = {
   cursor: 'default',
 }
 /** Same 32px row as the shipped list, indented under its group. */
-const SESSION_ROW: React.CSSProperties = { paddingInlineStart: 30, cursor: 'default' }
+const SESSION_ROW: React.CSSProperties = {
+  paddingInlineStart: 30,
+  width: '100%',
+  border: 'none',
+  background: 'transparent',
+  font: 'inherit',
+  color: 'inherit',
+  textAlign: 'left',
+  cursor: 'pointer',
+}
 const EMPTY: React.CSSProperties = {
   paddingInlineStart: 30, fontSize: 12, lineHeight: '20px', color: 'var(--dsw-alias-label-tertiary)',
 }

@@ -3,13 +3,16 @@ import test from 'node:test'
 
 import {
   handleSessionEvents,
+  handleSessionLive,
   handleSessionOpen,
   handleSessionPrompt,
   MESH_SESSION_EVENTS_PATH,
+  MESH_SESSION_LIVE_PATH,
   MESH_SESSION_OPEN_PATH,
   MESH_SESSION_PROMPT_PATH,
   registerMeshSessionPageRoutes,
 } from '../src/api/session.js'
+import { AssistantLiveHub } from '../src/live/assistant.js'
 import type { MeshFetchRoute, MeshRouteContext } from '../src/api/mount.js'
 import { createInMemoryBoard } from '../src/board/index.js'
 import { createSelfRestartController } from '../src/lifecycle/index.js'
@@ -154,7 +157,81 @@ test('the three page routes mount on one context with their own methods', () => 
   registerMeshSessionPageRoutes(ctx as never, runtime(transportOf({ events: [], opened: [], prompts: [] })))
   assert.deepEqual(routes.map(route => [route.path, route.methods]), [
     [MESH_SESSION_EVENTS_PATH, ['GET']],
+    [MESH_SESSION_LIVE_PATH, ['GET']],
     [MESH_SESSION_OPEN_PATH, ['POST']],
     [MESH_SESSION_PROMPT_PATH, ['POST']],
   ])
+})
+
+function hubWithFrames(): AssistantLiveHub {
+  // A context without an event bus keeps the Hub inert; frames are fed by hand,
+  // which is exactly the wire shape a reading browser sees.
+  const hub = new AssistantLiveHub({} as never)
+  ;(hub as unknown as { accept(payload: unknown): void }).accept({
+    agent: { session: { id: 'session-1', seq: 7 } },
+    frame: { type: 'start', attemptId: 'attempt-1', revision: 1, turn: 1, step: 1 },
+  })
+  ;(hub as unknown as { accept(payload: unknown): void }).accept({
+    agent: { session: { id: 'session-1', seq: 7 } },
+    frame: { type: 'chunk', attemptId: 'attempt-1', revision: 2, index: 0, time: 5, chunk: { type: 'text-delta', index: 0, text: 'hi' } },
+  })
+  return hub
+}
+
+test('GET /api/mesh/session/live answers from this Host\'s retained frames', async () => {
+  const recorded: Recorded = { events: [], opened: [], prompts: [] }
+  const hub = hubWithFrames()
+  const response = await handleSessionLive(get(MESH_SESSION_LIVE_PATH, '?sessionId=session-1&since=0'), {
+    runtime: runtime(transportOf(recorded)),
+    hub,
+  })
+  const body = (await response.json()) as Record<string, any>
+  assert.equal(body.ok, true)
+  assert.equal(body.revision, 2)
+  assert.deepEqual(body.frames.map((frame: any) => frame.type), ['start', 'chunk'])
+  assert.equal(body.frames[0].startedAfterSeq, 6)
+})
+
+test('live frames newer than the cursor only, and an unknown Session is empty', async () => {
+  const recorded: Recorded = { events: [], opened: [], prompts: [] }
+  const hub = hubWithFrames()
+  const control = { runtime: runtime(transportOf(recorded)), hub }
+  const later = await handleSessionLive(get(MESH_SESSION_LIVE_PATH, '?sessionId=session-1&since=2'), control)
+  const laterBody = (await later.json()) as Record<string, any>
+  assert.deepEqual(laterBody.frames, [])
+  assert.equal(laterBody.revision, 2)
+  const unknown = await handleSessionLive(get(MESH_SESSION_LIVE_PATH, '?sessionId=other'), control)
+  const unknownBody = (await unknown.json()) as Record<string, any>
+  assert.equal(unknownBody.ok, true)
+  assert.deepEqual(unknownBody.frames, [])
+})
+
+test('a page forwards the live read to the machine that runs the Session', async () => {
+  const recorded: Recorded = { events: [], opened: [], prompts: [] }
+  const transport = transportOf(recorded)
+  let asked: { nodeId: string, sessionId: string, since: number } | undefined
+  const forwarding = {
+    ...transport,
+    readAssistantLive: async (nodeId: string, sessionId: string, since: number) => {
+      asked = { nodeId, sessionId, since }
+      return { revision: 9, frames: [] }
+    },
+  }
+  const response = await handleSessionLive(get(MESH_SESSION_LIVE_PATH, '?nodeId=peer-a&sessionId=session-1&since=4'), {
+    runtime: runtime(forwarding),
+  })
+  const body = (await response.json()) as Record<string, any>
+  assert.equal(body.ok, true)
+  assert.equal(body.revision, 9)
+  assert.deepEqual(asked, { nodeId: 'peer-a', sessionId: 'session-1', since: 4 })
+})
+
+test('a transport without live support says so instead of answering empty', async () => {
+  const recorded: Recorded = { events: [], opened: [], prompts: [] }
+  const response = await handleSessionLive(get(MESH_SESSION_LIVE_PATH, '?nodeId=peer-a&sessionId=session-1'), {
+    runtime: runtime(transportOf(recorded, false)),
+  })
+  const body = (await response.json()) as Record<string, any>
+  assert.equal(body.ok, false)
+  assert.equal(body.code, 'unavailable')
 })

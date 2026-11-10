@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { AssistantLiveHub } from '../live/assistant.js'
 import { verifyMeshToken } from './mesh-auth.js'
 import { registerMeshPublicRoute } from './mesh-http.js'
 import { jsonResponse, mountExactRoute } from './mount.js'
@@ -21,7 +22,7 @@ import type { MeshFetchRoute, MeshRouteContext } from './mount.js'
 
 export const MESH_RELAY_PATH = '/api/mesh/relay'
 
-export type MeshRelayOp = 'list' | 'create' | 'prompt' | 'page' | 'workspaces' | 'browse' | 'workspace-create'
+export type MeshRelayOp = 'list' | 'create' | 'prompt' | 'page' | 'workspaces' | 'browse' | 'workspace-create' | 'assistant-live'
 
 /** Dictionaries a peer browse may return; a machine never answers with more. */
 const MAX_BROWSE_ENTRIES = 500
@@ -111,11 +112,13 @@ export interface MeshRelayControl {
   workspaces?: () => unknown
   /** Native registry; a peer may create a Workspace here through relay. */
   registry?: () => RelayWorkspaceRegistry | undefined
+  /** This Host's retained live Assistant frames; absent on a composition without an Agent. */
+  live?: () => AssistantLiveHub | undefined
   now?: () => number
 }
 
 const RELAY_OPS: ReadonlySet<string> = new Set<MeshRelayOp>([
-  'list', 'create', 'prompt', 'page', 'workspaces', 'browse', 'workspace-create',
+  'list', 'create', 'prompt', 'page', 'workspaces', 'browse', 'workspace-create', 'assistant-live',
 ])
 
 export async function handleRelay(request: Request, control: MeshRelayControl): Promise<Response> {
@@ -157,6 +160,17 @@ export async function handleRelay(request: Request, control: MeshRelayControl): 
       const code = typeof (err as { code?: unknown }).code === 'string' ? (err as { code: string }).code : 'browse-failed'
       return jsonResponse({ ok: false, code, error: message }, 200)
     }
+  }
+  if (op === 'assistant-live') {
+    const hub = control.live?.()
+    if (hub === undefined) {
+      return jsonResponse({ ok: false, code: 'unavailable', error: 'this Host does not retain live frames' }, 200)
+    }
+    const sessionId = typeof args.sessionId === 'string' ? args.sessionId : ''
+    if (sessionId === '') return jsonResponse({ ok: false, error: 'sessionId is required' }, 400)
+    const rawSince = args.since
+    const since = typeof rawSince === 'number' && Number.isFinite(rawSince) && rawSince > 0 ? rawSince : 0
+    return jsonResponse({ ok: true, value: hub.read(sessionId, since) }, 200)
   }
   if (op === 'workspace-create') {
     const registry = control.registry?.()
@@ -241,12 +255,14 @@ export function registerMeshRelayRoute(
   secret: () => string | undefined,
   workspaces?: () => unknown,
   registry?: () => RelayWorkspaceRegistry | undefined,
+  live?: () => AssistantLiveHub | undefined,
 ): void {
   const control: MeshRelayControl = {
     secret,
     controller: () => readSessionController(source),
     ...(workspaces === undefined ? {} : { workspaces }),
     ...(registry === undefined ? {} : { registry }),
+    ...(live === undefined ? {} : { live }),
   }
   // The mesh token is the credential here, so the route lives below the browser
   // fence and checks the token itself.

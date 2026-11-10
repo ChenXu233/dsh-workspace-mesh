@@ -2,6 +2,8 @@ import { signHandshake } from '../api/mesh-auth.js'
 import type { NodeDescriptor, WorkspaceSummary } from '../types.js'
 import { TransportUnavailableError } from './types.js'
 import type {
+  MeshLiveFrame,
+  MeshLivePage,
   MeshControlOp, MeshEventPage, MeshEventRequest, MeshSessionMessage, MeshTransport,
 } from './types.js'
 
@@ -733,6 +735,33 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
         .filter((event): event is { type?: string; seq: number; data?: unknown } => typeof event.seq === 'number')
         .sort((a, b) => a.seq - b.seq)
       return { events, hasMore: value.hasMore === true, endSeq: end, running: row.running === true }
+    },
+
+    async readAssistantLive(nodeId: string, sessionId: string, since: number): Promise<MeshLivePage> {
+      const client = requireClient(nodeId)
+      const at = Math.max(0, Math.floor(since))
+      // Relay mode needs no login token: the mesh token is the credential, and
+      // it survives the peer's restart. Cookie mode is the fallback for a peer
+      // configured with a login token only.
+      if (client.relayMode) {
+        const value = await client.relayOp<{ revision?: number, frames?: unknown[] }>('assistant-live', { sessionId, since: at })
+        return {
+          revision: typeof value.revision === 'number' ? value.revision : 0,
+          frames: Array.isArray(value.frames) ? value.frames as MeshLiveFrame[] : [],
+        }
+      }
+      const query = '?sessionId=' + encodeURIComponent(sessionId) + '&since=' + String(at)
+      const body = await client.get<{ ok?: boolean, revision?: number, frames?: unknown[], error?: unknown }>(
+        '/api/mesh/session/live' + query,
+      )
+      if (body.ok !== true) {
+        const message = typeof body.error === 'string' ? body.error : 'live frames unavailable'
+        throw new TypertRpcError('unavailable', 'peer ' + nodeId + ': ' + message)
+      }
+      return {
+        revision: typeof body.revision === 'number' ? body.revision : 0,
+        frames: Array.isArray(body.frames) ? body.frames as MeshLiveFrame[] : [],
+      }
     },
 
     async control(nodeId: string, op: MeshControlOp, args: Record<string, unknown>): Promise<unknown> {
