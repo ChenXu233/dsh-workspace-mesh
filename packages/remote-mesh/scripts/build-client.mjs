@@ -56,7 +56,12 @@ await build({
   platform: 'browser',
   target: ['es2020'],
   jsx: 'automatic',
-  external: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/client'],
+  external: [
+    'react', 'react-dom', 'react/jsx-runtime', 'react-dom/client',
+    // Served by the shell's frozen platform module table, so the bundle shares
+    // the very atoms the official pages render (buttons, inputs, tags).
+    '@deepseek-ai/dsh-client-ui-primitives',
+  ],
   loader: { '.css': 'text' },
   legalComments: 'eof',
   logLevel: 'warning',

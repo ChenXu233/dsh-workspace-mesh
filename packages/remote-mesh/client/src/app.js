@@ -4,6 +4,8 @@
 // window.__ModuleLoader__.load({ id, factory }) shape the host expects.
 import * as React from "react";
 import * as jsx from "react/jsx-runtime";
+// Official atoms from the frozen platform table: buttons, inputs, tags.
+import { Button as OfficialButton, Input as OfficialInput, Tag as OfficialTag } from "@deepseek-ai/dsh-client-ui-primitives";
 import { MeshTopology, TOPOLOGY_CSS, TopoBoundary, ensureVendorCss } from "./topology.jsx";
 import { createMeshWorkspaceSource } from "./proton-source.js";
     // The settings namespace equals this bundle's profile entry id (cordis.patch.yml: id: mesh).
@@ -42,54 +44,54 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       { key: "leaseOwner", label: "租约归属者", kind: "text", hint: "保存后立即生效" }
     ];
 
-    var css = ".dwm-section{max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:12px;display:flex}" +
-      ".dwm-row{flex-direction:column;gap:4px;display:flex}" +
-      ".dwm-label{font-size:13px;font-weight:600}" +
-      ".dwm-hint{color:var(--dsw-alias-label-tertiary);font-size:12px}" +
-      ".dwm-input,.dwm-select{background:var(--dsw-alias-bg-input,var(--dsw-alias-bg-secondary));border:1px solid var(--dsw-alias-border-l2);border-radius:6px;color:inherit;font:inherit;padding:6px 10px;width:100%;box-sizing:border-box}" +
-      ".dwm-input:focus,.dwm-select:focus{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}" +
-      ".dwm-actions{gap:8px;align-items:center;display:flex}" +
-      ".dwm-btn{background:var(--dsw-alias-state-business-primary);border:0;border-radius:6px;color:#fff;cursor:pointer;font:inherit;padding:6px 16px}" +
-      ".dwm-btn:disabled{opacity:.5;cursor:default}" +
-      ".dwm-status{font-size:12px;margin:0}" +
-      ".dwm-status[data-tone=ok]{color:var(--dsw-alias-state-success,var(--dsw-alias-label-secondary))}" +
-      ".dwm-status[data-tone=err]{color:var(--dsw-alias-state-danger,var(--dsw-alias-state-business-primary))}" +
-      ".dwm-status[data-tone=warn]{color:var(--dsw-alias-label-tertiary)}" +
-      ".dwm-page{max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:14px;display:flex}" +
-      ".dwm-h2{margin:0;font-size:18px;font-weight:600;line-height:26px}" +
-      ".dwm-h3{margin:2px 0 0;font-size:15px;font-weight:600;line-height:22px}" +
-      ".dwm-intro{color:var(--dsw-alias-label-tertiary);margin:0;font-size:13px;line-height:20px}" +
-      ".dwm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}" +
-      ".dwm-stat{border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}" +
-      ".dwm-statLabel{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px}" +
-      ".dwm-statValue{font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-      ".dwm-statHint{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-      ".dwm-table{width:100%;border-collapse:collapse;font-size:13px}" +
-      ".dwm-table th{color:var(--dsw-alias-label-tertiary);font-weight:500;text-align:left;padding:6px 8px;border-bottom:.5px solid var(--dsw-alias-border-l2);font-size:12px;white-space:nowrap}" +
-      ".dwm-table td{padding:7px 8px;border-bottom:.5px solid var(--dsw-alias-border-l1,var(--dsw-alias-border-l2));vertical-align:middle}" +
-      ".dwm-table tr:last-child td{border-bottom:0}" +
-      ".dwm-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}" +
-      ".dwm-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:1px 8px;font-size:11px;line-height:16px;border:.5px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-tertiary);white-space:nowrap}" +
-      ".dwm-badge[data-tone=ok]{color:var(--dsw-alias-state-success,var(--dsw-alias-label-secondary));border-color:currentColor}" +
-      ".dwm-badge[data-tone=err]{color:var(--dsw-alias-state-danger,var(--dsw-alias-state-business-primary));border-color:currentColor}" +
-      ".dwm-badge[data-tone=warn]{color:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-border-l2)}" +
-      ".dwm-note{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0;line-height:18px}" +
-      ".dwm-note[data-tone=warn]{color:var(--dsw-alias-label-secondary)}" +
-      ".dwm-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}" +
-      ".dwm-ghost{background:0 0;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;padding:4px 10px}" +
-      ".dwm-ghost:disabled{opacity:.5;cursor:default}" +
-      ".dwm-empty{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0}" +
-      ".dwm-pair-row{display:flex;gap:8px;align-items:center}" +
-      ".dwm-pair-row .dwm-input{flex:1;min-width:0}" +
-      ".dwm-hint[data-tone=ok]{color:var(--dsw-alias-state-success-primary,#2aa15a)}" +
-      ".dwm-hint[data-tone=err]{color:var(--dsw-alias-state-error-primary,#d64545)}" +
-      ".dwm-form{display:flex;flex-direction:column;gap:10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:12px}" +
-      ".dwm-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}" +
-      ".dwm-field{display:flex;flex-direction:column;gap:4px;min-width:0}" +
-      ".dwm-topo{width:100%;height:auto;display:block;color:var(--dsw-alias-label-primary)}" +
-      ".dwm-topo text{fill:var(--dsw-alias-label-primary)}" +
-      ".dwm-topo text[fontSize=\"10\"],.dwm-topo text[opacity=\"0.7\"]{fill:var(--dsw-alias-label-tertiary)}" +
-      TOPOLOGY_CSS;
+    // Official page recipe (ui-plugin-manager): centred column, clamp() insets,
+    // 20px/500 title + 13px secondary intro, 32px gaps, hairline separators.
+    // Controls come from @deepseek-ai/dsh-client-ui-primitives.
+    var css = [
+      ".dwm-page{display:flex;flex-direction:column;align-items:center;height:100%;box-sizing:border-box;padding:0 clamp(24px,4vw,48px) 48px;color:var(--dsw-alias-label-primary);overflow-y:auto}",
+      ".dwm-page>*{flex:none;width:100%;max-width:960px}",
+      ".dwm-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px;padding-top:28px}",
+      ".dwm-headText{min-width:0;max-width:100%}",
+      ".dwm-h2{margin:0;font-size:20px;font-weight:500;line-height:28px}",
+      ".dwm-intro{margin:4px 0 0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
+      ".dwm-body{display:flex;flex-direction:column;gap:32px;padding:32px 0 0}",
+      ".dwm-section{display:flex;flex-direction:column;gap:12px}",
+      ".dwm-h3{margin:0;font-size:14px;font-weight:600;line-height:22px}",
+      ".dwm-row{display:flex;flex-direction:column;gap:6px}",
+      ".dwm-label{font-size:13px;font-weight:500;line-height:20px;color:var(--dsw-alias-label-primary)}",
+      ".dwm-hint{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
+      ".dwm-hint[data-tone=ok]{color:var(--dsw-alias-state-success)}",
+      ".dwm-hint[data-tone=err]{color:var(--dsw-alias-state-danger)}",
+      ".dwm-select{height:36px;width:100%;box-sizing:border-box;padding:0 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-secondary);color:inherit;font:inherit;font-size:13px}",
+      ".dwm-select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
+      ".dwm-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
+      ".dwm-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--dsw-alias-label-caption)}",
+      ".dwm-grid{display:flex;gap:48px;flex-wrap:wrap}",
+      ".dwm-stat{display:flex;flex-direction:column;gap:2px;min-width:0}",
+      ".dwm-statLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}",
+      ".dwm-statValue{font-size:20px;font-weight:500;line-height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".dwm-statHint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-caption);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".dwm-table{width:100%;border-collapse:collapse;font-size:13px}",
+      ".dwm-table th{padding:8px 10px;font-size:12px;font-weight:500;text-align:left;color:var(--dsw-alias-label-secondary);border-bottom:.5px solid var(--dsw-alias-border-l2);white-space:nowrap}",
+      ".dwm-table td{padding:10px;vertical-align:middle;border-bottom:.5px solid var(--dsw-alias-border-l1)}",
+      ".dwm-table tr:last-child td{border-bottom:0}",
+      ".dwm-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}",
+      ".dwm-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:0 8px;height:20px;font-size:11px;line-height:20px;border:.5px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);white-space:nowrap}",
+      ".dwm-badge[data-tone=ok]{color:var(--dsw-alias-state-success);border-color:currentColor}",
+      ".dwm-badge[data-tone=err]{color:var(--dsw-alias-state-danger);border-color:currentColor}",
+      ".dwm-note{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-caption)}",
+      ".dwm-note[data-tone=warn]{color:var(--dsw-alias-label-secondary)}",
+      ".dwm-pair-row{display:flex;align-items:center;gap:8px;max-width:720px}",
+      ".dwm-pair-row>.dwm-grow{flex:1;min-width:0}",
+      ".dwm-empty{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
+      ".dwm-textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-secondary);color:inherit;font:inherit;font-size:13px;line-height:20px;resize:vertical}",
+      ".dwm-textarea:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
+      ".dwm-status{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}",
+      ".dwm-status[data-tone=ok]{color:var(--dsw-alias-state-success)}",
+      ".dwm-status[data-tone=err]{color:var(--dsw-alias-state-danger)}",
+      ".dwm-fields{display:flex;flex-direction:column;gap:16px}",
+      ".dwm-field{display:flex;flex-direction:column;gap:6px}",
+    ].join("") + TOPOLOGY_CSS;
     ensureVendorCss();
     if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css='dsh-workspace-mesh/config']") === null) {
       var tag = document.createElement("style");
@@ -101,6 +103,30 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
 
     /** Required services (cordis fiber inject on the browser half). */
     var inject = ["slots", "remote", "remote.settings"];
+
+    /** Official button: one visual language for every action on the page. */
+    function Btn(props) {
+      return jsx.jsx(OfficialButton, {
+        variant: props.variant || "outline",
+        size: props.size || "sm",
+        disabled: props.disabled === true,
+        onClick: props.onClick,
+        children: props.children
+      });
+    }
+
+    /** Official text input, stretched to the row it sits in. */
+    function TextInput(props) {
+      return jsx.jsx(OfficialInput, {
+        className: props.grow === false ? undefined : "dwm-grow",
+        type: props.type,
+        value: props.value,
+        placeholder: props.placeholder,
+        readOnly: props.readOnly === true,
+        onChange: props.onChange,
+        onFocus: props.onFocus
+      });
+    }
 
     function prefersChinese() {
       if (typeof document !== "undefined" && document.documentElement && document.documentElement.lang) {
@@ -174,7 +200,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
             for (var m = 0; m < f.options.length; m++) opts.push(jsx.jsx("option", { value: f.options[m], children: f.options[m] }, f.options[m]));
             control = jsx.jsx("select", { className: "dwm-select", value: current, onChange: function (e) { setDirty(f.key, e.target.value); }, children: opts });
           } else {
-            control = jsx.jsx("input", { className: "dwm-input", type: f.kind === "number" ? "number" : "text", value: current, onChange: function (e) { setDirty(f.key, e.target.value); } });
+            control = jsx.jsx(TextInput, { type: f.kind === "number" ? "number" : "text", value: current, onChange: function (e) { setDirty(f.key, e.target.value); } });
           }
           rows.push(jsx.jsxs("label", { className: "dwm-row", children: [
             jsx.jsx("span", { className: "dwm-label", children: f.label }),
@@ -188,7 +214,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
         jsx.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "修改通过原生设置服务实时生效（volatile live 配置，写入 profile patch）" }),
         rows,
         jsx.jsxs("div", { className: "dwm-actions", children: [
-          jsx.jsx("button", { className: "dwm-btn", disabled: dirtyKeys.length === 0 || state.message === "保存中…", onClick: onSave, children: "保存" }),
+          jsx.jsx(Btn, { variant: "primary", disabled: dirtyKeys.length === 0 || state.message === "保存中…", onClick: onSave, children: "保存" }),
           state.message ? jsx.jsx("span", { className: "dwm-status", "data-tone": state.tone, children: state.message }) : null
         ] })
       ] });
@@ -346,7 +372,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       }, [sessionId, selected]);
 
       if (rows.length === 0) {
-        return jsx.jsxs("div", { className: "dwm-form", children: [
+        return jsx.jsxs("div", { className: "dwm-section", children: [
           jsx.jsx("h3", { className: "dwm-h3", children: t("远程工作区", "Remote workspaces") }),
           jsx.jsx("p", { className: "dwm-empty", children: t("还没有远端工作区：配置 assignment.yml 与 peers 后出现。", "No remote workspaces yet: add assignment.yml and peers.") })
         ] });
@@ -385,7 +411,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
           });
       }
 
-      return jsx.jsxs("div", { className: "dwm-form", children: [
+      return jsx.jsxs("div", { className: "dwm-section", children: [
         jsx.jsx("h3", { className: "dwm-h3", children: t("远程工作区", "Remote workspaces") }),
         jsx.jsx("p", { className: "dwm-note", children: t(
           "这些工作区在别的机器上：文件、shell、模型调用都在那台机器执行，这里只发一条消息并取回最终回复。断网或对端离线时状态为离线，发送会直接报错。",
@@ -439,7 +465,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
         jsx.jsx("div", { className: "dwm-row", children: [
           jsx.jsx("label", { className: "dwm-label", children: t("消息", "Message") }),
           jsx.jsx("textarea", {
-            className: "dwm-input",
+            className: "dwm-textarea",
             rows: 3,
             value: text,
             placeholder: t("要在这台机器的这个工作区里做的事…", "What should run in that workspace on that machine..."),
@@ -447,7 +473,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
           })
         ] }, "msg"),
         jsx.jsx("div", { className: "dwm-actions", children: [
-          jsx.jsx("button", { className: "dwm-btn", disabled: disabled, onClick: submit, children: sending ? t("发送中…", "Sending...") : t("发送", "Send") }),
+          jsx.jsx(Btn, { variant: "primary", disabled: disabled, onClick: submit, children: sending ? t("发送中…", "Sending...") : t("发送", "Send") }),
           send.message ? jsx.jsx("span", { className: "dwm-status", "data-tone": send.tone, children: send.message }) : null
         ] }, "act"),
         send.summary ? jsx.jsx("pre", { className: "dwm-mono", style: { whiteSpace: "pre-wrap", margin: 0, fontSize: "12px" }, children: send.summary }, "sum") : null
@@ -557,16 +583,19 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       }
 
       var data = state.data;
-      var header = [
-        jsx.jsx("h2", { className: "dwm-h2", children: t("工作区网格", "Workspace mesh") }, "h2"),
-        jsx.jsx("p", { className: "dwm-intro", children: t(
-          "本机 mesh 运行时快照：传输状态、节点、工作区分布与近期任务。数据只读；打开本页、切回本页或点「立即刷新」时重新读取。",
-          "Local mesh snapshot: transport, peers, workspace placement and recent tasks. Read-only; re-read when the page opens, when the tab regains focus, or on Refresh."
-        ) }, "intro")
-      ];
+      var header = jsx.jsxs("header", { className: "dwm-head", children: [
+        jsx.jsxs("div", { className: "dwm-headText", children: [
+          jsx.jsx("h1", { className: "dwm-h2", children: t("工作区网格", "Workspace mesh") }, "h2"),
+          jsx.jsx("p", { className: "dwm-intro", children: t(
+            "本机 mesh 运行时快照：传输状态、节点、工作区分布与近期任务。数据只读；打开本页、切回本页或点「刷新」时重新读取。",
+            "Local mesh snapshot: transport, peers, workspace placement and recent tasks. Read-only; re-read when the page opens, when the tab regains focus, or on Refresh."
+          ) }, "intro")
+        ] }, "text"),
+        jsx.jsx("div", { className: "dwm-actions", children: jsx.jsx(Btn, { onClick: load, children: t("刷新", "Refresh") }, "refresh") }, "actions")
+      ] }, "head");
 
       if (!data && state.phase === "loading") {
-        return jsx.jsxs("div", { className: "dwm-page", children: header.concat([jsx.jsx("p", { className: "dwm-note", children: "正在读取 mesh 状态…" }, "loading")]) });
+        return jsx.jsxs("div", { className: "dwm-page", children: [header, jsx.jsx("div", { className: "dwm-body", children: jsx.jsx("p", { className: "dwm-note", children: "正在读取 mesh 状态…" }) }, "body")] });
       }
       if (!data && state.phase === "error") {
         var reason = state.status === 401 || state.status === 403
@@ -574,10 +603,10 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
           : state.status === 404
             ? t("宿主未提供 /api/mesh/state（插件主机侧未挂载 connection.fetch）。", "Host does not serve /api/mesh/state (connection.fetch is not mounted).")
             : state.error;
-        return jsx.jsxs("div", { className: "dwm-page", children: header.concat([
+        return jsx.jsxs("div", { className: "dwm-page", children: [header, jsx.jsx("div", { className: "dwm-body", children: [
           jsx.jsx("p", { className: "dwm-note", "data-tone": "warn", children: reason }, "err"),
-          jsx.jsx("div", { className: "dwm-footer", children: [jsx.jsx("button", { className: "dwm-ghost", onClick: load, children: t("重试", "Retry") }, "retry")] }, "errActions")
-        ]) });
+          jsx.jsx("div", { className: "dwm-actions", children: [jsx.jsx(Btn, { onClick: load, children: t("重试", "Retry") }, "retry")] }, "errActions")
+        ] }, "body")] });
       }
 
       var peers = (data && data.peers) || [];
@@ -627,8 +656,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
             children: field.options.map(function (option) { return jsx.jsx("option", { value: option, children: option }, option); })
           });
         } else {
-          control = jsx.jsx("input", {
-            className: "dwm-input",
+          control = jsx.jsx(TextInput, {
             type: field.kind === "number" ? "number" : "text",
             value: current,
             onChange: function (event) { setField(field.key, event.target.value); }
@@ -640,7 +668,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
           jsx.jsx("span", { className: "dwm-hint", children: field.hint })
         ] }, field.key);
       });
-      blocks.push(jsx.jsxs("div", { className: "dwm-form", children: [
+      blocks.push(jsx.jsxs("div", { className: "dwm-section", children: [
         jsx.jsx("h3", { className: "dwm-h3", children: t("插件配置", "Plugin configuration") }),
         jsx.jsx("p", { className: "dwm-note", children: t(
           "写入 " + ((data && data.configFile) || "mesh-config.json") + "，覆盖 profile patch 的默认值；租约与 assignment 立即生效，传输与 peers 需重启。",
@@ -648,8 +676,8 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
         ) }),
         jsx.jsx("div", { className: "dwm-fields", children: configRows }),
         jsx.jsxs("div", { className: "dwm-actions", children: [
-          jsx.jsx("button", {
-            className: "dwm-btn",
+          jsx.jsx(Btn, {
+            variant: "primary",
             disabled: Object.keys(form.dirty).length === 0 || form.saving,
             onClick: saveConfig,
             children: t("保存配置", "Save")
@@ -759,12 +787,12 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
 
       blocks.push(jsx.jsxs("div", { className: "dwm-footer", children: [
         jsx.jsx("span", { children: t("更新于 ", "updated ") + (state.at ? fmtClock(state.at) : "—") }, "time"),
-        jsx.jsx("button", { className: "dwm-ghost", onClick: load, children: t("立即刷新", "Refresh") }, "refresh"),
+        jsx.jsx(Btn, { onClick: load, children: t("立即刷新", "Refresh") }, "refresh"),
         jsx.jsx("span", { children: t("快照只读；配置更改写入 mesh-config.json", "Snapshot is read-only; config changes go to mesh-config.json") }, "hint"),
         state.phase === "error" ? jsx.jsx("span", { "data-tone": "warn", children: t("上次刷新失败：", "last refresh failed: ") + state.error }) : null
       ] }, "footer"));
 
-      return jsx.jsxs("div", { className: "dwm-page", children: header.concat(blocks) });
+      return jsx.jsxs("div", { className: "dwm-page", children: [header, jsx.jsx("div", { className: "dwm-body", children: blocks }, "body")] });
     }
 
     /**
@@ -835,36 +863,33 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
 
       var busyOut = out.phase === "loading";
       var busyIn = imported.phase === "loading";
-      return jsx.jsxs("div", { className: "dwm-form", children: [
+      return jsx.jsxs("div", { className: "dwm-section", children: [
         jsx.jsx("h3", { className: "dwm-h3", children: t("一键配对", "Pair a machine") }),
         jsx.jsx("p", { className: "dwm-hint", children: t(
           "配对链接里带着这台机器的地址与共享密钥：在对方机器上打开它，两边就通了，不用手改 mesh-config.json。",
           "The link carries this machine's URL and shared secret: open it on the other machine and both sides are connected, with no hand-edited mesh-config.json."
         ) }),
         jsx.jsxs("div", { className: "dwm-pair-row", children: [
-          jsx.jsx("input", {
-            className: "dwm-input",
+          jsx.jsx(TextInput, {
             value: name,
             placeholder: t("对方怎么称呼这台机器（默认主机名）", "Name the other side uses for this machine (default: hostname)"),
             onChange: function (event) { setName(event.target.value); }
-          }),
-          jsx.jsx("button", { className: "dwm-btn", disabled: busyOut, onClick: makeLink, children: busyOut ? t("生成中…", "Generating…") : t("生成配对链接", "Create link") })
+          }, "name"),
+          jsx.jsx(Btn, { variant: "primary", disabled: busyOut, onClick: makeLink, children: busyOut ? t("生成中…", "Generating…") : t("生成配对链接", "Create link") }, "make")
         ] }, "make"),
-        out.link === "" ? null : jsx.jsx("input", {
-          className: "dwm-input dwm-mono",
+        out.link === "" ? null : jsx.jsx(TextInput, {
           readOnly: true,
           value: out.link,
           onFocus: function (event) { event.target.select(); }
         }, "link"),
         out.message === "" ? null : jsx.jsx("p", { className: "dwm-hint", "data-tone": out.tone, children: out.message }, "out-msg"),
         jsx.jsxs("div", { className: "dwm-pair-row", children: [
-          jsx.jsx("input", {
-            className: "dwm-input dwm-mono",
+          jsx.jsx(TextInput, {
             value: incoming,
             placeholder: t("粘贴对方的配对链接", "Paste the other machine's link"),
             onChange: function (event) { setIncoming(event.target.value); }
-          }),
-          jsx.jsx("button", { className: "dwm-btn", disabled: busyIn || incoming.trim() === "", onClick: importLink, children: busyIn ? t("导入中…", "Importing…") : t("导入", "Import") })
+          }, "incoming"),
+          jsx.jsx(Btn, { disabled: busyIn || incoming.trim() === "", onClick: importLink, children: busyIn ? t("导入中…", "Importing…") : t("导入", "Import") }, "import")
         ] }, "import"),
         imported.message === "" ? null : jsx.jsx("p", { className: "dwm-hint", "data-tone": imported.tone, children: imported.message }, "in-msg"),
         jsx.jsx("p", { className: "dwm-note", children: t(
@@ -1040,7 +1065,18 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
 
       var justPaired = readParam("paired");
       return jsx.jsxs("div", { className: "dwm-page", children: [
-        jsx.jsx("h2", { className: "dwm-h2", children: t("工作区网格", "Workspace mesh") }),
+        jsx.jsxs("header", { className: "dwm-head", children: [
+          jsx.jsxs("div", { className: "dwm-headText", children: [
+            jsx.jsx("h1", { className: "dwm-h2", children: t("工作区网格", "Workspace mesh") }),
+            jsx.jsx("p", { className: "dwm-intro", children: state.phase === "error"
+              ? t("读取 mesh 状态失败：", "Failed to read mesh state: ") + state.error
+              : t("每个工作区都属于某台机器：消息传过去，执行留在那台机器上。", "Each workspace belongs to one machine: the message travels, the work stays there.") })
+          ] }, "text"),
+          jsx.jsx("div", { className: "dwm-actions", children: jsx.jsx(Btn, {
+            onClick: load,
+            children: t("刷新", "Refresh")
+          }, "refresh") }, "actions")
+        ] }, "head"),
         justPaired === "" ? null : jsx.jsx("p", {
           className: "dwm-hint",
           "data-tone": justPaired === "failed" ? "err" : "ok",
@@ -1048,23 +1084,21 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
             ? t("配对链接没能导入：看控制台里的原因。", "The pairing link could not be imported; see the console for why.")
             : t("已与 " + justPaired + " 配对，立即生效。", "Paired with " + justPaired + "; it applies immediately.")
         }, "paired-banner"),
-        jsx.jsx("p", { className: "dwm-intro", children: state.phase === "error"
-          ? t("读取 mesh 状态失败：", "Failed to read mesh state: ") + state.error
-          : t("每个工作区都属于某台机器：消息传过去，执行留在那台机器上。", "Each workspace belongs to one machine: the message travels, the work stays there.") }),
-        jsx.jsx(PairingPanel, { onPaired: load }, "pair"),
-        jsx.jsxs("div", { className: "dwm-grid", children: [
-          jsx.jsx(Stat, { label: t("在线工作区", "Online"), value: String(online) }, "s1"),
-          jsx.jsx(Stat, { label: t("工作区总数", "Total"), value: String(rows.length) }, "s2")
-        ] }, "stats"),
-        jsx.jsx(RemoteWorkspacePanel, { rows: rows }, "remote"),
-        jsx.jsxs("div", { className: "dwm-footer", children: [
-          jsx.jsx("span", { children: t("更新于 ", "updated ") + (state.at ? fmtClock(state.at) : "—") }, "time"),
-          jsx.jsx("button", { className: "dwm-ghost", onClick: load, children: t("立即刷新", "Refresh") }, "refresh")
-        ] }, "footer"),
-        jsx.jsx("p", { className: "dwm-note", children: t(
-          "断网或对端离线时，工作区状态变离线，发送会直接失败——不会留下半截任务。",
-          "When the network or the peer is down the workspace turns offline and sending fails fast; nothing is left half-queued."
-        ) })
+        jsx.jsxs("div", { className: "dwm-body", children: [
+          jsx.jsx(PairingPanel, { onPaired: load }, "pair"),
+          jsx.jsxs("div", { className: "dwm-grid", children: [
+            jsx.jsx(Stat, { label: t("在线工作区", "Online"), value: String(online) }, "s1"),
+            jsx.jsx(Stat, { label: t("工作区总数", "Total"), value: String(rows.length) }, "s2")
+          ] }, "stats"),
+          jsx.jsx(RemoteWorkspacePanel, { rows: rows }, "remote"),
+          jsx.jsxs("div", { className: "dwm-footer", children: [
+            jsx.jsx("span", { children: t("更新于 ", "updated ") + (state.at ? fmtClock(state.at) : "—") }, "time"),
+            jsx.jsx("p", { className: "dwm-note", children: t(
+              "断网或对端离线时，工作区状态变离线，发送会直接失败——不会留下半截任务。",
+              "When the network or the peer is down the workspace turns offline and sending fails fast; nothing is left half-queued."
+            ) }, "note")
+          ] }, "footer")
+        ] }, "body")
       ] });
     }
 

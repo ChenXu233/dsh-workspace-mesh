@@ -205,6 +205,7 @@ __export(app_exports, {
 module.exports = __toCommonJS(app_exports);
 var React2 = __toESM(require("react"), 1);
 var jsx4 = __toESM(require("react/jsx-runtime"), 1);
+var import_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 
 // client/src/topology.jsx
 var React = __toESM(require("react"), 1);
@@ -10434,7 +10435,51 @@ var CONFIG_FIELDS = [
   { key: "dispatchTimeoutMs", label: "dispatch \u8D85\u65F6 (ms)", kind: "number", hint: "\u4FDD\u5B58\u540E\u7ACB\u5373\u751F\u6548" },
   { key: "leaseOwner", label: "\u79DF\u7EA6\u5F52\u5C5E\u8005", kind: "text", hint: "\u4FDD\u5B58\u540E\u7ACB\u5373\u751F\u6548" }
 ];
-var css = '.dwm-section{max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:12px;display:flex}.dwm-row{flex-direction:column;gap:4px;display:flex}.dwm-label{font-size:13px;font-weight:600}.dwm-hint{color:var(--dsw-alias-label-tertiary);font-size:12px}.dwm-input,.dwm-select{background:var(--dsw-alias-bg-input,var(--dsw-alias-bg-secondary));border:1px solid var(--dsw-alias-border-l2);border-radius:6px;color:inherit;font:inherit;padding:6px 10px;width:100%;box-sizing:border-box}.dwm-input:focus,.dwm-select:focus{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}.dwm-actions{gap:8px;align-items:center;display:flex}.dwm-btn{background:var(--dsw-alias-state-business-primary);border:0;border-radius:6px;color:#fff;cursor:pointer;font:inherit;padding:6px 16px}.dwm-btn:disabled{opacity:.5;cursor:default}.dwm-status{font-size:12px;margin:0}.dwm-status[data-tone=ok]{color:var(--dsw-alias-state-success,var(--dsw-alias-label-secondary))}.dwm-status[data-tone=err]{color:var(--dsw-alias-state-danger,var(--dsw-alias-state-business-primary))}.dwm-status[data-tone=warn]{color:var(--dsw-alias-label-tertiary)}.dwm-page{max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:14px;display:flex}.dwm-h2{margin:0;font-size:18px;font-weight:600;line-height:26px}.dwm-h3{margin:2px 0 0;font-size:15px;font-weight:600;line-height:22px}.dwm-intro{color:var(--dsw-alias-label-tertiary);margin:0;font-size:13px;line-height:20px}.dwm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}.dwm-stat{border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}.dwm-statLabel{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px}.dwm-statValue{font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dwm-statHint{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dwm-table{width:100%;border-collapse:collapse;font-size:13px}.dwm-table th{color:var(--dsw-alias-label-tertiary);font-weight:500;text-align:left;padding:6px 8px;border-bottom:.5px solid var(--dsw-alias-border-l2);font-size:12px;white-space:nowrap}.dwm-table td{padding:7px 8px;border-bottom:.5px solid var(--dsw-alias-border-l1,var(--dsw-alias-border-l2));vertical-align:middle}.dwm-table tr:last-child td{border-bottom:0}.dwm-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}.dwm-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:1px 8px;font-size:11px;line-height:16px;border:.5px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-tertiary);white-space:nowrap}.dwm-badge[data-tone=ok]{color:var(--dsw-alias-state-success,var(--dsw-alias-label-secondary));border-color:currentColor}.dwm-badge[data-tone=err]{color:var(--dsw-alias-state-danger,var(--dsw-alias-state-business-primary));border-color:currentColor}.dwm-badge[data-tone=warn]{color:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-border-l2)}.dwm-note{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0;line-height:18px}.dwm-note[data-tone=warn]{color:var(--dsw-alias-label-secondary)}.dwm-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dwm-ghost{background:0 0;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;padding:4px 10px}.dwm-ghost:disabled{opacity:.5;cursor:default}.dwm-empty{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0}.dwm-pair-row{display:flex;gap:8px;align-items:center}.dwm-pair-row .dwm-input{flex:1;min-width:0}.dwm-hint[data-tone=ok]{color:var(--dsw-alias-state-success-primary,#2aa15a)}.dwm-hint[data-tone=err]{color:var(--dsw-alias-state-error-primary,#d64545)}.dwm-form{display:flex;flex-direction:column;gap:10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:12px}.dwm-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}.dwm-field{display:flex;flex-direction:column;gap:4px;min-width:0}.dwm-topo{width:100%;height:auto;display:block;color:var(--dsw-alias-label-primary)}.dwm-topo text{fill:var(--dsw-alias-label-primary)}.dwm-topo text[fontSize="10"],.dwm-topo text[opacity="0.7"]{fill:var(--dsw-alias-label-tertiary)}' + TOPOLOGY_CSS;
+var css = [
+  ".dwm-page{display:flex;flex-direction:column;align-items:center;height:100%;box-sizing:border-box;padding:0 clamp(24px,4vw,48px) 48px;color:var(--dsw-alias-label-primary);overflow-y:auto}",
+  ".dwm-page>*{flex:none;width:100%;max-width:960px}",
+  ".dwm-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px;padding-top:28px}",
+  ".dwm-headText{min-width:0;max-width:100%}",
+  ".dwm-h2{margin:0;font-size:20px;font-weight:500;line-height:28px}",
+  ".dwm-intro{margin:4px 0 0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
+  ".dwm-body{display:flex;flex-direction:column;gap:32px;padding:32px 0 0}",
+  ".dwm-section{display:flex;flex-direction:column;gap:12px}",
+  ".dwm-h3{margin:0;font-size:14px;font-weight:600;line-height:22px}",
+  ".dwm-row{display:flex;flex-direction:column;gap:6px}",
+  ".dwm-label{font-size:13px;font-weight:500;line-height:20px;color:var(--dsw-alias-label-primary)}",
+  ".dwm-hint{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
+  ".dwm-hint[data-tone=ok]{color:var(--dsw-alias-state-success)}",
+  ".dwm-hint[data-tone=err]{color:var(--dsw-alias-state-danger)}",
+  ".dwm-select{height:36px;width:100%;box-sizing:border-box;padding:0 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-secondary);color:inherit;font:inherit;font-size:13px}",
+  ".dwm-select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
+  ".dwm-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
+  ".dwm-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--dsw-alias-label-caption)}",
+  ".dwm-grid{display:flex;gap:48px;flex-wrap:wrap}",
+  ".dwm-stat{display:flex;flex-direction:column;gap:2px;min-width:0}",
+  ".dwm-statLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}",
+  ".dwm-statValue{font-size:20px;font-weight:500;line-height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+  ".dwm-statHint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-caption);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+  ".dwm-table{width:100%;border-collapse:collapse;font-size:13px}",
+  ".dwm-table th{padding:8px 10px;font-size:12px;font-weight:500;text-align:left;color:var(--dsw-alias-label-secondary);border-bottom:.5px solid var(--dsw-alias-border-l2);white-space:nowrap}",
+  ".dwm-table td{padding:10px;vertical-align:middle;border-bottom:.5px solid var(--dsw-alias-border-l1)}",
+  ".dwm-table tr:last-child td{border-bottom:0}",
+  ".dwm-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}",
+  ".dwm-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:0 8px;height:20px;font-size:11px;line-height:20px;border:.5px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);white-space:nowrap}",
+  ".dwm-badge[data-tone=ok]{color:var(--dsw-alias-state-success);border-color:currentColor}",
+  ".dwm-badge[data-tone=err]{color:var(--dsw-alias-state-danger);border-color:currentColor}",
+  ".dwm-note{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-caption)}",
+  ".dwm-note[data-tone=warn]{color:var(--dsw-alias-label-secondary)}",
+  ".dwm-pair-row{display:flex;align-items:center;gap:8px;max-width:720px}",
+  ".dwm-pair-row>.dwm-grow{flex:1;min-width:0}",
+  ".dwm-empty{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
+  ".dwm-textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-secondary);color:inherit;font:inherit;font-size:13px;line-height:20px;resize:vertical}",
+  ".dwm-textarea:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
+  ".dwm-status{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}",
+  ".dwm-status[data-tone=ok]{color:var(--dsw-alias-state-success)}",
+  ".dwm-status[data-tone=err]{color:var(--dsw-alias-state-danger)}",
+  ".dwm-fields{display:flex;flex-direction:column;gap:16px}",
+  ".dwm-field{display:flex;flex-direction:column;gap:6px}"
+].join("") + TOPOLOGY_CSS;
 ensureVendorCss();
 if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css='dsh-workspace-mesh/config']") === null) {
   tag = document.createElement("style");
@@ -10445,6 +10490,26 @@ if (typeof document !== "undefined" && document.querySelector("style[data-plugin
 }
 var tag;
 var inject = ["slots", "remote", "remote.settings"];
+function Btn(props) {
+  return jsx4.jsx(import_dsh_client_ui_primitives.Button, {
+    variant: props.variant || "outline",
+    size: props.size || "sm",
+    disabled: props.disabled === true,
+    onClick: props.onClick,
+    children: props.children
+  });
+}
+function TextInput(props) {
+  return jsx4.jsx(import_dsh_client_ui_primitives.Input, {
+    className: props.grow === false ? void 0 : "dwm-grow",
+    type: props.type,
+    value: props.value,
+    placeholder: props.placeholder,
+    readOnly: props.readOnly === true,
+    onChange: props.onChange,
+    onFocus: props.onFocus
+  });
+}
 function prefersChinese() {
   if (typeof document !== "undefined" && document.documentElement && document.documentElement.lang) {
     return /^zh/i.test(document.documentElement.lang);
@@ -10534,7 +10599,7 @@ function ConfigSection(props) {
           setDirty(f.key, e.target.value);
         }, children: opts });
       } else {
-        control = jsx4.jsx("input", { className: "dwm-input", type: f.kind === "number" ? "number" : "text", value: current, onChange: function(e) {
+        control = jsx4.jsx(TextInput, { type: f.kind === "number" ? "number" : "text", value: current, onChange: function(e) {
           setDirty(f.key, e.target.value);
         } });
       }
@@ -10550,7 +10615,7 @@ function ConfigSection(props) {
     jsx4.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "\u4FEE\u6539\u901A\u8FC7\u539F\u751F\u8BBE\u7F6E\u670D\u52A1\u5B9E\u65F6\u751F\u6548\uFF08volatile live \u914D\u7F6E\uFF0C\u5199\u5165 profile patch\uFF09" }),
     rows,
     jsx4.jsxs("div", { className: "dwm-actions", children: [
-      jsx4.jsx("button", { className: "dwm-btn", disabled: dirtyKeys.length === 0 || state.message === "\u4FDD\u5B58\u4E2D\u2026", onClick: onSave, children: "\u4FDD\u5B58" }),
+      jsx4.jsx(Btn, { variant: "primary", disabled: dirtyKeys.length === 0 || state.message === "\u4FDD\u5B58\u4E2D\u2026", onClick: onSave, children: "\u4FDD\u5B58" }),
       state.message ? jsx4.jsx("span", { className: "dwm-status", "data-tone": state.tone, children: state.message }) : null
     ] })
   ] });
@@ -10693,7 +10758,7 @@ function RemoteWorkspacePanel(props) {
     });
   }, [sessionId, selected2]);
   if (rows.length === 0) {
-    return jsx4.jsxs("div", { className: "dwm-form", children: [
+    return jsx4.jsxs("div", { className: "dwm-section", children: [
       jsx4.jsx("h3", { className: "dwm-h3", children: t("\u8FDC\u7A0B\u5DE5\u4F5C\u533A", "Remote workspaces") }),
       jsx4.jsx("p", { className: "dwm-empty", children: t("\u8FD8\u6CA1\u6709\u8FDC\u7AEF\u5DE5\u4F5C\u533A\uFF1A\u914D\u7F6E assignment.yml \u4E0E peers \u540E\u51FA\u73B0\u3002", "No remote workspaces yet: add assignment.yml and peers.") })
     ] });
@@ -10727,7 +10792,7 @@ function RemoteWorkspacePanel(props) {
       setSend({ phase: "done", tone: "err", message: String(error && error.message || error), summary: "", code: "" });
     });
   }
-  return jsx4.jsxs("div", { className: "dwm-form", children: [
+  return jsx4.jsxs("div", { className: "dwm-section", children: [
     jsx4.jsx("h3", { className: "dwm-h3", children: t("\u8FDC\u7A0B\u5DE5\u4F5C\u533A", "Remote workspaces") }),
     jsx4.jsx("p", { className: "dwm-note", children: t(
       "\u8FD9\u4E9B\u5DE5\u4F5C\u533A\u5728\u522B\u7684\u673A\u5668\u4E0A\uFF1A\u6587\u4EF6\u3001shell\u3001\u6A21\u578B\u8C03\u7528\u90FD\u5728\u90A3\u53F0\u673A\u5668\u6267\u884C\uFF0C\u8FD9\u91CC\u53EA\u53D1\u4E00\u6761\u6D88\u606F\u5E76\u53D6\u56DE\u6700\u7EC8\u56DE\u590D\u3002\u65AD\u7F51\u6216\u5BF9\u7AEF\u79BB\u7EBF\u65F6\u72B6\u6001\u4E3A\u79BB\u7EBF\uFF0C\u53D1\u9001\u4F1A\u76F4\u63A5\u62A5\u9519\u3002",
@@ -10781,7 +10846,7 @@ function RemoteWorkspacePanel(props) {
     jsx4.jsx("div", { className: "dwm-row", children: [
       jsx4.jsx("label", { className: "dwm-label", children: t("\u6D88\u606F", "Message") }),
       jsx4.jsx("textarea", {
-        className: "dwm-input",
+        className: "dwm-textarea",
         rows: 3,
         value: text,
         placeholder: t("\u8981\u5728\u8FD9\u53F0\u673A\u5668\u7684\u8FD9\u4E2A\u5DE5\u4F5C\u533A\u91CC\u505A\u7684\u4E8B\u2026", "What should run in that workspace on that machine..."),
@@ -10791,7 +10856,7 @@ function RemoteWorkspacePanel(props) {
       })
     ] }, "msg"),
     jsx4.jsx("div", { className: "dwm-actions", children: [
-      jsx4.jsx("button", { className: "dwm-btn", disabled, onClick: submit, children: sending ? t("\u53D1\u9001\u4E2D\u2026", "Sending...") : t("\u53D1\u9001", "Send") }),
+      jsx4.jsx(Btn, { variant: "primary", disabled, onClick: submit, children: sending ? t("\u53D1\u9001\u4E2D\u2026", "Sending...") : t("\u53D1\u9001", "Send") }),
       send.message ? jsx4.jsx("span", { className: "dwm-status", "data-tone": send.tone, children: send.message }) : null
     ] }, "act"),
     send.summary ? jsx4.jsx("pre", { className: "dwm-mono", style: { whiteSpace: "pre-wrap", margin: 0, fontSize: "12px" }, children: send.summary }, "sum") : null
@@ -10889,22 +10954,25 @@ function MeshSection(props) {
     });
   }
   var data = state.data;
-  var header = [
-    jsx4.jsx("h2", { className: "dwm-h2", children: t("\u5DE5\u4F5C\u533A\u7F51\u683C", "Workspace mesh") }, "h2"),
-    jsx4.jsx("p", { className: "dwm-intro", children: t(
-      "\u672C\u673A mesh \u8FD0\u884C\u65F6\u5FEB\u7167\uFF1A\u4F20\u8F93\u72B6\u6001\u3001\u8282\u70B9\u3001\u5DE5\u4F5C\u533A\u5206\u5E03\u4E0E\u8FD1\u671F\u4EFB\u52A1\u3002\u6570\u636E\u53EA\u8BFB\uFF1B\u6253\u5F00\u672C\u9875\u3001\u5207\u56DE\u672C\u9875\u6216\u70B9\u300C\u7ACB\u5373\u5237\u65B0\u300D\u65F6\u91CD\u65B0\u8BFB\u53D6\u3002",
-      "Local mesh snapshot: transport, peers, workspace placement and recent tasks. Read-only; re-read when the page opens, when the tab regains focus, or on Refresh."
-    ) }, "intro")
-  ];
+  var header = jsx4.jsxs("header", { className: "dwm-head", children: [
+    jsx4.jsxs("div", { className: "dwm-headText", children: [
+      jsx4.jsx("h1", { className: "dwm-h2", children: t("\u5DE5\u4F5C\u533A\u7F51\u683C", "Workspace mesh") }, "h2"),
+      jsx4.jsx("p", { className: "dwm-intro", children: t(
+        "\u672C\u673A mesh \u8FD0\u884C\u65F6\u5FEB\u7167\uFF1A\u4F20\u8F93\u72B6\u6001\u3001\u8282\u70B9\u3001\u5DE5\u4F5C\u533A\u5206\u5E03\u4E0E\u8FD1\u671F\u4EFB\u52A1\u3002\u6570\u636E\u53EA\u8BFB\uFF1B\u6253\u5F00\u672C\u9875\u3001\u5207\u56DE\u672C\u9875\u6216\u70B9\u300C\u5237\u65B0\u300D\u65F6\u91CD\u65B0\u8BFB\u53D6\u3002",
+        "Local mesh snapshot: transport, peers, workspace placement and recent tasks. Read-only; re-read when the page opens, when the tab regains focus, or on Refresh."
+      ) }, "intro")
+    ] }, "text"),
+    jsx4.jsx("div", { className: "dwm-actions", children: jsx4.jsx(Btn, { onClick: load, children: t("\u5237\u65B0", "Refresh") }, "refresh") }, "actions")
+  ] }, "head");
   if (!data && state.phase === "loading") {
-    return jsx4.jsxs("div", { className: "dwm-page", children: header.concat([jsx4.jsx("p", { className: "dwm-note", children: "\u6B63\u5728\u8BFB\u53D6 mesh \u72B6\u6001\u2026" }, "loading")]) });
+    return jsx4.jsxs("div", { className: "dwm-page", children: [header, jsx4.jsx("div", { className: "dwm-body", children: jsx4.jsx("p", { className: "dwm-note", children: "\u6B63\u5728\u8BFB\u53D6 mesh \u72B6\u6001\u2026" }) }, "body")] });
   }
   if (!data && state.phase === "error") {
     var reason = state.status === 401 || state.status === 403 ? t("\u4F1A\u8BDD\u672A\u8BA4\u8BC1\uFF1A\u8BF7\u91CD\u65B0\u767B\u5F55\u540E\u518D\u6253\u5F00\u672C\u9875\u3002", "Session not authenticated: sign in again and reopen this page.") : state.status === 404 ? t("\u5BBF\u4E3B\u672A\u63D0\u4F9B /api/mesh/state\uFF08\u63D2\u4EF6\u4E3B\u673A\u4FA7\u672A\u6302\u8F7D connection.fetch\uFF09\u3002", "Host does not serve /api/mesh/state (connection.fetch is not mounted).") : state.error;
-    return jsx4.jsxs("div", { className: "dwm-page", children: header.concat([
+    return jsx4.jsxs("div", { className: "dwm-page", children: [header, jsx4.jsx("div", { className: "dwm-body", children: [
       jsx4.jsx("p", { className: "dwm-note", "data-tone": "warn", children: reason }, "err"),
-      jsx4.jsx("div", { className: "dwm-footer", children: [jsx4.jsx("button", { className: "dwm-ghost", onClick: load, children: t("\u91CD\u8BD5", "Retry") }, "retry")] }, "errActions")
-    ]) });
+      jsx4.jsx("div", { className: "dwm-actions", children: [jsx4.jsx(Btn, { onClick: load, children: t("\u91CD\u8BD5", "Retry") }, "retry")] }, "errActions")
+    ] }, "body")] });
   }
   var peers = data && data.peers || [];
   var tasks = data && data.tasks || [];
@@ -10948,8 +11016,7 @@ function MeshSection(props) {
         })
       });
     } else {
-      control = jsx4.jsx("input", {
-        className: "dwm-input",
+      control = jsx4.jsx(TextInput, {
         type: field.kind === "number" ? "number" : "text",
         value: current,
         onChange: function(event) {
@@ -10963,7 +11030,7 @@ function MeshSection(props) {
       jsx4.jsx("span", { className: "dwm-hint", children: field.hint })
     ] }, field.key);
   });
-  blocks.push(jsx4.jsxs("div", { className: "dwm-form", children: [
+  blocks.push(jsx4.jsxs("div", { className: "dwm-section", children: [
     jsx4.jsx("h3", { className: "dwm-h3", children: t("\u63D2\u4EF6\u914D\u7F6E", "Plugin configuration") }),
     jsx4.jsx("p", { className: "dwm-note", children: t(
       "\u5199\u5165 " + (data && data.configFile || "mesh-config.json") + "\uFF0C\u8986\u76D6 profile patch \u7684\u9ED8\u8BA4\u503C\uFF1B\u79DF\u7EA6\u4E0E assignment \u7ACB\u5373\u751F\u6548\uFF0C\u4F20\u8F93\u4E0E peers \u9700\u91CD\u542F\u3002",
@@ -10971,8 +11038,8 @@ function MeshSection(props) {
     ) }),
     jsx4.jsx("div", { className: "dwm-fields", children: configRows }),
     jsx4.jsxs("div", { className: "dwm-actions", children: [
-      jsx4.jsx("button", {
-        className: "dwm-btn",
+      jsx4.jsx(Btn, {
+        variant: "primary",
         disabled: Object.keys(form.dirty).length === 0 || form.saving,
         onClick: saveConfig,
         children: t("\u4FDD\u5B58\u914D\u7F6E", "Save")
@@ -11076,11 +11143,11 @@ function MeshSection(props) {
   }
   blocks.push(jsx4.jsxs("div", { className: "dwm-footer", children: [
     jsx4.jsx("span", { children: t("\u66F4\u65B0\u4E8E ", "updated ") + (state.at ? fmtClock(state.at) : "\u2014") }, "time"),
-    jsx4.jsx("button", { className: "dwm-ghost", onClick: load, children: t("\u7ACB\u5373\u5237\u65B0", "Refresh") }, "refresh"),
+    jsx4.jsx(Btn, { onClick: load, children: t("\u7ACB\u5373\u5237\u65B0", "Refresh") }, "refresh"),
     jsx4.jsx("span", { children: t("\u5FEB\u7167\u53EA\u8BFB\uFF1B\u914D\u7F6E\u66F4\u6539\u5199\u5165 mesh-config.json", "Snapshot is read-only; config changes go to mesh-config.json") }, "hint"),
     state.phase === "error" ? jsx4.jsx("span", { "data-tone": "warn", children: t("\u4E0A\u6B21\u5237\u65B0\u5931\u8D25\uFF1A", "last refresh failed: ") + state.error }) : null
   ] }, "footer"));
-  return jsx4.jsxs("div", { className: "dwm-page", children: header.concat(blocks) });
+  return jsx4.jsxs("div", { className: "dwm-page", children: [header, jsx4.jsx("div", { className: "dwm-body", children: blocks }, "body")] });
 }
 function PairingPanel(props) {
   var nameState = React2.useState("");
@@ -11133,25 +11200,23 @@ function PairingPanel(props) {
   }
   var busyOut = out.phase === "loading";
   var busyIn = imported.phase === "loading";
-  return jsx4.jsxs("div", { className: "dwm-form", children: [
+  return jsx4.jsxs("div", { className: "dwm-section", children: [
     jsx4.jsx("h3", { className: "dwm-h3", children: t("\u4E00\u952E\u914D\u5BF9", "Pair a machine") }),
     jsx4.jsx("p", { className: "dwm-hint", children: t(
       "\u914D\u5BF9\u94FE\u63A5\u91CC\u5E26\u7740\u8FD9\u53F0\u673A\u5668\u7684\u5730\u5740\u4E0E\u5171\u4EAB\u5BC6\u94A5\uFF1A\u5728\u5BF9\u65B9\u673A\u5668\u4E0A\u6253\u5F00\u5B83\uFF0C\u4E24\u8FB9\u5C31\u901A\u4E86\uFF0C\u4E0D\u7528\u624B\u6539 mesh-config.json\u3002",
       "The link carries this machine's URL and shared secret: open it on the other machine and both sides are connected, with no hand-edited mesh-config.json."
     ) }),
     jsx4.jsxs("div", { className: "dwm-pair-row", children: [
-      jsx4.jsx("input", {
-        className: "dwm-input",
+      jsx4.jsx(TextInput, {
         value: name,
         placeholder: t("\u5BF9\u65B9\u600E\u4E48\u79F0\u547C\u8FD9\u53F0\u673A\u5668\uFF08\u9ED8\u8BA4\u4E3B\u673A\u540D\uFF09", "Name the other side uses for this machine (default: hostname)"),
         onChange: function(event) {
           setName(event.target.value);
         }
-      }),
-      jsx4.jsx("button", { className: "dwm-btn", disabled: busyOut, onClick: makeLink, children: busyOut ? t("\u751F\u6210\u4E2D\u2026", "Generating\u2026") : t("\u751F\u6210\u914D\u5BF9\u94FE\u63A5", "Create link") })
+      }, "name"),
+      jsx4.jsx(Btn, { variant: "primary", disabled: busyOut, onClick: makeLink, children: busyOut ? t("\u751F\u6210\u4E2D\u2026", "Generating\u2026") : t("\u751F\u6210\u914D\u5BF9\u94FE\u63A5", "Create link") }, "make")
     ] }, "make"),
-    out.link === "" ? null : jsx4.jsx("input", {
-      className: "dwm-input dwm-mono",
+    out.link === "" ? null : jsx4.jsx(TextInput, {
       readOnly: true,
       value: out.link,
       onFocus: function(event) {
@@ -11160,15 +11225,14 @@ function PairingPanel(props) {
     }, "link"),
     out.message === "" ? null : jsx4.jsx("p", { className: "dwm-hint", "data-tone": out.tone, children: out.message }, "out-msg"),
     jsx4.jsxs("div", { className: "dwm-pair-row", children: [
-      jsx4.jsx("input", {
-        className: "dwm-input dwm-mono",
+      jsx4.jsx(TextInput, {
         value: incoming,
         placeholder: t("\u7C98\u8D34\u5BF9\u65B9\u7684\u914D\u5BF9\u94FE\u63A5", "Paste the other machine's link"),
         onChange: function(event) {
           setIncoming(event.target.value);
         }
-      }),
-      jsx4.jsx("button", { className: "dwm-btn", disabled: busyIn || incoming.trim() === "", onClick: importLink, children: busyIn ? t("\u5BFC\u5165\u4E2D\u2026", "Importing\u2026") : t("\u5BFC\u5165", "Import") })
+      }, "incoming"),
+      jsx4.jsx(Btn, { disabled: busyIn || incoming.trim() === "", onClick: importLink, children: busyIn ? t("\u5BFC\u5165\u4E2D\u2026", "Importing\u2026") : t("\u5BFC\u5165", "Import") }, "import")
     ] }, "import"),
     imported.message === "" ? null : jsx4.jsx("p", { className: "dwm-hint", "data-tone": imported.tone, children: imported.message }, "in-msg"),
     jsx4.jsx("p", { className: "dwm-note", children: t(
@@ -11319,27 +11383,36 @@ function MeshWorkspacePage() {
   for (var i = 0; i < rows.length; i += 1) if (rows[i].status === "online") online += 1;
   var justPaired = readParam("paired");
   return jsx4.jsxs("div", { className: "dwm-page", children: [
-    jsx4.jsx("h2", { className: "dwm-h2", children: t("\u5DE5\u4F5C\u533A\u7F51\u683C", "Workspace mesh") }),
+    jsx4.jsxs("header", { className: "dwm-head", children: [
+      jsx4.jsxs("div", { className: "dwm-headText", children: [
+        jsx4.jsx("h1", { className: "dwm-h2", children: t("\u5DE5\u4F5C\u533A\u7F51\u683C", "Workspace mesh") }),
+        jsx4.jsx("p", { className: "dwm-intro", children: state.phase === "error" ? t("\u8BFB\u53D6 mesh \u72B6\u6001\u5931\u8D25\uFF1A", "Failed to read mesh state: ") + state.error : t("\u6BCF\u4E2A\u5DE5\u4F5C\u533A\u90FD\u5C5E\u4E8E\u67D0\u53F0\u673A\u5668\uFF1A\u6D88\u606F\u4F20\u8FC7\u53BB\uFF0C\u6267\u884C\u7559\u5728\u90A3\u53F0\u673A\u5668\u4E0A\u3002", "Each workspace belongs to one machine: the message travels, the work stays there.") })
+      ] }, "text"),
+      jsx4.jsx("div", { className: "dwm-actions", children: jsx4.jsx(Btn, {
+        onClick: load,
+        children: t("\u5237\u65B0", "Refresh")
+      }, "refresh") }, "actions")
+    ] }, "head"),
     justPaired === "" ? null : jsx4.jsx("p", {
       className: "dwm-hint",
       "data-tone": justPaired === "failed" ? "err" : "ok",
       children: justPaired === "failed" ? t("\u914D\u5BF9\u94FE\u63A5\u6CA1\u80FD\u5BFC\u5165\uFF1A\u770B\u63A7\u5236\u53F0\u91CC\u7684\u539F\u56E0\u3002", "The pairing link could not be imported; see the console for why.") : t("\u5DF2\u4E0E " + justPaired + " \u914D\u5BF9\uFF0C\u7ACB\u5373\u751F\u6548\u3002", "Paired with " + justPaired + "; it applies immediately.")
     }, "paired-banner"),
-    jsx4.jsx("p", { className: "dwm-intro", children: state.phase === "error" ? t("\u8BFB\u53D6 mesh \u72B6\u6001\u5931\u8D25\uFF1A", "Failed to read mesh state: ") + state.error : t("\u6BCF\u4E2A\u5DE5\u4F5C\u533A\u90FD\u5C5E\u4E8E\u67D0\u53F0\u673A\u5668\uFF1A\u6D88\u606F\u4F20\u8FC7\u53BB\uFF0C\u6267\u884C\u7559\u5728\u90A3\u53F0\u673A\u5668\u4E0A\u3002", "Each workspace belongs to one machine: the message travels, the work stays there.") }),
-    jsx4.jsx(PairingPanel, { onPaired: load }, "pair"),
-    jsx4.jsxs("div", { className: "dwm-grid", children: [
-      jsx4.jsx(Stat, { label: t("\u5728\u7EBF\u5DE5\u4F5C\u533A", "Online"), value: String(online) }, "s1"),
-      jsx4.jsx(Stat, { label: t("\u5DE5\u4F5C\u533A\u603B\u6570", "Total"), value: String(rows.length) }, "s2")
-    ] }, "stats"),
-    jsx4.jsx(RemoteWorkspacePanel, { rows }, "remote"),
-    jsx4.jsxs("div", { className: "dwm-footer", children: [
-      jsx4.jsx("span", { children: t("\u66F4\u65B0\u4E8E ", "updated ") + (state.at ? fmtClock(state.at) : "\u2014") }, "time"),
-      jsx4.jsx("button", { className: "dwm-ghost", onClick: load, children: t("\u7ACB\u5373\u5237\u65B0", "Refresh") }, "refresh")
-    ] }, "footer"),
-    jsx4.jsx("p", { className: "dwm-note", children: t(
-      "\u65AD\u7F51\u6216\u5BF9\u7AEF\u79BB\u7EBF\u65F6\uFF0C\u5DE5\u4F5C\u533A\u72B6\u6001\u53D8\u79BB\u7EBF\uFF0C\u53D1\u9001\u4F1A\u76F4\u63A5\u5931\u8D25\u2014\u2014\u4E0D\u4F1A\u7559\u4E0B\u534A\u622A\u4EFB\u52A1\u3002",
-      "When the network or the peer is down the workspace turns offline and sending fails fast; nothing is left half-queued."
-    ) })
+    jsx4.jsxs("div", { className: "dwm-body", children: [
+      jsx4.jsx(PairingPanel, { onPaired: load }, "pair"),
+      jsx4.jsxs("div", { className: "dwm-grid", children: [
+        jsx4.jsx(Stat, { label: t("\u5728\u7EBF\u5DE5\u4F5C\u533A", "Online"), value: String(online) }, "s1"),
+        jsx4.jsx(Stat, { label: t("\u5DE5\u4F5C\u533A\u603B\u6570", "Total"), value: String(rows.length) }, "s2")
+      ] }, "stats"),
+      jsx4.jsx(RemoteWorkspacePanel, { rows }, "remote"),
+      jsx4.jsxs("div", { className: "dwm-footer", children: [
+        jsx4.jsx("span", { children: t("\u66F4\u65B0\u4E8E ", "updated ") + (state.at ? fmtClock(state.at) : "\u2014") }, "time"),
+        jsx4.jsx("p", { className: "dwm-note", children: t(
+          "\u65AD\u7F51\u6216\u5BF9\u7AEF\u79BB\u7EBF\u65F6\uFF0C\u5DE5\u4F5C\u533A\u72B6\u6001\u53D8\u79BB\u7EBF\uFF0C\u53D1\u9001\u4F1A\u76F4\u63A5\u5931\u8D25\u2014\u2014\u4E0D\u4F1A\u7559\u4E0B\u534A\u622A\u4EFB\u52A1\u3002",
+          "When the network or the peer is down the workspace turns offline and sending fails fast; nothing is left half-queued."
+        ) }, "note")
+      ] }, "footer")
+    ] }, "body")
   ] });
 }
 /*! Bundled license information:
