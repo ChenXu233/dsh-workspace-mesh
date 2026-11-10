@@ -6,6 +6,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AssistantLiveHub } from '../live/assistant.js'
 import { verifyMeshToken } from './mesh-auth.js'
 import { registerMeshPublicRoute } from './mesh-http.js'
+import { sseResponse } from './sse.js'
 import { jsonResponse, mountExactRoute } from './mount.js'
 import type { MeshFetchRoute, MeshRouteContext } from './mount.js'
 
@@ -21,6 +22,9 @@ import type { MeshFetchRoute, MeshRouteContext } from './mount.js'
  */
 
 export const MESH_RELAY_PATH = '/api/mesh/relay'
+
+/** The same credential, one open response: live frames pushed instead of polled. */
+export const MESH_RELAY_STREAM_PATH = '/api/mesh/relay/stream'
 
 export type MeshRelayOp = 'list' | 'create' | 'prompt' | 'page' | 'workspaces' | 'browse' | 'workspace-create' | 'assistant-live'
 
@@ -215,6 +219,79 @@ export async function handleRelay(request: Request, control: MeshRelayControl): 
     const code = typeof (err as { code?: unknown }).code === 'string' ? (err as { code: string }).code : undefined
     return jsonResponse(code === undefined ? { ok: false, error: message } : { ok: false, code, error: message }, 200)
   }
+}
+
+/**
+ * Serve one live-frame stream to a peer holding a mesh token.
+ *
+ * The token travels in the body — this route sits below the browser fence, so
+ * the peer never needs the login token that rotates on restart.
+ * @param request - JSON body `{ token, op, args }`.
+ * @param control - secret, plus this Host's retained frames.
+ * @returns an open event stream, or a JSON refusal.
+ */
+export async function handleRelayStream(request: Request, control: MeshRelayControl): Promise<Response> {
+  const secret = control.secret()
+  if (secret === undefined || secret === '') {
+    return jsonResponse({ ok: false, error: 'meshSecret is not configured on this node' }, 503)
+  }
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return jsonResponse({ ok: false, error: 'body must be JSON' }, 400)
+  }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return jsonResponse({ ok: false, error: 'body must be a JSON object' }, 400)
+  }
+  const record = body as Record<string, unknown>
+  const check = verifyMeshToken(secret, record.token, (control.now ?? Date.now)())
+  if (!check.ok) {
+    return jsonResponse({ ok: false, error: `mesh token rejected: ${check.reason}` }, 401)
+  }
+  if (record.op !== 'assistant-live') {
+    return jsonResponse({ ok: false, error: 'op must be assistant-live on this route' }, 400)
+  }
+  const hub = control.live?.()
+  if (hub === undefined) {
+    return jsonResponse({ ok: false, code: 'unavailable', error: 'this Host does not retain live frames' }, 200)
+  }
+  const args = (record.args ?? {}) as Record<string, unknown>
+  const sessionId = typeof args.sessionId === 'string' ? args.sessionId : ''
+  if (sessionId === '') return jsonResponse({ ok: false, error: 'sessionId is required' }, 400)
+  const rawSince = args.since
+  const since = typeof rawSince === 'number' && Number.isFinite(rawSince) && rawSince > 0 ? rawSince : 0
+  return sseResponse((write) => {
+    const initial = hub.read(sessionId, since)
+    write({ type: 'frames', revision: initial.revision, frames: initial.frames })
+    const off = hub.subscribe(sessionId, (page) => {
+      if (page.frames.length > 0) write({ type: 'frames', revision: page.revision, frames: page.frames })
+    })
+    const ping = setInterval(() => write({ type: 'ping' }), 15_000)
+    return () => {
+      clearInterval(ping)
+      off()
+    }
+  }, request.signal)
+}
+
+/**
+ * Mount the stream half of the relay below the browser fence.
+ * @param ctx - Host context carrying a web server.
+ * @param secret - shared mesh secret; empty disables the route.
+ * @param live - this Host's retained live frames.
+ * @returns true when the route was mounted.
+ */
+export function registerMeshRelayStreamRoute(
+  ctx: Context,
+  secret: () => string | undefined,
+  live?: () => AssistantLiveHub | undefined,
+): boolean {
+  return registerMeshPublicRoute(ctx, MESH_RELAY_STREAM_PATH, (request) => handleRelayStream(request, {
+    secret,
+    controller: () => undefined,
+    ...(live === undefined ? {} : { live }),
+  }))
 }
 
 export function mountMeshRelayRoute(ctx: MeshRouteContext, control: MeshRelayControl): boolean {

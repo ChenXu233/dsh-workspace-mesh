@@ -15,6 +15,8 @@ import { currentDispatchTarget, setDispatchTarget } from './dispatch-target'
 import { refreshRemoteWorkspaces } from './remote-workspaces'
 import type { DispatchTarget } from './dispatch-target'
 import { dropEntries, EMPTY_LIVE, foldFrames } from './remote-live'
+import { openLiveStream } from './remote-live-stream'
+import type { LivePage, LiveStreamHandle } from './remote-live-stream'
 import type { LiveEntry, LiveState } from './remote-live'
 
 /** One durable event, as the peer's log records it (already lossless JSON). */
@@ -122,6 +124,17 @@ function stopTimer(): void {
   timer = undefined
 }
 
+/** The push stream, when the peer and this Host can hold one open. */
+let liveStream: LiveStreamHandle | undefined
+/** Bumped on every open so late callbacks from a closed stream are ignored. */
+let liveGeneration = 0
+/** True while the page wants live rows at all. */
+let liveWanted = false
+/** Delay before the page stops watching, so the last frames of a turn land. */
+let liveStopTimer: ReturnType<typeof setTimeout> | undefined
+/** Failed stream opens before falling back to polling. */
+let liveRetries = 0
+
 /** Fast clock while the peer is writing: the answer is painted from these frames. */
 function startLivePolling(): void {
   if (liveTimer !== undefined || state.sessionId === undefined) return
@@ -134,6 +147,98 @@ function stopLivePolling(): void {
   if (liveTimer !== undefined) clearInterval(liveTimer)
   liveTimer = undefined
   liveIdle = 0
+}
+
+/** Start watching: push first, polling only if the stream cannot be opened. */
+function startLive(): void {
+  if (state.sessionId === undefined) return
+  liveWanted = true
+  if (liveStopTimer !== undefined) {
+    clearTimeout(liveStopTimer)
+    liveStopTimer = undefined
+  }
+  if (liveStream !== undefined || liveTimer !== undefined) return
+  openLiveStreamNow()
+}
+
+/** Stop watching and forget the stream (polling included). */
+function stopLive(): void {
+  liveWanted = false
+  liveGeneration += 1
+  liveRetries = 0
+  if (liveStopTimer !== undefined) {
+    clearTimeout(liveStopTimer)
+    liveStopTimer = undefined
+  }
+  liveStream?.close()
+  liveStream = undefined
+  stopLivePolling()
+}
+
+/**
+ * Stop watching once the peer has clearly finished.
+ *
+ * The events poll says "not running" a moment before the last frames land, so a
+ * settled turn waits a beat; a new prompt cancels the wait.
+ */
+function settleLive(): void {
+  if (!liveWanted || liveStopTimer !== undefined) return
+  liveStopTimer = setTimeout(() => {
+    liveStopTimer = undefined
+    if (state.running) return
+    stopLive()
+  }, 1500)
+}
+
+/** Open one stream from where the fold already is. */
+function openLiveStreamNow(): void {
+  const { target, sessionId } = state
+  if (target === undefined || sessionId === undefined) return
+  const generation = ++liveGeneration
+  liveStream = openLiveStream({
+    nodeId: target.nodeId,
+    sessionId,
+    since: liveState.revision,
+    onPage(page) {
+      if (generation === liveGeneration) applyLivePage(page)
+    },
+    onEnd() {
+      if (generation !== liveGeneration) return
+      liveStream = undefined
+      if (!liveWanted) return
+      liveRetries += 1
+      // A peer that cannot serve the stream (older build, proxy in the middle)
+      // degrades to the poll clock instead of leaving the page silent.
+      if (liveRetries > 3) {
+        startLivePolling()
+        return
+      }
+      setTimeout(() => {
+        if (!liveWanted || liveStream !== undefined || liveTimer !== undefined) return
+        openLiveStreamNow()
+      }, Math.min(400 * liveRetries, 2000))
+    },
+  })
+  if (liveStream !== undefined) liveRetries = 0
+}
+
+/** Fold one pushed batch into rows. */
+function applyLivePage(page: LivePage): void {
+  const cursor = state.events.length === 0 ? 0 : state.events[state.events.length - 1]!.seq
+  const folded = foldFrames(liveState, page.frames, cursor)
+  if (folded.resync) {
+    // A chunk went missing: rebuild the attempt from its start rather than
+    // showing a paragraph with a hole in it.
+    liveState = EMPTY_LIVE
+    liveGeneration += 1
+    liveStream?.close()
+    liveStream = undefined
+    if (liveWanted) openLiveStreamNow()
+    return
+  }
+  if (folded === liveState) return
+  liveState = folded
+  publish({ ...state, live: folded.entries, revision: state.revision + 1 })
 }
 
 /** Forget every folded row (session switch, settlement, leaving the page). */
@@ -170,7 +275,12 @@ async function pollLive(): Promise<void> {
     }
     const frames = Array.isArray(payload.frames) ? payload.frames as never[] : []
     const cursor = state.events.length === 0 ? 0 : state.events[state.events.length - 1]!.seq
-    const folded = foldFrames(liveState, frames, cursor)
+    let folded = foldFrames(liveState, frames, cursor)
+    if (folded.resync) {
+      // Lost frames on the poll clock too: ask for the attempt again from 0.
+      liveState = EMPTY_LIVE
+      folded = foldFrames(EMPTY_LIVE, frames, cursor)
+    }
     if (folded === liveState) {
       liveIdle += 1
       if (liveIdle >= 8 && state.running === false) stopLivePolling()
@@ -257,8 +367,8 @@ async function poll(): Promise<void> {
       live: liveState.entries,
       revision: changed || liveChanged ? state.revision + 1 : state.revision,
     })
-    if (running) startLivePolling()
-    else if (liveState.entries.length === 0 && liveState.attemptId === undefined) stopLivePolling()
+    if (running) startLive()
+    else settleLive()
   } catch (error) {
     if (state.phase !== 'error') {
       publish({ ...state, phase: 'error', error: error instanceof Error ? error.message : String(error) })
@@ -340,7 +450,7 @@ function begin(target: DispatchTarget): void {
   const adoption = adoptFor !== undefined && sameTarget(adoptFor.target, target) ? adoptFor.sessionId : undefined
   adoptFor = undefined
   stopTimer()
-  stopLivePolling()
+  stopLive()
   liveState = EMPTY_LIVE
   publish({ ...IDLE, target, sessionId: adoption, phase: adoption === undefined ? 'idle' : 'live', revision: state.revision + 1 })
   startPolling()
@@ -355,7 +465,7 @@ function startPolling(): void {
 /** Leave the page and forget the peer Session. */
 function end(): void {
   stopTimer()
-  stopLivePolling()
+  stopLive()
   liveState = EMPTY_LIVE
   setShellSession(undefined)
   if (state === IDLE) return
@@ -396,7 +506,7 @@ let adoptFor: { target: DispatchTarget, sessionId: string } | undefined
 /** Show one Session now: new window, new fold, polling restarted. */
 function adopt(target: DispatchTarget, sessionId: string): void {
   stopTimer()
-  stopLivePolling()
+  stopLive()
   liveState = EMPTY_LIVE
   publish({ ...IDLE, target, sessionId, phase: 'live', revision: state.revision + 1 })
   void poll()
@@ -437,7 +547,7 @@ export async function sendRemoteMessage(text: string): Promise<void> {
     // folding the answer as soon as the peer begins writing it.
     void poll()
     startPolling()
-    startLivePolling()
+    startLive()
   } catch (error) {
     publish({ ...state, phase: 'error', error: error instanceof Error ? error.message : String(error) })
   }

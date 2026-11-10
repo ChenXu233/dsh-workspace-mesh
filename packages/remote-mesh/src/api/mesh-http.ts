@@ -20,6 +20,11 @@ interface NodeRequest {
 
 interface NodeResponse {
   writeHead(status: number, headers?: Record<string, string>): unknown
+  write?(chunk: Uint8Array | string): boolean
+  flushHeaders?(): void
+  once?(event: string, listener: () => void): unknown
+  off?(event: string, listener: () => void): unknown
+  destroyed?: boolean
   end(body?: string): unknown
 }
 
@@ -55,8 +60,52 @@ async function toRequest(req: NodeRequest): Promise<Request> {
 }
 
 async function writeResponse(res: NodeResponse, response: Response): Promise<void> {
+  const headers: Record<string, string> = {
+    'content-type': response.headers.get('content-type') ?? 'application/json; charset=utf-8',
+  }
+  const cache = response.headers.get('cache-control')
+  if (cache !== null) headers['cache-control'] = cache
+  const body = response.body
+  // A peer reading live frames holds the response open; collecting it first
+  // would turn a push stream back into one batch at the end.
+  if (body !== null && typeof res.write === 'function') {
+    res.writeHead(response.status, headers)
+    res.flushHeaders?.()
+    const reader = body.getReader()
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (res.destroyed === true) break
+        if (!res.write(value) && res.once !== undefined) {
+          await new Promise<void>((resolve) => {
+            const settle = (): void => {
+              res.off?.('drain', settle)
+              res.off?.('close', settle)
+              resolve()
+            }
+            res.once?.('drain', settle)
+            res.once?.('close', settle)
+          })
+        }
+      }
+    } catch {
+      // The reader went away mid-stream; the socket is already gone.
+    }
+    try {
+      reader.releaseLock()
+    } catch {
+      // A cancelled reader releases itself.
+    }
+    try {
+      res.end()
+    } catch {
+      // The socket closed under us.
+    }
+    return
+  }
   const text = await response.text()
-  res.writeHead(response.status, { 'content-type': response.headers.get('content-type') ?? 'application/json; charset=utf-8' })
+  res.writeHead(response.status, headers)
   res.end(text)
 }
 

@@ -98,6 +98,20 @@ export interface MeshTransport {
    */
   readAssistantLive?(nodeId: string, sessionId: string, since: number): Promise<MeshLivePage>
   /**
+   * The same frames as one open response.
+   *
+   * Polling fixes a latency floor equal to the interval; a transport that can
+   * hold a response open hands each batch over the moment the peer produced it.
+   * Optional: without it the page falls back to `readAssistantLive`.
+   */
+  openAssistantLiveStream?(
+    nodeId: string,
+    sessionId: string,
+    since: number,
+    onPage: (page: MeshLivePage) => void,
+    signal: AbortSignal,
+  ): Promise<void>
+  /**
    * Read the tail of a session log. Optional: an adapter that cannot read
    * history simply leaves it out and the UI hides the viewer.
    */

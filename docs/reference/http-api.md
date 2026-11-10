@@ -10,8 +10,8 @@
 
 | 组 | 调用者 | 挂在哪 | 认证 |
 | --- | --- | --- | --- |
-| 页面路由（§1–§9） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
-| 对端路由（§10–§11） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
+| 页面路由（§1–§10） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
+| 对端路由（§11–§12） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
 
 对端路由不能放进 fence：调用方手里还没有 cookie，放进去会先被 401 挡掉，握手永远走不到自己的处理器。它们因此自带校验，且只服务这两个操作面。
 
@@ -178,7 +178,25 @@ GET /api/mesh/session/live?nodeId=<peer>&sessionId=<id>&since=<revision>
 
 帧**不是**耐久日志的一部分：丢掉它们只是退化成整段显示，不会让页面缺内容。
 
-## 10. POST /api/mesh/remote
+## 10. GET /api/mesh/session/live/stream
+
+同一个实时帧，改成一**条常开的响应**（`text/event-stream`）。
+
+```text
+GET /api/mesh/session/live/stream?nodeId=<peer>&sessionId=<id>&since=<revision>
+
+data: { "type": "frames", "revision": 12, "frames": [ ... ] }
+data: { "type": "ping" }
+```
+
+先补发 `since` 之后已有的帧，之后每批新帧到一条事件；15s 一条 `ping` 保活。浏览器断开时 `request.signal` 触发，订阅随之释放。页面优先用它：轮询的步长就是回答的颗粒度，常开响应把每个 chunk 直接送到。
+
+| 状态码 | 条件 |
+| --- | --- |
+| 400 | 缺 `sessionId` |
+| 200 | 其余；对端不支持时 `ok: false` + `code: unavailable`（页面退回 §9 轮询） |
+
+## 11. POST /api/mesh/remote
 
 浏览器替用户管理**对端**的工作区：列那台机器的目录，或在那台机器上登记一条 Workspace。设置页路由里只有它作用在别的机器上，所以它用 `meshSecret` 换来的 mesh token，而不是本页的登录 cookie。请求体：
 
@@ -198,7 +216,7 @@ GET /api/mesh/session/live?nodeId=<peer>&sessionId=<id>&since=<revision>
 | 400 | 请求体不是 JSON、缺 `nodeId`/`op`、`op` 不在枚举内、`workspace-create` 的 `path` 不是绝对路径 |
 | 503 | 传输没有 `control` 能力，或对端组合里没有 `workspaceRegistry` |
 | 200 | 其余情况；对端拒绝也是 200 + `ok: false` |
-## 11. POST /api/mesh/handshake
+## 12. POST /api/mesh/handshake
 
 对端用共享密钥换一个短期 mesh token。这是 relay 模式的入口：调用方不需要对端那个每次重启都轮换的登录 token。
 
@@ -219,13 +237,15 @@ hmac = base64url(HMAC-SHA256(meshSecret, "mesh-handshake:<nodeId>:<ts>:<nonce>")
 
 nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒（防重放）。
 
-## 12. POST /api/mesh/relay
+## 13. POST /api/mesh/relay
 
 对端**在本机**执行一次会话操作。凭 §7 换到的 mesh token。
 
 ```text
 { token, op, args }        op ∈ list | create | prompt | page | workspaces | browse | workspace-create | assistant-live
 ```
+
+同一套凭据还有 `POST /api/mesh/relay/stream`：请求体 `{ token, op: 'assistant-live', args: { sessionId, since } }`，返回与 §10 同形的常开事件流（不走浏览器 fence，token 在体内自证）。
 
 `args` 就是 Typert 的 `payload.args`：`list` 传 `{_request:{}}`，其余传 `{request:{...}}`；`assistant-live` 传 `{ sessionId, since }`，返回 `{ revision, frames }`（与 §9 同形，供页面在 relay 模式下读实时帧）。返回 `{ ok: true, value }`；业务失败是 200 + `{ ok: false, code?, error }`。
 
@@ -246,7 +266,7 @@ nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒
 
 把 source 传进 `prompt` 的第二位，报错是 `signal.throwIfAborted is not a function`——错误发生在对端，调用方只看到一句与参数无关的话。`test/relay-route.test.ts` 用「假控制器先调 `signal.throwIfAborted()`」把这条契约钉住。
 
-## 13. 为什么不用原生 settings 管道
+## 14. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

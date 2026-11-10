@@ -16,7 +16,7 @@ import { registerMeshSessionPageRoutes, registerMeshSessionRoute } from './api/s
 import { AssistantLiveHub } from './live/assistant.js'
 import { registerMeshRemoteRoute } from './api/remote.js'
 import { registerMeshHandshakeRoute } from './api/handshake.js'
-import { registerMeshRelayRoute } from './api/relay.js'
+import { registerMeshRelayRoute, registerMeshRelayStreamRoute } from './api/relay.js'
 import { buildWorkspacesPayload, readWorkspaceRegistry } from './api/workspaces.js'
 import { meshConfigPath, readConfigOverride } from './config/store.js'
 import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
@@ -196,6 +196,9 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
       () => readWorkspaceRegistry(ctx),
       () => liveHub,
     )
+    // The same mesh token, one open response: a caller reads the peer's live
+    // frames as they happen instead of polling for them.
+    registerMeshRelayStreamRoute(ctx, meshSecret, () => liveHub)
     console.info('[mesh] peer handshake + relay mounted (meshSecret configured)')
   }
 
@@ -230,7 +233,16 @@ export {
 } from './api/session.js'
 export { handleRemote, MESH_REMOTE_PATH, mountMeshRemoteRoute, registerMeshRemoteRoute } from './api/remote.js'
 export { handleHandshake, MESH_HANDSHAKE_PATH, registerMeshHandshakeRoute } from './api/handshake.js'
-export { handleRelay, MESH_RELAY_PATH, readSessionController, registerMeshRelayRoute } from './api/relay.js'
+export {
+  handleRelay,
+  handleRelayStream,
+  MESH_RELAY_PATH,
+  MESH_RELAY_STREAM_PATH,
+  readSessionController,
+  registerMeshRelayRoute,
+  registerMeshRelayStreamRoute,
+} from './api/relay.js'
+export { sseResponse } from './api/sse.js'
 export type { MeshConfigControl } from './api/config.js'
 export { meshConfigPath, readConfigOverride, sanitizeOverride, writeConfigOverride } from './config/store.js'
 export type { MeshConfigOverride } from './config/store.js'

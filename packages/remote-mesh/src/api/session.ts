@@ -3,6 +3,7 @@ import type { MeshToolRuntime } from '../tools/types.js'
 import { jsonResponse, mountExactRoute, withConnection } from './mount.js'
 import type { MeshFetchRoute, MeshRouteContext } from './mount.js'
 import type { AssistantLiveHub } from '../live/assistant.js'
+import { sseResponse } from './sse.js'
 
 /**
  * Read the tail of a remote session, for the page's conversation viewer.
@@ -140,6 +141,56 @@ export async function handleSessionLive(request: Request, control: MeshSessionCo
   return jsonResponse({ ok: true, ...control.hub.read(sessionId, since) }, 200)
 }
 
+/** The same frames, pushed: one open response instead of a poll per interval. */
+export const MESH_SESSION_LIVE_STREAM_PATH = '/api/mesh/session/live/stream'
+
+export async function handleSessionLiveStream(request: Request, control: MeshSessionControl): Promise<Response> {
+  const url = new URL(request.url)
+  const sessionId = url.searchParams.get('sessionId') ?? ''
+  if (sessionId === '') {
+    return jsonResponse({ ok: false, error: 'sessionId is required' }, 400)
+  }
+  const rawSince = Number(url.searchParams.get('since') ?? '0')
+  const since = Number.isFinite(rawSince) && rawSince > 0 ? rawSince : 0
+  const nodeId = url.searchParams.get('nodeId') ?? ''
+  if (nodeId !== '') {
+    const transport = control.runtime.transport
+    if (transport?.openAssistantLiveStream === undefined) {
+      return jsonResponse({ ok: false, code: 'unavailable', error: 'the active transport cannot stream live frames' }, 200)
+    }
+    const open = transport.openAssistantLiveStream.bind(transport)
+    return sseResponse((write) => {
+      const abort = new AbortController()
+      const ping = setInterval(() => write({ type: 'ping' }), 15_000)
+      void open(nodeId, sessionId, since, (page) => write({ type: 'frames', ...page }), abort.signal)
+        .catch((err: unknown) => {
+          write({ type: 'error', error: err instanceof Error ? err.message : String(err) })
+        })
+        .finally(() => { clearInterval(ping) })
+      return () => {
+        clearInterval(ping)
+        abort.abort()
+      }
+    }, request.signal)
+  }
+  const hub = control.hub
+  if (hub === undefined) {
+    return jsonResponse({ ok: false, code: 'unavailable', error: 'this Host does not retain live frames' }, 200)
+  }
+  return sseResponse((write) => {
+    const initial = hub.read(sessionId, since)
+    write({ type: 'frames', revision: initial.revision, frames: initial.frames })
+    const off = hub.subscribe(sessionId, (page) => {
+      if (page.frames.length > 0) write({ type: 'frames', revision: page.revision, frames: page.frames })
+    })
+    const ping = setInterval(() => write({ type: 'ping' }), 15_000)
+    return () => {
+      clearInterval(ping)
+      off()
+    }
+  }, request.signal)
+}
+
 /** Open a Session on the peer's machine inside the picked Workspace. */
 export const MESH_SESSION_OPEN_PATH = '/api/mesh/session/open'
 
@@ -223,6 +274,17 @@ export function registerMeshSessionPageRoutes(ctx: Context, runtime: MeshToolRun
         fetch: async (request) => {
           try {
             return await handleSessionLive(request, control)
+          } catch (err) {
+            return jsonResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500)
+          }
+        },
+      }),
+      mountExactRoute(inner, {
+        path: MESH_SESSION_LIVE_STREAM_PATH,
+        methods: ['GET'],
+        fetch: async (request) => {
+          try {
+            return await handleSessionLiveStream(request, control)
           } catch (err) {
             return jsonResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500)
           }

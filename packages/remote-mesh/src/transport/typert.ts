@@ -334,6 +334,51 @@ class TypertClient {
     return (await res.json()) as T
   }
 
+  /** Open a streaming GET against the peer's own routes (fence-authenticated). */
+  async streamGet(path: string, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+    this.assertNotCoolingDown(path)
+    const cookie = await this.connect()
+    const res = await this.send(this.url(path), {
+      headers: { cookie, accept: 'text/event-stream' },
+      signal,
+    })
+    if (res.status === 401 || res.status === 403) {
+      this.cookie = undefined
+      this.onFailure()
+      throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: ${path} was rejected (HTTP ${res.status}); refresh the peer token`)
+    }
+    if (!res.ok || res.body === null) {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: ${path} returned HTTP ${res.status}`, res.status >= 500)
+    }
+    return res.body
+  }
+
+  /** Open a streaming relay operation (mesh-token authenticated, survives restarts). */
+  async streamRelay(op: string, args: unknown, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+    this.assertNotCoolingDown(op)
+    const attempt = async (): Promise<Response> => {
+      const token = await this.ensureMeshToken()
+      return this.send(this.url('/api/mesh/relay/stream'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+        body: JSON.stringify({ token, op, args }),
+        signal,
+      })
+    }
+    let res = await attempt()
+    if (res.status === 401) {
+      this.meshToken = undefined
+      res = await attempt()
+    }
+    if (res.status === 401) {
+      throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: relay stream rejected the mesh token`)
+    }
+    if (!res.ok || res.body === null) {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: relay stream returned HTTP ${res.status}`, res.status >= 500)
+    }
+    return res.body
+  }
+
   async call<T = unknown>(method: string, args: unknown): Promise<T> {
     if (this.relayMode) {
       const op = METHOD_TO_OP[method]
@@ -761,6 +806,64 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
       return {
         revision: typeof body.revision === 'number' ? body.revision : 0,
         frames: Array.isArray(body.frames) ? body.frames as MeshLiveFrame[] : [],
+      }
+    },
+
+    async openAssistantLiveStream(
+      nodeId: string,
+      sessionId: string,
+      since: number,
+      onPage: (page: MeshLivePage) => void,
+      signal: AbortSignal,
+    ): Promise<void> {
+      const client = requireClient(nodeId)
+      const at = Math.max(0, Math.floor(since))
+      const body = client.relayMode
+        ? await client.streamRelay('assistant-live', { sessionId, since: at }, signal)
+        : await client.streamGet(
+          '/api/mesh/session/live/stream?sessionId=' + encodeURIComponent(sessionId) + '&since=' + String(at),
+          signal,
+        )
+      const reader = body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          let cut = buffer.indexOf('\n\n')
+          while (cut >= 0) {
+            const block = buffer.slice(0, cut)
+            buffer = buffer.slice(cut + 2)
+            for (const line of block.split('\n')) {
+              if (!line.startsWith('data:')) continue
+              const raw = line.slice(5).trim()
+              if (raw === '') continue
+              let payload: Record<string, unknown>
+              try {
+                payload = JSON.parse(raw) as Record<string, unknown>
+              } catch {
+                continue
+              }
+              if (payload.type === 'error') {
+                throw new TypertRpcError('remote-failure', String(payload.error ?? 'live stream failed'))
+              }
+              if (payload.type !== 'frames') continue
+              onPage({
+                revision: typeof payload.revision === 'number' ? payload.revision : 0,
+                frames: Array.isArray(payload.frames) ? payload.frames as MeshLiveFrame[] : [],
+              })
+            }
+            cut = buffer.indexOf('\n\n')
+          }
+        }
+      } finally {
+        try {
+          reader.releaseLock()
+        } catch {
+          // A cancelled reader releases itself.
+        }
       }
     },
 

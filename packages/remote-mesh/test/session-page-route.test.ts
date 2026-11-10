@@ -4,15 +4,19 @@ import test from 'node:test'
 import {
   handleSessionEvents,
   handleSessionLive,
+  handleSessionLiveStream,
   handleSessionOpen,
   handleSessionPrompt,
   MESH_SESSION_EVENTS_PATH,
   MESH_SESSION_LIVE_PATH,
+  MESH_SESSION_LIVE_STREAM_PATH,
   MESH_SESSION_OPEN_PATH,
   MESH_SESSION_PROMPT_PATH,
   registerMeshSessionPageRoutes,
 } from '../src/api/session.js'
 import { AssistantLiveHub } from '../src/live/assistant.js'
+import { handleRelayStream, MESH_RELAY_STREAM_PATH } from '../src/api/relay.js'
+import { mintMeshToken } from '../src/api/mesh-auth.js'
 import type { MeshFetchRoute, MeshRouteContext } from '../src/api/mount.js'
 import { createInMemoryBoard } from '../src/board/index.js'
 import { createSelfRestartController } from '../src/lifecycle/index.js'
@@ -158,6 +162,7 @@ test('the three page routes mount on one context with their own methods', () => 
   assert.deepEqual(routes.map(route => [route.path, route.methods]), [
     [MESH_SESSION_EVENTS_PATH, ['GET']],
     [MESH_SESSION_LIVE_PATH, ['GET']],
+    [MESH_SESSION_LIVE_STREAM_PATH, ['GET']],
     [MESH_SESSION_OPEN_PATH, ['POST']],
     [MESH_SESSION_PROMPT_PATH, ['POST']],
   ])
@@ -234,4 +239,97 @@ test('a transport without live support says so instead of answering empty', asyn
   const body = (await response.json()) as Record<string, any>
   assert.equal(body.ok, false)
   assert.equal(body.code, 'unavailable')
+})
+
+function frameChunk(revision: number, index: number, text: string): unknown {
+  return {
+    agent: { session: { id: 'session-1', seq: 7 } },
+    frame: { type: 'chunk', attemptId: 'attempt-1', revision, index, time: 6, chunk: { type: 'text-delta', index: 0, text } },
+  }
+}
+
+function acceptInto(hub: AssistantLiveHub, payload: unknown): void {
+  ;(hub as unknown as { accept(payload: unknown): void }).accept(payload)
+}
+
+test('the live stream opens with what the reader missed, then pushes', async () => {
+  const recorded: Recorded = { events: [], opened: [], prompts: [] }
+  const hub = hubWithFrames()
+  const response = await handleSessionLiveStream(get(MESH_SESSION_LIVE_STREAM_PATH, '?sessionId=session-1&since=0'), {
+    runtime: runtime(transportOf(recorded)),
+    hub,
+  })
+  assert.equal(response.headers.get('content-type'), 'text/event-stream; charset=utf-8')
+  const reader = response.body!.getReader()
+  const decoder = new TextDecoder()
+  const first = decoder.decode((await reader.read()).value)
+  assert.match(first, /"type":"frames"/)
+  assert.match(first, /"revision":2/)
+
+  acceptInto(hub, frameChunk(3, 1, ' there'))
+  const second = decoder.decode((await reader.read()).value)
+  assert.match(second, /"revision":3/)
+  assert.match(second, /text-delta/)
+  await reader.cancel()
+})
+
+test('aborting the request tears the producer down', async () => {
+  const recorded: Recorded = { events: [], opened: [], prompts: [] }
+  const hub = hubWithFrames()
+  const controller = new AbortController()
+  const response = await handleSessionLiveStream(
+    new Request('http://dsh.internal' + MESH_SESSION_LIVE_STREAM_PATH + '?sessionId=session-1', { signal: controller.signal }),
+    { runtime: runtime(transportOf(recorded)), hub },
+  )
+  const reader = response.body!.getReader()
+  await reader.read()
+  controller.abort()
+  const closed = await reader.read()
+  assert.equal(closed.done, true)
+  // A frame produced after the reader left reaches nobody.
+  acceptInto(hub, frameChunk(3, 1, ' late'))
+})
+
+test('the stream route refuses a missing sessionId and an absent Hub', async () => {
+  const recorded: Recorded = { events: [], opened: [], prompts: [] }
+  const missing = await handleSessionLiveStream(get(MESH_SESSION_LIVE_STREAM_PATH, ''), { runtime: runtime(transportOf(recorded)) })
+  assert.equal(missing.status, 400)
+  const noHub = await handleSessionLiveStream(get(MESH_SESSION_LIVE_STREAM_PATH, '?sessionId=s1'), { runtime: runtime(transportOf(recorded)) })
+  const body = (await noHub.json()) as Record<string, any>
+  assert.equal(body.ok, false)
+  assert.equal(body.code, 'unavailable')
+})
+
+test('the mounted page routes include the stream', () => {
+  const routes: MeshFetchRoute[] = []
+  const ctx: MeshRouteContext = { get: () => ({ fetch: { register: (route: MeshFetchRoute) => routes.push(route) } }) }
+  registerMeshSessionPageRoutes(ctx as never, runtime(transportOf({ events: [], opened: [], prompts: [] })))
+  assert.ok(routes.some(route => route.path === MESH_SESSION_LIVE_STREAM_PATH && route.methods?.includes('GET')))
+})
+
+test('the relay stream refuses an unknown token and the wrong operation', async () => {
+  const hub = hubWithFrames()
+  const control = { secret: () => 'shared-secret', controller: () => undefined, live: () => hub }
+  const rejected = await handleRelayStream(post(MESH_RELAY_STREAM_PATH, { token: 'nope.nope', op: 'assistant-live', args: {} }), control)
+  assert.equal(rejected.status, 401)
+  const token = mintMeshToken('shared-secret', { nodeId: 'peer-a', expiresAt: Date.now() + 60_000 })
+  const wrongOp = await handleRelayStream(post(MESH_RELAY_STREAM_PATH, { token, op: 'prompt', args: {} }), control)
+  assert.equal(wrongOp.status, 400)
+})
+
+test('the relay stream hands a peer the frames it asked for', async () => {
+  const hub = hubWithFrames()
+  const control = { secret: () => 'shared-secret', controller: () => undefined, live: () => hub }
+  const token = mintMeshToken('shared-secret', { nodeId: 'peer-a', expiresAt: Date.now() + 60_000 })
+  const response = await handleRelayStream(post(MESH_RELAY_STREAM_PATH, {
+    token,
+    op: 'assistant-live',
+    args: { sessionId: 'session-1', since: 0 },
+  }), control)
+  assert.equal(response.headers.get('content-type'), 'text/event-stream; charset=utf-8')
+  const reader = response.body!.getReader()
+  const first = new TextDecoder().decode((await reader.read()).value)
+  assert.match(first, /"revision":2/)
+  assert.match(first, /"startedAfterSeq":6/)
+  await reader.cancel()
 })

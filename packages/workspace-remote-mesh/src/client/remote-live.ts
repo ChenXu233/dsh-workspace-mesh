@@ -50,6 +50,12 @@ export interface LiveState {
   readonly gap: number
   /** Last durable seq the rows are ordered after. */
   readonly cursor: number
+  /**
+   * A chunk went missing: the rows on screen cannot be continued. The reader
+   * must resume from the start of the attempt (revision 0) instead of waiting
+   * for a settlement that may never match.
+   */
+  readonly resync: boolean
 }
 
 export const EMPTY_LIVE: LiveState = {
@@ -61,6 +67,7 @@ export const EMPTY_LIVE: LiveState = {
   nextIndex: 0,
   gap: 0,
   cursor: 0,
+  resync: false,
 }
 
 /**
@@ -108,7 +115,7 @@ export function foldFrames(
         // attempt, which always starts the fold over.
         entries = []
         entriesChanged = true
-        next = { ...next, attemptId: undefined }
+        next = { ...next, attemptId: undefined, resync: true }
         continue
       }
       const gap = next.gap + 1
@@ -151,6 +158,6 @@ export function foldFrames(
  * @returns the fold without rows; the same object when it had none.
  */
 export function dropEntries(state: LiveState): LiveState {
-  if (state.entries.length === 0 && state.attemptId === undefined) return state
-  return { ...state, entries: [], attemptId: undefined }
+  if (state.entries.length === 0 && state.attemptId === undefined && !state.resync) return state
+  return { ...state, entries: [], attemptId: undefined, resync: false }
 }

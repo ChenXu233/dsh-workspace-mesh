@@ -81,6 +81,8 @@ interface StreamPayload {
  */
 export class AssistantLiveHub {
   private readonly streams = new Map<string, Retained>()
+  /** Readers waiting for the next frame of one Session. */
+  private readonly readers = new Map<string, Set<(page: LivePage) => void>>()
 
   /**
    * @param ctx - any Host context; the listener is global so Agents on other fibers are seen too.
@@ -147,30 +149,31 @@ export class AssistantLiveHub {
       return
     }
     stream.revision = revision
+    let pushed: LiveFrame | undefined
     switch (frame.type) {
       case 'start':
-        stream.frames.push({
+        pushed = {
           type: 'start',
           attemptId: frame.attemptId,
           revision,
           startedAfterSeq: seq === 0 ? -1 : seq - 1,
           turn: typeof frame.turn === 'number' ? frame.turn : 0,
           step: typeof frame.step === 'number' ? frame.step : 0,
-        })
+        }
         break
       case 'chunk':
-        stream.frames.push({
+        pushed = {
           type: 'chunk',
           attemptId: frame.attemptId,
           revision,
           index: typeof frame.index === 'number' ? frame.index : 0,
           time: typeof frame.time === 'number' ? frame.time : Date.now(),
           chunk: frame.chunk,
-        })
+        }
         break
       case 'end': {
         const outcome = (frame.outcome ?? {}) as { kind?: unknown, seq?: unknown, eventType?: unknown }
-        stream.frames.push({
+        pushed = {
           type: 'end',
           attemptId: frame.attemptId,
           revision,
@@ -180,14 +183,49 @@ export class AssistantLiveHub {
             ...(typeof outcome.seq === 'number' ? { seq: outcome.seq } : {}),
             ...(typeof outcome.eventType === 'string' ? { eventType: outcome.eventType } : {}),
           },
-        })
+        }
         break
       }
       default:
         break
     }
-    if (stream.frames.length > RETAINED_FRAMES) {
-      stream.frames = stream.frames.slice(-RETAINED_FRAMES)
+    if (pushed !== undefined) {
+      stream.frames.push(pushed)
+      if (stream.frames.length > RETAINED_FRAMES) stream.frames = stream.frames.slice(-RETAINED_FRAMES)
+      this.notify(sessionId, [pushed], stream.revision)
+    }
+  }
+
+  /**
+   * Wait for the next frames of one Session.
+   * @param sessionId - the Session to follow.
+   * @param listener - called once per accepted frame batch.
+   * @returns unsubscribe.
+   */
+  subscribe(sessionId: string, listener: (page: LivePage) => void): () => void {
+    let readers = this.readers.get(sessionId)
+    if (readers === undefined) {
+      readers = new Set()
+      this.readers.set(sessionId, readers)
+    }
+    readers.add(listener)
+    return () => {
+      readers.delete(listener)
+      if (readers.size === 0) this.readers.delete(sessionId)
+    }
+  }
+
+  /** Hand one batch to everyone waiting on that Session. */
+  private notify(sessionId: string, frames: readonly LiveFrame[], revision: number): void {
+    const readers = this.readers.get(sessionId)
+    if (readers === undefined || readers.size === 0) return
+    const page: LivePage = { revision, frames }
+    for (const reader of [...readers]) {
+      try {
+        reader(page)
+      } catch {
+        // A reader that threw (its socket died) is dropped by its own disposer.
+      }
     }
   }
 
