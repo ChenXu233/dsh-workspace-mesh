@@ -101,24 +101,25 @@ function RemoteSessionItem({ session, nodeLabel, now, t, rowT, current = false, 
   const label = session.title === '' ? rowT('session.untitled') : session.title
   return (
     <Tooltip label={t('session.remoteHint', { node: nodeLabel })} side="right" delayMs={600}>
-      <button
-        type="button"
-        className={css.sessionRow}
-        style={current ? { ...SESSION_ROW, ...CURRENT_ROW } : SESSION_ROW}
+      <div
+        className={current ? css.sessionRow + ' ' + css.selected : css.sessionRow}
+        role="treeitem"
+        aria-selected={current}
         aria-current={current ? 'true' : undefined}
         data-remote-session={session.sessionId}
         data-remote-current={current ? '' : undefined}
         onClick={current ? undefined : onOpen}
-        disabled={current || onOpen === undefined}
       >
         <span className={css.slot}>
           {session.busy ? <StateDot state="ongoing" size={10} /> : null}
         </span>
         <span className={css.title}>{label}</span>
         {session.updatedAt > 0 && (
-          <span className={css.time}>{timeLabel(session.updatedAt, now, rowT)}</span>
+          <span className={css.rowResting}>
+            <span className={css.time}>{timeLabel(session.updatedAt, now, rowT)}</span>
+          </span>
         )}
-      </button>
+      </div>
     </Tooltip>
   )
 }
@@ -213,7 +214,7 @@ export function RemoteSection({ t, rowT }: RemoteSectionProps): JSX.Element {
           </button>
         </Tooltip>
       </header>
-      <div role="tree" aria-label={t('section.title')}>
+      <div role="tree" aria-label={t('section.title')} style={TREE}>
         {rows.map((row) => {
           const key = remoteWorkspaceKey(row)
           const open = expanded.has(key)
@@ -277,6 +278,8 @@ const ADD: React.CSSProperties = {
   color: 'var(--dsw-alias-label-secondary)', cursor: 'pointer',
 }
 const GROUP: React.CSSProperties = { display: 'flex', flexDirection: 'column' }
+/** The shipped list keeps its rows 8px clear of the sidebar's right edge. */
+const TREE: React.CSSProperties = { paddingInlineEnd: 8 }
 /** The conversation this page shows: same row, marked as the current one. */
 const CURRENT_ROW: React.CSSProperties = {
   background: 'var(--dsw-alias-bg-selection, rgba(120, 120, 120, 0.12))',

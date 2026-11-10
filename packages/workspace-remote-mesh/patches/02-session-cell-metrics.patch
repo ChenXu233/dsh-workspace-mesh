@@ -1,0 +1,41 @@
+diff --git a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css
+index 6d35a23..8954531 100644
+--- a/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css
++++ b/packages/workspace-remote-mesh/vendor/ui-workspace/src/client/rows/Rows.module.css
+@@ -110,10 +110,28 @@
+ .sessionRow {
+   height: 32px;
+   gap: 0;
++  /* The shipped cell's own inset. Derived from the sidebar's tokens so the row
++     paints inside the same gutter as every official row instead of guessing a
++     padding; the tokens are inherited from the shell. */
++  padding-inline-start: calc(var(--dsh-sidebar-row-padding, 8px) - var(--dsh-sidebar-paint-inset, 0px) + var(--dsh-workspace-indent, 0px));
++  border-inline: var(--dsh-sidebar-paint-inset, 0px) solid transparent;
++  background-clip: padding-box;
++  box-sizing: border-box;
+ }
+ 
+ .sessionRow .title {
+-  margin: 0 6px 0 4px;
++  flex: 1;
++  margin: 0 6px 0 var(--dsh-sidebar-label-gap, 4px);
++}
++
++/* The trailing cell the shipped row wraps its time in: one cell that a hover
++   state can swap for row actions. */
++.rowResting {
++  flex: none;
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  color: var(--dsw-alias-label-tertiary);
+ }
+ 
+ .slot {
+@@ -418,4 +436,4 @@
+     animation: none;
+     transition: none;
+   }
+-}
++}
+\ No newline at end of file
