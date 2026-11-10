@@ -80,15 +80,23 @@ const FIELDS = {
 
 type FieldName = keyof typeof FIELDS
 
+interface PeerEntry {
+  nodeId: string
+  baseUrl: string
+  token: string
+  /** Per-peer shared secret; a paired peer has one and no login token. */
+  secret?: string
+}
+
 interface PeerIssue {
-  value?: Array<{ nodeId: string; baseUrl: string; token: string }>
+  value?: PeerEntry[]
   issue?: string
 }
 
 function validatePeers(raw: unknown): PeerIssue {
   if (!Array.isArray(raw)) return { issue: '"peers" must be an array' }
-  const value: Array<{ nodeId: string; baseUrl: string; token: string }> = []
-  const keys = ['nodeId', 'baseUrl', 'token'] as const
+  const value: PeerEntry[] = []
+  const keys = ['nodeId', 'baseUrl', 'token', 'secret'] as const
   for (let index = 0; index < raw.length; index += 1) {
     const entry: unknown = raw[index]
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
@@ -98,13 +106,32 @@ function validatePeers(raw: unknown): PeerIssue {
     for (const key of Object.keys(record)) {
       if (!(keys as readonly string[]).includes(key)) return { issue: `"peers[${index}]" has unknown field "${key}"` }
     }
-    for (const key of keys) {
+    for (const key of ['nodeId', 'baseUrl'] as const) {
       const field = record[key]
       if (typeof field !== 'string' || field.trim() === '') {
         return { issue: `"peers[${index}].${key}" must be a non-empty string` }
       }
     }
-    value.push({ nodeId: String(record.nodeId).trim(), baseUrl: String(record.baseUrl).trim(), token: String(record.token) })
+    const token = record.token
+    const secret = record.secret
+    if (token !== undefined && typeof token !== 'string') {
+      return { issue: `"peers[${index}].token" must be a string` }
+    }
+    if (secret !== undefined && (typeof secret !== 'string' || secret.trim() === '')) {
+      return { issue: `"peers[${index}].secret" must be a non-empty string when present` }
+    }
+    const trimmedToken = typeof token === 'string' ? token : ''
+    // A peer is reachable either through the login token (cookie mode) or
+    // through a shared secret (relay mode); pairing hands out the latter only.
+    if (trimmedToken.trim() === '' && (typeof secret !== 'string' || secret.trim() === '')) {
+      return { issue: `"peers[${index}]" needs a token or a secret` }
+    }
+    value.push({
+      nodeId: String(record.nodeId).trim(),
+      baseUrl: String(record.baseUrl).trim(),
+      token: trimmedToken,
+      ...(typeof secret === 'string' ? { secret: secret.trim() } : {}),
+    })
   }
   return { value }
 }

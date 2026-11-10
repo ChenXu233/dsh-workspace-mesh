@@ -14,11 +14,12 @@ import { registerMeshDispatchRoute } from './api/dispatch.js'
 import { registerMeshWorkspacesRoute } from './api/workspaces.js'
 import { registerMeshSessionPageRoutes, registerMeshSessionRoute } from './api/session.js'
 import { AssistantLiveHub } from './live/assistant.js'
+import { registerMeshPairRoutes } from './api/pair.js'
 import { registerMeshRemoteRoute } from './api/remote.js'
 import { registerMeshHandshakeRoute } from './api/handshake.js'
 import { registerMeshRelayRoute, registerMeshRelayStreamRoute } from './api/relay.js'
 import { buildWorkspacesPayload, readWorkspaceRegistry } from './api/workspaces.js'
-import { meshConfigPath, readConfigOverride } from './config/store.js'
+import { meshConfigPath, readConfigOverride, writeConfigOverride } from './config/store.js'
 import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
 import type { MeshToolConfig, MeshToolRegistry, MeshToolRuntime } from './tools/index.js'
 import { readLive } from './config.js'
@@ -117,8 +118,20 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     assignment = loadAssignmentTable(assignmentFile)
   }
 
-  const peers = config.peers ?? []
-  if (peers.length > 0) {
+  /**
+   * Build the transport from the current config.
+   *
+   * Pairing adds a peer while the process runs, so this is called again after a
+   * pair: everything downstream reads `runtime.transport`, never a captured
+   * variable, which is what makes the swap take effect without a restart.
+   */
+  const buildTransport = (): void => {
+    const peers = config.peers ?? []
+    if (peers.length === 0) {
+      transport = undefined
+      transportError = 'no peers configured; add peers to the mesh config (docs/reference/config.md §2)'
+      return
+    }
     transport = createTypertTransport({
       peers,
       listAssigned: (nodeId) =>
@@ -132,9 +145,9 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
         return { nodeId: route.nodeId, cwd: route.cwd }
       },
     })
-  } else {
-    transportError = 'no peers configured; add peers to the mesh config (docs/reference/config.md §2)'
+    transportError = undefined
   }
+  buildTransport()
 
   // Lifecycle is opt-in (SPEC §14.5): the controller exists, but nothing calls
   // requestRestart unless the lifecycle role is enabled and confirmed.
@@ -150,7 +163,24 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
 
   // One runtime object backs both faces: the model tools and the read-only
   // snapshot the browser settings page polls.
-  const toolRuntime: MeshToolRuntime = { board, transport, transportError, assignment, lifecycle, config: toolConfig }
+  const toolRuntime: MeshToolRuntime = {
+    board,
+    transport,
+    transportError,
+    assignment,
+    lifecycle,
+    config: toolConfig,
+    // Peer mutations (pairing) re-read the override file and rebuild the
+    // transport in place: the routes and tools all read this object.
+    reload: () => {
+      const next = readConfigOverride(overrideFile)
+      config.peers = next.peers ?? config.peers
+      if (next.meshSecret !== undefined) config.meshSecret = next.meshSecret
+      buildTransport()
+      toolRuntime.transport = transport
+      toolRuntime.transportError = transportError
+    },
+  }
 
   const tools = (ctx as unknown as { tools?: MeshToolRegistry }).tools
   if (tools === undefined) {
@@ -182,11 +212,25 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Peer administration for the sidebar's remote section: browse a peer's
   // directories, and let it register a Workspace there.
   registerMeshRemoteRoute(ctx, toolRuntime)
+  // Pairing: hand out a link that carries this node's URL and secret, and import
+  // one from the other machine. Importing rebuilds the transport in place.
+  registerMeshPairRoutes(ctx, {
+    runtime: toolRuntime,
+    file: overrideFile,
+    peers: () => config.peers ?? [],
+    secret: () => config.meshSecret ?? '',
+    setSecret: (secret: string) => {
+      config.meshSecret = secret
+      writeConfigOverride({ meshSecret: secret }, overrideFile)
+    },
+  })
   // Self-healing peer credential: handshake mints a short-lived mesh token, the
   // relay executes session operations locally. Neither touches the login token.
   const meshSecret = () => config.meshSecret ?? ''
-  const peerRoutes = meshSecret() !== ''
-  if (peerRoutes) {
+  // Mounted unconditionally: pairing can mint this node's first secret while it
+  // runs, and a route that was never registered cannot start answering later.
+  // With an empty secret each handler refuses with 503 and says why.
+  {
     registerMeshHandshakeRoute(ctx, meshSecret)
     registerMeshRelayRoute(
       ctx,
@@ -199,7 +243,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     // The same mesh token, one open response: a caller reads the peer's live
     // frames as they happen instead of polling for them.
     registerMeshRelayStreamRoute(ctx, meshSecret, () => liveHub)
-    console.info('[mesh] peer handshake + relay mounted (meshSecret configured)')
+    console.info('[mesh] peer handshake + relay mounted')
   }
 
   if (!transport) {

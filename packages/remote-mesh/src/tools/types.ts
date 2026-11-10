@@ -62,6 +62,13 @@ export interface MeshToolRuntime {
   config: MeshToolConfig
   now?: () => number
   newTaskId?: () => string
+  /**
+   * Re-read the config file and rebuild the transport in place.
+   *
+   * Pairing adds a peer while the process runs; the routes and tools read this
+   * object on every call, so the swap takes effect without a restart.
+   */
+  reload?: () => void
 }
 
 /** Cordis registration name; mesh_status reports the same string. */

@@ -23,8 +23,8 @@ $DSH_HOME/mesh-config.json（设置页 POST 写入的补丁）
 | 字段 | 类型 | 默认 | 生效时机 | 说明 |
 | --- | --- | --- | --- | --- |
 | `transport` | `auto` | `auto` | 重启 | 传输选择，见 §3；目前只有 `auto` |
-| `peers` | 数组 `{ nodeId, baseUrl, token }` | `[]` | 重启 | 跨机传输的对端；空 = 不启用传输，见 §3 |
-| `meshSecret` | string | `''` | 重启 | 与对端共享的握手密钥；配置后走 relay 模式，不再依赖会轮换的登录 token |
+| `peers` | 数组 `{ nodeId, baseUrl, token, secret? }` | `[]` | 热生效（配对导入后立即重建） | 跨机传输的对端；空 = 不启用传输，见 §3。`token` 与 `secret` 至少给一个：`secret` 是这一对端专用的握手密钥，配对链接带的就是它 |
+| `meshSecret` | string | `''` | 重启（配对生成时立即生效） | 本机对外握手用的密钥；对端没写 `peers[].secret` 时作为兜底 |
 | `assignmentFile` | string | `''` | 立即 | assignment.yml 路径，相对宿主进程 cwd；留空 = 不加载 |
 | `leaseMs` | 整数（毫秒） | `900000` | 立即 | 任务租约时长；必须大于 `dispatchTimeoutMs` |
 | `dispatchTimeoutMs` | 整数（毫秒） | `120000` | 立即 | `mesh_dispatch` 等待最终回复的上限，同时是 `maxDurationMs` 的上限 |

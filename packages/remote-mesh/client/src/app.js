@@ -16,6 +16,10 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
     var DISPATCH_PATH = "/api/mesh/dispatch";
     // Remote session history: the peer is the only authority, this route proxies.
     var SESSION_PATH = "/api/mesh/session";
+    // One-click pairing: this node hands out a link, the other machine imports it.
+    var PAIR_LINK_PATH = "/api/mesh/pair-link";
+    var PAIR_PATH = "/api/mesh/pair";
+    var PAIR_PARAM = "mesh-pair";
 
     var FIELDS = [
       { key: "transport", label: "传输模式", kind: "select", options: ["auto"],
@@ -75,6 +79,10 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       ".dwm-ghost{background:0 0;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;padding:4px 10px}" +
       ".dwm-ghost:disabled{opacity:.5;cursor:default}" +
       ".dwm-empty{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0}" +
+      ".dwm-pair-row{display:flex;gap:8px;align-items:center}" +
+      ".dwm-pair-row .dwm-input{flex:1;min-width:0}" +
+      ".dwm-hint[data-tone=ok]{color:var(--dsw-alias-state-success-primary,#2aa15a)}" +
+      ".dwm-hint[data-tone=err]{color:var(--dsw-alias-state-error-primary,#d64545)}" +
       ".dwm-form{display:flex;flex-direction:column;gap:10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:12px}" +
       ".dwm-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}" +
       ".dwm-field{display:flex;flex-direction:column;gap:4px;min-width:0}" +
@@ -764,7 +772,173 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
      * native settings navigation (settings.section) plus the live-configuration
      * card on the plugin's own detail page (plugins.detail.section).
      */
+    /**
+     * One-click pairing panel.
+     *
+     * The link carries this node's URL and shared secret, so the other machine
+     * needs no hand-edited JSON: open the link there and it becomes a peer.
+     * Pairing is one-directional by nature — ask the other side for its link to
+     * get the reverse direction.
+     */
+    function PairingPanel(props) {
+      var nameState = React.useState("");
+      var name = nameState[0];
+      var setName = nameState[1];
+      var outState = React.useState({ phase: "idle", link: "", message: "", tone: "" });
+      var out = outState[0];
+      var setOut = outState[1];
+      var inState = React.useState("");
+      var incoming = inState[0];
+      var setIncoming = inState[1];
+      var importState = React.useState({ phase: "idle", message: "", tone: "" });
+      var imported = importState[0];
+      var setImported = importState[1];
+
+      function makeLink() {
+        setOut({ phase: "loading", link: "", message: t("生成中…", "Generating…"), tone: "warn" });
+        var query = name.trim() === "" ? "" : "?nodeId=" + encodeURIComponent(name.trim());
+        fetch(PAIR_LINK_PATH + query, { credentials: "same-origin", headers: { accept: "application/json" } })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            if (!data || data.ok !== true) throw new Error(String((data && data.error) || "pair link failed"));
+            setOut({ phase: "ready", link: data.link, message: t("已生成，复制给对方", "Generated - send it over"), tone: "ok" });
+            if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(data.link).catch(function () {});
+            }
+          })
+          .catch(function (error) {
+            setOut({ phase: "error", link: "", message: String((error && error.message) || error), tone: "err" });
+          });
+      }
+
+      function importLink() {
+        var token = incoming.trim();
+        if (token === "") return;
+        setImported({ phase: "loading", message: t("导入中…", "Importing…"), tone: "warn" });
+        fetch(PAIR_PATH, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ link: token })
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            if (!data || data.ok !== true) throw new Error(String((data && data.error) || "pair import failed"));
+            setImported({ phase: "ready", message: t("已配对：", "Paired: ") + data.peer.nodeId, tone: "ok" });
+            setIncoming("");
+            if (typeof props.onPaired === "function") props.onPaired();
+          })
+          .catch(function (error) {
+            setImported({ phase: "error", message: String((error && error.message) || error), tone: "err" });
+          });
+      }
+
+      var busyOut = out.phase === "loading";
+      var busyIn = imported.phase === "loading";
+      return jsx.jsxs("div", { className: "dwm-form", children: [
+        jsx.jsx("h3", { className: "dwm-h3", children: t("一键配对", "Pair a machine") }),
+        jsx.jsx("p", { className: "dwm-hint", children: t(
+          "配对链接里带着这台机器的地址与共享密钥：在对方机器上打开它，两边就通了，不用手改 mesh-config.json。",
+          "The link carries this machine's URL and shared secret: open it on the other machine and both sides are connected, with no hand-edited mesh-config.json."
+        ) }),
+        jsx.jsxs("div", { className: "dwm-pair-row", children: [
+          jsx.jsx("input", {
+            className: "dwm-input",
+            value: name,
+            placeholder: t("对方怎么称呼这台机器（默认主机名）", "Name the other side uses for this machine (default: hostname)"),
+            onChange: function (event) { setName(event.target.value); }
+          }),
+          jsx.jsx("button", { className: "dwm-btn", disabled: busyOut, onClick: makeLink, children: busyOut ? t("生成中…", "Generating…") : t("生成配对链接", "Create link") })
+        ] }, "make"),
+        out.link === "" ? null : jsx.jsx("input", {
+          className: "dwm-input dwm-mono",
+          readOnly: true,
+          value: out.link,
+          onFocus: function (event) { event.target.select(); }
+        }, "link"),
+        out.message === "" ? null : jsx.jsx("p", { className: "dwm-hint", "data-tone": out.tone, children: out.message }, "out-msg"),
+        jsx.jsxs("div", { className: "dwm-pair-row", children: [
+          jsx.jsx("input", {
+            className: "dwm-input dwm-mono",
+            value: incoming,
+            placeholder: t("粘贴对方的配对链接", "Paste the other machine's link"),
+            onChange: function (event) { setIncoming(event.target.value); }
+          }),
+          jsx.jsx("button", { className: "dwm-btn", disabled: busyIn || incoming.trim() === "", onClick: importLink, children: busyIn ? t("导入中…", "Importing…") : t("导入", "Import") })
+        ] }, "import"),
+        imported.message === "" ? null : jsx.jsx("p", { className: "dwm-hint", "data-tone": imported.tone, children: imported.message }, "in-msg"),
+        jsx.jsx("p", { className: "dwm-note", children: t(
+          "配对是单向的：要让两台机器互相调用，两边各生成一个链接、各导入一次。导入后立即生效，不需要重启。",
+          "Pairing is one-directional: for calls both ways, create a link on each side and import once on the other. Import applies immediately, no restart."
+        ) })
+      ] });
+    }
+
+    /**
+     * Parameter value from the query string or the fragment, or "" when absent.
+     *
+     * Pairing links carry it in the fragment: the web UI answers a `/?token=`
+     * request with a redirect to `/`, which drops the query but keeps the hash.
+     */
+    function readParam(name) {
+      try {
+        var fromQuery = new URLSearchParams(window.location.search).get(name);
+        if (fromQuery) return fromQuery;
+        var hash = (window.location.hash || "").replace(/^#/, "");
+        if (hash === "") return "";
+        return new URLSearchParams(hash).get(name) || "";
+      } catch (error) {
+        return "";
+      }
+    }
+
+    /**
+     * Claim a pairing link opened on this machine.
+     *
+     * The link is addressed at the other machine's origin but opened here; the
+     * payload is what matters, so the page posts it and then strips the
+     * parameter — leaving it in the address bar would re-pair on every reload.
+     */
+    function claimPairingLink() {
+      var token = readParam(PAIR_PARAM);
+      if (token === "") return;
+      var clean = function (paired) {
+        try {
+          var url = new URL(window.location.href);
+          url.searchParams.delete(PAIR_PARAM);
+          var hash = new URLSearchParams((url.hash || "").replace(/^#/, ""));
+          hash.delete(PAIR_PARAM);
+          url.hash = hash.toString();
+          if (paired) url.searchParams.set("paired", paired);
+          window.history.replaceState(null, "", url.toString());
+        } catch (error) {
+          // A browser that refuses replaceState keeps a harmless fragment.
+        }
+      };
+      fetch(PAIR_PATH, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ link: token })
+      })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (data && data.ok === true) {
+            console.info("[mesh] paired with " + data.peer.nodeId);
+            clean(data.peer.nodeId);
+            return;
+          }
+          console.warn("[mesh] pairing refused: " + String((data && data.error) || "unknown"));
+          clean("failed");
+        })
+        .catch(function (error) {
+          console.warn("[mesh] pairing failed: " + String((error && error.message) || error));
+          clean("failed");
+        });
+    }
+
     function apply(ctx) {
+      claimPairingLink();
       ctx.slots.inject("plugins.detail.section", function () {
         return ctx.slots.register({
           name: "plugins.detail.section",
@@ -864,11 +1038,20 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       var online = 0;
       for (var i = 0; i < rows.length; i += 1) if (rows[i].status === "online") online += 1;
 
+      var justPaired = readParam("paired");
       return jsx.jsxs("div", { className: "dwm-page", children: [
         jsx.jsx("h2", { className: "dwm-h2", children: t("工作区网格", "Workspace mesh") }),
+        justPaired === "" ? null : jsx.jsx("p", {
+          className: "dwm-hint",
+          "data-tone": justPaired === "failed" ? "err" : "ok",
+          children: justPaired === "failed"
+            ? t("配对链接没能导入：看控制台里的原因。", "The pairing link could not be imported; see the console for why.")
+            : t("已与 " + justPaired + " 配对，立即生效。", "Paired with " + justPaired + "; it applies immediately.")
+        }, "paired-banner"),
         jsx.jsx("p", { className: "dwm-intro", children: state.phase === "error"
           ? t("读取 mesh 状态失败：", "Failed to read mesh state: ") + state.error
           : t("每个工作区都属于某台机器：消息传过去，执行留在那台机器上。", "Each workspace belongs to one machine: the message travels, the work stays there.") }),
+        jsx.jsx(PairingPanel, { onPaired: load }, "pair"),
         jsx.jsxs("div", { className: "dwm-grid", children: [
           jsx.jsx(Stat, { label: t("在线工作区", "Online"), value: String(online) }, "s1"),
           jsx.jsx(Stat, { label: t("工作区总数", "Total"), value: String(rows.length) }, "s2")

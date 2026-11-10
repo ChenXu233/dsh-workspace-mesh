@@ -10395,6 +10395,9 @@ var STATE_PATH2 = "/api/mesh/state";
 var CONFIG_PATH = "/api/mesh/config";
 var DISPATCH_PATH = "/api/mesh/dispatch";
 var SESSION_PATH = "/api/mesh/session";
+var PAIR_LINK_PATH = "/api/mesh/pair-link";
+var PAIR_PATH = "/api/mesh/pair";
+var PAIR_PARAM = "mesh-pair";
 var FIELDS = [
   {
     key: "transport",
@@ -10431,7 +10434,7 @@ var CONFIG_FIELDS = [
   { key: "dispatchTimeoutMs", label: "dispatch \u8D85\u65F6 (ms)", kind: "number", hint: "\u4FDD\u5B58\u540E\u7ACB\u5373\u751F\u6548" },
   { key: "leaseOwner", label: "\u79DF\u7EA6\u5F52\u5C5E\u8005", kind: "text", hint: "\u4FDD\u5B58\u540E\u7ACB\u5373\u751F\u6548" }
 ];
-var css = '.dwm-section{max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:12px;display:flex}.dwm-row{flex-direction:column;gap:4px;display:flex}.dwm-label{font-size:13px;font-weight:600}.dwm-hint{color:var(--dsw-alias-label-tertiary);font-size:12px}.dwm-input,.dwm-select{background:var(--dsw-alias-bg-input,var(--dsw-alias-bg-secondary));border:1px solid var(--dsw-alias-border-l2);border-radius:6px;color:inherit;font:inherit;padding:6px 10px;width:100%;box-sizing:border-box}.dwm-input:focus,.dwm-select:focus{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}.dwm-actions{gap:8px;align-items:center;display:flex}.dwm-btn{background:var(--dsw-alias-state-business-primary);border:0;border-radius:6px;color:#fff;cursor:pointer;font:inherit;padding:6px 16px}.dwm-btn:disabled{opacity:.5;cursor:default}.dwm-status{font-size:12px;margin:0}.dwm-status[data-tone=ok]{color:var(--dsw-alias-state-success,var(--dsw-alias-label-secondary))}.dwm-status[data-tone=err]{color:var(--dsw-alias-state-danger,var(--dsw-alias-state-business-primary))}.dwm-status[data-tone=warn]{color:var(--dsw-alias-label-tertiary)}.dwm-page{max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:14px;display:flex}.dwm-h2{margin:0;font-size:18px;font-weight:600;line-height:26px}.dwm-h3{margin:2px 0 0;font-size:15px;font-weight:600;line-height:22px}.dwm-intro{color:var(--dsw-alias-label-tertiary);margin:0;font-size:13px;line-height:20px}.dwm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}.dwm-stat{border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}.dwm-statLabel{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px}.dwm-statValue{font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dwm-statHint{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dwm-table{width:100%;border-collapse:collapse;font-size:13px}.dwm-table th{color:var(--dsw-alias-label-tertiary);font-weight:500;text-align:left;padding:6px 8px;border-bottom:.5px solid var(--dsw-alias-border-l2);font-size:12px;white-space:nowrap}.dwm-table td{padding:7px 8px;border-bottom:.5px solid var(--dsw-alias-border-l1,var(--dsw-alias-border-l2));vertical-align:middle}.dwm-table tr:last-child td{border-bottom:0}.dwm-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}.dwm-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:1px 8px;font-size:11px;line-height:16px;border:.5px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-tertiary);white-space:nowrap}.dwm-badge[data-tone=ok]{color:var(--dsw-alias-state-success,var(--dsw-alias-label-secondary));border-color:currentColor}.dwm-badge[data-tone=err]{color:var(--dsw-alias-state-danger,var(--dsw-alias-state-business-primary));border-color:currentColor}.dwm-badge[data-tone=warn]{color:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-border-l2)}.dwm-note{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0;line-height:18px}.dwm-note[data-tone=warn]{color:var(--dsw-alias-label-secondary)}.dwm-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dwm-ghost{background:0 0;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;padding:4px 10px}.dwm-ghost:disabled{opacity:.5;cursor:default}.dwm-empty{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0}.dwm-form{display:flex;flex-direction:column;gap:10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:12px}.dwm-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}.dwm-field{display:flex;flex-direction:column;gap:4px;min-width:0}.dwm-topo{width:100%;height:auto;display:block;color:var(--dsw-alias-label-primary)}.dwm-topo text{fill:var(--dsw-alias-label-primary)}.dwm-topo text[fontSize="10"],.dwm-topo text[opacity="0.7"]{fill:var(--dsw-alias-label-tertiary)}' + TOPOLOGY_CSS;
+var css = '.dwm-section{max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:12px;display:flex}.dwm-row{flex-direction:column;gap:4px;display:flex}.dwm-label{font-size:13px;font-weight:600}.dwm-hint{color:var(--dsw-alias-label-tertiary);font-size:12px}.dwm-input,.dwm-select{background:var(--dsw-alias-bg-input,var(--dsw-alias-bg-secondary));border:1px solid var(--dsw-alias-border-l2);border-radius:6px;color:inherit;font:inherit;padding:6px 10px;width:100%;box-sizing:border-box}.dwm-input:focus,.dwm-select:focus{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}.dwm-actions{gap:8px;align-items:center;display:flex}.dwm-btn{background:var(--dsw-alias-state-business-primary);border:0;border-radius:6px;color:#fff;cursor:pointer;font:inherit;padding:6px 16px}.dwm-btn:disabled{opacity:.5;cursor:default}.dwm-status{font-size:12px;margin:0}.dwm-status[data-tone=ok]{color:var(--dsw-alias-state-success,var(--dsw-alias-label-secondary))}.dwm-status[data-tone=err]{color:var(--dsw-alias-state-danger,var(--dsw-alias-state-business-primary))}.dwm-status[data-tone=warn]{color:var(--dsw-alias-label-tertiary)}.dwm-page{max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:14px;display:flex}.dwm-h2{margin:0;font-size:18px;font-weight:600;line-height:26px}.dwm-h3{margin:2px 0 0;font-size:15px;font-weight:600;line-height:22px}.dwm-intro{color:var(--dsw-alias-label-tertiary);margin:0;font-size:13px;line-height:20px}.dwm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}.dwm-stat{border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}.dwm-statLabel{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px}.dwm-statValue{font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dwm-statHint{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dwm-table{width:100%;border-collapse:collapse;font-size:13px}.dwm-table th{color:var(--dsw-alias-label-tertiary);font-weight:500;text-align:left;padding:6px 8px;border-bottom:.5px solid var(--dsw-alias-border-l2);font-size:12px;white-space:nowrap}.dwm-table td{padding:7px 8px;border-bottom:.5px solid var(--dsw-alias-border-l1,var(--dsw-alias-border-l2));vertical-align:middle}.dwm-table tr:last-child td{border-bottom:0}.dwm-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}.dwm-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:1px 8px;font-size:11px;line-height:16px;border:.5px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-tertiary);white-space:nowrap}.dwm-badge[data-tone=ok]{color:var(--dsw-alias-state-success,var(--dsw-alias-label-secondary));border-color:currentColor}.dwm-badge[data-tone=err]{color:var(--dsw-alias-state-danger,var(--dsw-alias-state-business-primary));border-color:currentColor}.dwm-badge[data-tone=warn]{color:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-border-l2)}.dwm-note{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0;line-height:18px}.dwm-note[data-tone=warn]{color:var(--dsw-alias-label-secondary)}.dwm-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dwm-ghost{background:0 0;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;padding:4px 10px}.dwm-ghost:disabled{opacity:.5;cursor:default}.dwm-empty{color:var(--dsw-alias-label-tertiary);font-size:12px;margin:0}.dwm-pair-row{display:flex;gap:8px;align-items:center}.dwm-pair-row .dwm-input{flex:1;min-width:0}.dwm-hint[data-tone=ok]{color:var(--dsw-alias-state-success-primary,#2aa15a)}.dwm-hint[data-tone=err]{color:var(--dsw-alias-state-error-primary,#d64545)}.dwm-form{display:flex;flex-direction:column;gap:10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;padding:12px}.dwm-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}.dwm-field{display:flex;flex-direction:column;gap:4px;min-width:0}.dwm-topo{width:100%;height:auto;display:block;color:var(--dsw-alias-label-primary)}.dwm-topo text{fill:var(--dsw-alias-label-primary)}.dwm-topo text[fontSize="10"],.dwm-topo text[opacity="0.7"]{fill:var(--dsw-alias-label-tertiary)}' + TOPOLOGY_CSS;
 ensureVendorCss();
 if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css='dsh-workspace-mesh/config']") === null) {
   tag = document.createElement("style");
@@ -11079,7 +11082,149 @@ function MeshSection(props) {
   ] }, "footer"));
   return jsx4.jsxs("div", { className: "dwm-page", children: header.concat(blocks) });
 }
+function PairingPanel(props) {
+  var nameState = React2.useState("");
+  var name = nameState[0];
+  var setName = nameState[1];
+  var outState = React2.useState({ phase: "idle", link: "", message: "", tone: "" });
+  var out = outState[0];
+  var setOut = outState[1];
+  var inState = React2.useState("");
+  var incoming = inState[0];
+  var setIncoming = inState[1];
+  var importState = React2.useState({ phase: "idle", message: "", tone: "" });
+  var imported = importState[0];
+  var setImported = importState[1];
+  function makeLink() {
+    setOut({ phase: "loading", link: "", message: t("\u751F\u6210\u4E2D\u2026", "Generating\u2026"), tone: "warn" });
+    var query = name.trim() === "" ? "" : "?nodeId=" + encodeURIComponent(name.trim());
+    fetch(PAIR_LINK_PATH + query, { credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      if (!data || data.ok !== true) throw new Error(String(data && data.error || "pair link failed"));
+      setOut({ phase: "ready", link: data.link, message: t("\u5DF2\u751F\u6210\uFF0C\u590D\u5236\u7ED9\u5BF9\u65B9", "Generated - send it over"), tone: "ok" });
+      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(data.link).catch(function() {
+        });
+      }
+    }).catch(function(error) {
+      setOut({ phase: "error", link: "", message: String(error && error.message || error), tone: "err" });
+    });
+  }
+  function importLink() {
+    var token = incoming.trim();
+    if (token === "") return;
+    setImported({ phase: "loading", message: t("\u5BFC\u5165\u4E2D\u2026", "Importing\u2026"), tone: "warn" });
+    fetch(PAIR_PATH, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ link: token })
+    }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      if (!data || data.ok !== true) throw new Error(String(data && data.error || "pair import failed"));
+      setImported({ phase: "ready", message: t("\u5DF2\u914D\u5BF9\uFF1A", "Paired: ") + data.peer.nodeId, tone: "ok" });
+      setIncoming("");
+      if (typeof props.onPaired === "function") props.onPaired();
+    }).catch(function(error) {
+      setImported({ phase: "error", message: String(error && error.message || error), tone: "err" });
+    });
+  }
+  var busyOut = out.phase === "loading";
+  var busyIn = imported.phase === "loading";
+  return jsx4.jsxs("div", { className: "dwm-form", children: [
+    jsx4.jsx("h3", { className: "dwm-h3", children: t("\u4E00\u952E\u914D\u5BF9", "Pair a machine") }),
+    jsx4.jsx("p", { className: "dwm-hint", children: t(
+      "\u914D\u5BF9\u94FE\u63A5\u91CC\u5E26\u7740\u8FD9\u53F0\u673A\u5668\u7684\u5730\u5740\u4E0E\u5171\u4EAB\u5BC6\u94A5\uFF1A\u5728\u5BF9\u65B9\u673A\u5668\u4E0A\u6253\u5F00\u5B83\uFF0C\u4E24\u8FB9\u5C31\u901A\u4E86\uFF0C\u4E0D\u7528\u624B\u6539 mesh-config.json\u3002",
+      "The link carries this machine's URL and shared secret: open it on the other machine and both sides are connected, with no hand-edited mesh-config.json."
+    ) }),
+    jsx4.jsxs("div", { className: "dwm-pair-row", children: [
+      jsx4.jsx("input", {
+        className: "dwm-input",
+        value: name,
+        placeholder: t("\u5BF9\u65B9\u600E\u4E48\u79F0\u547C\u8FD9\u53F0\u673A\u5668\uFF08\u9ED8\u8BA4\u4E3B\u673A\u540D\uFF09", "Name the other side uses for this machine (default: hostname)"),
+        onChange: function(event) {
+          setName(event.target.value);
+        }
+      }),
+      jsx4.jsx("button", { className: "dwm-btn", disabled: busyOut, onClick: makeLink, children: busyOut ? t("\u751F\u6210\u4E2D\u2026", "Generating\u2026") : t("\u751F\u6210\u914D\u5BF9\u94FE\u63A5", "Create link") })
+    ] }, "make"),
+    out.link === "" ? null : jsx4.jsx("input", {
+      className: "dwm-input dwm-mono",
+      readOnly: true,
+      value: out.link,
+      onFocus: function(event) {
+        event.target.select();
+      }
+    }, "link"),
+    out.message === "" ? null : jsx4.jsx("p", { className: "dwm-hint", "data-tone": out.tone, children: out.message }, "out-msg"),
+    jsx4.jsxs("div", { className: "dwm-pair-row", children: [
+      jsx4.jsx("input", {
+        className: "dwm-input dwm-mono",
+        value: incoming,
+        placeholder: t("\u7C98\u8D34\u5BF9\u65B9\u7684\u914D\u5BF9\u94FE\u63A5", "Paste the other machine's link"),
+        onChange: function(event) {
+          setIncoming(event.target.value);
+        }
+      }),
+      jsx4.jsx("button", { className: "dwm-btn", disabled: busyIn || incoming.trim() === "", onClick: importLink, children: busyIn ? t("\u5BFC\u5165\u4E2D\u2026", "Importing\u2026") : t("\u5BFC\u5165", "Import") })
+    ] }, "import"),
+    imported.message === "" ? null : jsx4.jsx("p", { className: "dwm-hint", "data-tone": imported.tone, children: imported.message }, "in-msg"),
+    jsx4.jsx("p", { className: "dwm-note", children: t(
+      "\u914D\u5BF9\u662F\u5355\u5411\u7684\uFF1A\u8981\u8BA9\u4E24\u53F0\u673A\u5668\u4E92\u76F8\u8C03\u7528\uFF0C\u4E24\u8FB9\u5404\u751F\u6210\u4E00\u4E2A\u94FE\u63A5\u3001\u5404\u5BFC\u5165\u4E00\u6B21\u3002\u5BFC\u5165\u540E\u7ACB\u5373\u751F\u6548\uFF0C\u4E0D\u9700\u8981\u91CD\u542F\u3002",
+      "Pairing is one-directional: for calls both ways, create a link on each side and import once on the other. Import applies immediately, no restart."
+    ) })
+  ] });
+}
+function readParam(name) {
+  try {
+    var fromQuery = new URLSearchParams(window.location.search).get(name);
+    if (fromQuery) return fromQuery;
+    var hash = (window.location.hash || "").replace(/^#/, "");
+    if (hash === "") return "";
+    return new URLSearchParams(hash).get(name) || "";
+  } catch (error) {
+    return "";
+  }
+}
+function claimPairingLink() {
+  var token = readParam(PAIR_PARAM);
+  if (token === "") return;
+  var clean = function(paired) {
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.delete(PAIR_PARAM);
+      var hash = new URLSearchParams((url.hash || "").replace(/^#/, ""));
+      hash.delete(PAIR_PARAM);
+      url.hash = hash.toString();
+      if (paired) url.searchParams.set("paired", paired);
+      window.history.replaceState(null, "", url.toString());
+    } catch (error) {
+    }
+  };
+  fetch(PAIR_PATH, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ link: token })
+  }).then(function(response) {
+    return response.json();
+  }).then(function(data) {
+    if (data && data.ok === true) {
+      console.info("[mesh] paired with " + data.peer.nodeId);
+      clean(data.peer.nodeId);
+      return;
+    }
+    console.warn("[mesh] pairing refused: " + String(data && data.error || "unknown"));
+    clean("failed");
+  }).catch(function(error) {
+    console.warn("[mesh] pairing failed: " + String(error && error.message || error));
+    clean("failed");
+  });
+}
 function apply(ctx) {
+  claimPairingLink();
   ctx.slots.inject("plugins.detail.section", function() {
     return ctx.slots.register({
       name: "plugins.detail.section",
@@ -11172,9 +11317,16 @@ function MeshWorkspacePage() {
   var rows = workspaceRows(peers);
   var online = 0;
   for (var i = 0; i < rows.length; i += 1) if (rows[i].status === "online") online += 1;
+  var justPaired = readParam("paired");
   return jsx4.jsxs("div", { className: "dwm-page", children: [
     jsx4.jsx("h2", { className: "dwm-h2", children: t("\u5DE5\u4F5C\u533A\u7F51\u683C", "Workspace mesh") }),
+    justPaired === "" ? null : jsx4.jsx("p", {
+      className: "dwm-hint",
+      "data-tone": justPaired === "failed" ? "err" : "ok",
+      children: justPaired === "failed" ? t("\u914D\u5BF9\u94FE\u63A5\u6CA1\u80FD\u5BFC\u5165\uFF1A\u770B\u63A7\u5236\u53F0\u91CC\u7684\u539F\u56E0\u3002", "The pairing link could not be imported; see the console for why.") : t("\u5DF2\u4E0E " + justPaired + " \u914D\u5BF9\uFF0C\u7ACB\u5373\u751F\u6548\u3002", "Paired with " + justPaired + "; it applies immediately.")
+    }, "paired-banner"),
     jsx4.jsx("p", { className: "dwm-intro", children: state.phase === "error" ? t("\u8BFB\u53D6 mesh \u72B6\u6001\u5931\u8D25\uFF1A", "Failed to read mesh state: ") + state.error : t("\u6BCF\u4E2A\u5DE5\u4F5C\u533A\u90FD\u5C5E\u4E8E\u67D0\u53F0\u673A\u5668\uFF1A\u6D88\u606F\u4F20\u8FC7\u53BB\uFF0C\u6267\u884C\u7559\u5728\u90A3\u53F0\u673A\u5668\u4E0A\u3002", "Each workspace belongs to one machine: the message travels, the work stays there.") }),
+    jsx4.jsx(PairingPanel, { onPaired: load }, "pair"),
     jsx4.jsxs("div", { className: "dwm-grid", children: [
       jsx4.jsx(Stat, { label: t("\u5728\u7EBF\u5DE5\u4F5C\u533A", "Online"), value: String(online) }, "s1"),
       jsx4.jsx(Stat, { label: t("\u5DE5\u4F5C\u533A\u603B\u6570", "Total"), value: String(rows.length) }, "s2")

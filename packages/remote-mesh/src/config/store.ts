@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path'
 
 export interface MeshConfigOverride {
   transport?: 'auto'
-  peers?: Array<{ nodeId: string; baseUrl: string; token: string }>
+  peers?: Array<{ nodeId: string; baseUrl: string; token: string; secret?: string }>
   meshSecret?: string
   assignmentFile?: string
   leaseMs?: number
@@ -59,6 +59,13 @@ function isString(value: unknown): value is string {
   return typeof value === 'string'
 }
 
+/** A peer is usable when it carries a login token or a shared secret. */
+function tokenOrSecretInvalid(token: unknown, secret: unknown): boolean {
+  const hasToken = typeof token === 'string' && token.trim() !== ''
+  const hasSecret = typeof secret === 'string' && secret.trim() !== ''
+  return !hasToken && !hasSecret
+}
+
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
 }
@@ -83,7 +90,7 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
           problems.push('peers must be an array')
           break
         }
-        const peers: Array<{ nodeId: string; baseUrl: string; token: string }> = []
+        const peers: Array<{ nodeId: string; baseUrl: string; token: string; secret?: string }> = []
         let bad = false
         for (let index = 0; index < entry.length; index += 1) {
           const item: unknown = entry[index]
@@ -91,10 +98,17 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
           const nodeId = record?.nodeId
           const baseUrl = record?.baseUrl
           const token = record?.token
+          const secret = record?.secret
           if (typeof nodeId !== 'string' || nodeId.trim() === '') { problems.push(`peers[${index}].nodeId must be a non-empty string`); bad = true; break }
           if (typeof baseUrl !== 'string' || !/^https?:\/\//u.test(baseUrl.trim())) { problems.push(`peers[${index}].baseUrl must start with http:// or https://`); bad = true; break }
-          if (typeof token !== 'string' || token.trim() === '') { problems.push(`peers[${index}].token must be a non-empty string`); bad = true; break }
-          peers.push({ nodeId: nodeId.trim(), baseUrl: baseUrl.trim(), token: token.trim() })
+          if (tokenOrSecretInvalid(token, secret)) { problems.push(`peers[${index}] needs a token or a secret`); bad = true; break }
+          if (secret !== undefined && (typeof secret !== 'string' || secret.trim() === '')) { problems.push(`peers[${index}].secret must be a non-empty string when present`); bad = true; break }
+          peers.push({
+            nodeId: nodeId.trim(),
+            baseUrl: baseUrl.trim(),
+            token: typeof token === 'string' ? token.trim() : '',
+            ...(typeof secret === 'string' ? { secret: secret.trim() } : {}),
+          })
         }
         if (!bad) value.peers = peers
         break

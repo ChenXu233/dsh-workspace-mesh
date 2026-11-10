@@ -31,6 +31,13 @@ export interface TypertPeer {
   baseUrl: string
   /** The peer's current web login token (`?token=`); rotates when the peer restarts. */
   token: string
+  /**
+   * Shared secret for this peer only.
+   *
+   * Pairing hands out a secret instead of the rotating login token, and a
+   * per-peer value keeps machines on different secrets side by side.
+   */
+  secret?: string
 }
 
 /** One workspace this node hosts, with the directory a new session should own. */
@@ -476,7 +483,9 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
         fetchImpl,
         () => noteFailure(peer.nodeId),
         () => coolingDown(peer.nodeId),
-        options.meshSecret ?? '',
+        // A paired peer brought its own secret; the composition-wide one is the
+        // fallback for configs that predate per-peer secrets.
+        peer.secret ?? options.meshSecret ?? '',
       ),
     )
   }
