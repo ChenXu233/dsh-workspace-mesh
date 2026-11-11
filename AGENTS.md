@@ -60,7 +60,8 @@
 | 跨机传输 | `typert`（配 `peers` 后可用，走对端 web API；配 `meshSecret` 时走对端中继，不依赖会轮换的登录 token）；`mock` 仅测试 | `src/transport/typert.ts` |
 | 任务板 | 进程内存，无持久化；进程重启即清空 | `src/board/` |
 | 设置页 | 读快照 + 写配置两条路由已实现 | `src/api/` |
-| hub / 广播注册表 | 不存在 | 文件树 |
+| 汇点（hub） | 目录 + 中继缓冲 + 加入链接已实施，见 decisions D23 | `src/hub/`、`src/api/hub.ts` |
+| 广播注册表 | 不存在 | 文件树 |
 | 授权层（grants、T1–T3） | 不存在 | 文件树 |
 
 ## 4. 常用命令
