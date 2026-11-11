@@ -444,3 +444,54 @@ test('a peer not-found code surfaces as unknown-session, not remote-failure', as
   })
 })
 
+test('a hub-only peer is reached through the hub forward envelope', async () => {
+  const peer = fakePeer({ meshSecret: 'shared', sessions: [{ sessionId: 's1' }] })
+  const forwarded: Array<Record<string, unknown>> = []
+  // The hub: decode the envelope, run it against the peer, mirror the answer.
+  const hubFetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    if (!url.startsWith('http://hub.internal/api/mesh/hub/forward')) {
+      return new Response('{}', { status: 404 })
+    }
+    const envelope = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+    forwarded.push(envelope)
+    const path = String(envelope.path)
+    const response = await peer.fetchImpl('http://peer.internal' + path, {
+      method: String(envelope.method),
+      headers: envelope.headers as Record<string, string>,
+      body: Buffer.from(String(envelope.body ?? ''), 'base64').toString('utf8'),
+    })
+    const body = Buffer.from(await response.arrayBuffer()).toString('base64')
+    return new Response(JSON.stringify({ ok: true, result: { status: response.status, headers: {}, body } }), { status: 200 })
+  }) as unknown as typeof fetch
+
+  const transport = createTypertTransport({
+    peers: [{ nodeId: 'b', baseUrl: '', via: 'hub', token: '', secret: 'shared' }],
+    hubUrl: 'http://hub.internal',
+    fetchImpl: hubFetch,
+  })
+  const workspaces = await transport.listWorkspaces('b')
+  assert.equal(Array.isArray(workspaces), true)
+  assert.equal(forwarded.length >= 1, true)
+  const first = forwarded[0]
+  assert.equal(first?.method, 'POST')
+  assert.equal(first?.path, '/api/mesh/relay')
+  assert.equal(typeof first?.token, 'string')
+  assert.equal(String(first?.token).includes('.'), true)
+  const decoded = JSON.parse(Buffer.from(String(first?.body), 'base64').toString('utf8')) as Record<string, unknown>
+  // listWorkspaces goes through the relay, so that is the op in the envelope.
+  assert.equal(decoded.op, 'workspaces')
+})
+
+test('streaming through a hub is refused with a reason instead of hanging', async () => {
+  const transport = createTypertTransport({
+    peers: [{ nodeId: 'b', baseUrl: '', via: 'hub', token: '', secret: 'shared' }],
+    hubUrl: 'http://hub.internal',
+    fetchImpl: (async () => new Response('{}', { status: 200 })) as unknown as typeof fetch,
+  })
+  const controller = new AbortController()
+  await assert.rejects(
+    transport.openAssistantLiveStream?.('b', 's1', 0, () => {}, controller.signal) ?? Promise.reject(new Error('missing')),
+    /live streaming is not available through a hub/,
+  )
+})

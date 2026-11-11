@@ -1,4 +1,4 @@
-import { signHandshake } from '../api/mesh-auth.js'
+import { MESH_TOKEN_TTL_MS, mintMeshToken, signHandshake } from '../api/mesh-auth.js'
 import type { NodeDescriptor, WorkspaceSummary } from '../types.js'
 import { TransportUnavailableError } from './types.js'
 import type {
@@ -32,6 +32,15 @@ export interface TypertPeer {
   /** The peer's current web login token (`?token=`); rotates when the peer restarts. */
   token: string
   /**
+   * Reach this peer through the hub instead of dialling it.
+   *
+   * A node behind NAT has no inbound port, so the only way in is the connection
+   * it keeps open to the hub. Such a peer always uses relay mode: the hub
+   * requires a mesh token, and the login-token cookie dance needs a direct
+   * connection.
+   */
+  via?: 'hub'
+  /**
    * Shared secret for this peer only.
    *
    * Pairing hands out a secret instead of the rotating login token, and a
@@ -59,6 +68,8 @@ export interface TypertTransportOptions {
   meshSecret?: string
   /** Path the peer serves its native workspace list on (default /api/mesh/workspaces). */
   workspacesPath?: string
+  /** Hub origin; required when any peer is marked `via: 'hub'`. */
+  hubUrl?: string
   /**
    * How long one peer is left alone after a failed call (default 60s).
    *
@@ -181,7 +192,68 @@ class TypertClient {
     private readonly coolingDown: () => boolean = () => false,
     /** Shared secret; set means relay mode. */
     private readonly meshSecret: string = '',
+    /** Hub origin for `via: 'hub'` peers; empty = dial the peer directly. */
+    private readonly hubUrl: string = '',
   ) {}
+
+  /** True when this peer is only reachable through the hub. */
+  private get viaHub(): boolean {
+    return this.peer.via === 'hub' && this.hubUrl !== ''
+  }
+
+  /**
+   * One request to the peer, direct or wrapped for the hub.
+   *
+   * The hub speaks `{ method, path, headers, body }` envelopes and answers with
+   * the peer's mirrored response, so everything above this line keeps seeing a
+   * normal `Response`.
+   * @param url - peer URL (its origin is ignored on the hub path).
+   * @param init - normal fetch init.
+   * @returns the peer's response.
+   */
+  private async dispatch(url: string, init: RequestInit = {}): Promise<Response> {
+    if (!this.viaHub) return await this.fetchImpl(url, init)
+    if (this.meshSecret === '') {
+      throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: a hub peer needs a shared secret`)
+    }
+    // A hub-only peer has no baseUrl, so its call sites hand us a bare path.
+    const target = new URL(url, this.hubUrl)
+    const method = (init.method ?? 'GET').toUpperCase()
+    const headers: Record<string, string> = {}
+    if (init.headers !== undefined) {
+      for (const [key, value] of Object.entries(init.headers as Record<string, string>)) headers[key] = String(value)
+    }
+    const rawBody = typeof init.body === 'string' ? init.body : undefined
+    const envelope = {
+      // The hub checks the token against its own secret, which is the same
+      // string every node shares — no round trip to the peer for a handshake.
+      token: mintMeshToken(this.meshSecret, { nodeId: this.peer.nodeId, expiresAt: Date.now() + MESH_TOKEN_TTL_MS }),
+      method,
+      path: target.pathname + target.search,
+      headers,
+      ...(rawBody === undefined ? {} : { body: Buffer.from(rawBody, 'utf8').toString('base64') }),
+    }
+    const response = await this.fetchImpl(new URL('/api/mesh/hub/forward?nodeId=' + encodeURIComponent(this.peer.nodeId), this.hubUrl).toString(), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify(envelope),
+    })
+    const payload = (await response.json()) as {
+      ok?: boolean
+      error?: string
+      result?: { status?: number; headers?: Record<string, string>; body?: string }
+    }
+    if (payload.ok !== true || payload.result === undefined) {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId} via hub: ${payload.error ?? 'no result'}`)
+    }
+    const body = payload.result.body === undefined
+      ? null
+      : Buffer.from(payload.result.body, 'base64')
+    return new Response(body, {
+      status: typeof payload.result.status === 'number' ? payload.result.status : 502,
+      headers: payload.result.headers ?? {},
+    })
+  }
 
   get relayMode(): boolean {
     return this.meshSecret !== ''
@@ -191,10 +263,17 @@ class TypertClient {
   private async ensureMeshToken(): Promise<string> {
     const current = this.meshToken
     if (current !== undefined && current.expiresAt - 30_000 > Date.now()) return current.token
+    // Through the hub there is nobody to ask: the secret is shared, so the token
+    // is minted here and the peer verifies it with the same key.
+    if (this.viaHub) {
+      const minted = { token: mintMeshToken(this.meshSecret, { nodeId: this.peer.nodeId, expiresAt: Date.now() + MESH_TOKEN_TTL_MS }), expiresAt: Date.now() + MESH_TOKEN_TTL_MS }
+      this.meshToken = minted
+      return minted.token
+    }
     const ts = Date.now()
     const nonce = `${ts}-${Math.random().toString(36).slice(2, 10)}`
     const hmac = signHandshake(this.meshSecret, { nodeId: this.peer.nodeId, ts, nonce })
-    const res = await this.fetchImpl(this.url('/api/mesh/handshake'), {
+    const res = await this.send(this.url('/api/mesh/handshake'), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ nodeId: this.peer.nodeId, ts, nonce, hmac }),
@@ -216,7 +295,7 @@ class TypertClient {
   /** Fetch that reports a socket-level failure as a transient peer error. */
   private async send(url: string, init: RequestInit): Promise<Response> {
     try {
-      return await this.fetchImpl(url, init)
+      return await this.dispatch(url, init)
     } catch (err) {
       throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: transport error (${describeError(err)})`, true)
     }
@@ -305,7 +384,7 @@ class TypertClient {
     if (this.cookie !== undefined) return this.cookie
     this.assertNotCoolingDown('/connect')
     const target = `${this.url('/connect')}?token=${encodeURIComponent(this.peer.token)}&interactions=none`
-    const res = await this.fetchImpl(target, { redirect: 'manual' })
+    const res = await this.send(target, { redirect: 'manual' })
     const cookies = typeof res.headers.getSetCookie === 'function'
       ? res.headers.getSetCookie()
       : [res.headers.get('set-cookie')].filter((value): value is string => typeof value === 'string' && value !== '')
@@ -330,7 +409,7 @@ class TypertClient {
 
   private async getOnce<T = unknown>(path: string): Promise<T> {
     const cookie = await this.connect()
-    const res = await this.fetchImpl(this.url(path), { headers: { cookie, accept: 'application/json' } })
+    const res = await this.send(this.url(path), { headers: { cookie, accept: 'application/json' } })
     if (res.status === 401 || res.status === 403) {
       this.cookie = undefined
       throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: ${path} was rejected (HTTP ${res.status}); refresh the peer token`)
@@ -486,6 +565,7 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
         // A paired peer brought its own secret; the composition-wide one is the
         // fallback for configs that predate per-peer secrets.
         peer.secret ?? options.meshSecret ?? '',
+        options.hubUrl ?? '',
       ),
     )
   }
@@ -826,6 +906,13 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
       signal: AbortSignal,
     ): Promise<void> {
       const client = requireClient(nodeId)
+      // The hub buffers a whole request and a whole response, so a long-lived
+      // SSE stream cannot cross it. Say so instead of hanging until the timeout;
+      // the durable transcript still reads normally through the relay.
+      const direct = options.peers.find(peer => peer.nodeId === nodeId)
+      if (direct?.via === 'hub' && options.hubUrl !== undefined && options.hubUrl !== '') {
+        throw new TypertRpcError('unavailable', `peer ${nodeId}: live streaming is not available through a hub`)
+      }
       const at = Math.max(0, Math.floor(since))
       const body = client.relayMode
         ? await client.streamRelay('assistant-live', { sessionId, since: at }, signal)

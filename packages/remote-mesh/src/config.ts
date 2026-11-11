@@ -27,8 +27,10 @@ export interface MeshHubConfig {
 export interface MeshPeerConfig {
   /** Node id used by assignment.yml and the tools. */
   nodeId: string
-  /** HTTP(S) root of the peer's web host. */
+  /** HTTP(S) root of the peer's web host; empty for a hub-only peer. */
   baseUrl: string
+  /** Reach this peer through the configured hub (no inbound port on its side). */
+  via?: 'hub'
   /** The peer's current login token; rotates when the peer restarts. */
   token: string
 }
@@ -96,6 +98,7 @@ type FieldName = keyof typeof FIELDS
 interface PeerEntry {
   nodeId: string
   baseUrl: string
+  via?: 'hub'
   token: string
   /** Per-peer shared secret; a paired peer has one and no login token. */
   secret?: string
@@ -109,7 +112,7 @@ interface PeerIssue {
 function validatePeers(raw: unknown): PeerIssue {
   if (!Array.isArray(raw)) return { issue: '"peers" must be an array' }
   const value: PeerEntry[] = []
-  const keys = ['nodeId', 'baseUrl', 'token', 'secret'] as const
+  const keys = ['nodeId', 'baseUrl', 'token', 'secret', 'via'] as const
   for (let index = 0; index < raw.length; index += 1) {
     const entry: unknown = raw[index]
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
@@ -119,11 +122,18 @@ function validatePeers(raw: unknown): PeerIssue {
     for (const key of Object.keys(record)) {
       if (!(keys as readonly string[]).includes(key)) return { issue: `"peers[${index}]" has unknown field "${key}"` }
     }
-    for (const key of ['nodeId', 'baseUrl'] as const) {
-      const field = record[key]
-      if (typeof field !== 'string' || field.trim() === '') {
-        return { issue: `"peers[${index}].${key}" must be a non-empty string` }
-      }
+    const via = record.via
+    if (via !== undefined && via !== 'hub') {
+      return { issue: `"peers[${index}].via" must be "hub" when present` }
+    }
+    const nodeId = record.nodeId
+    if (typeof nodeId !== 'string' || nodeId.trim() === '') {
+      return { issue: `"peers[${index}].nodeId" must be a non-empty string` }
+    }
+    // A hub-only peer has no address of its own: the hub is the way in.
+    const baseUrl = record.baseUrl
+    if (typeof baseUrl !== 'string' || (baseUrl.trim() === '' && via !== 'hub')) {
+      return { issue: `"peers[${index}].baseUrl" must be a non-empty string unless via is "hub"` }
     }
     const token = record.token
     const secret = record.secret
@@ -141,7 +151,8 @@ function validatePeers(raw: unknown): PeerIssue {
     }
     value.push({
       nodeId: String(record.nodeId).trim(),
-      baseUrl: String(record.baseUrl).trim(),
+      baseUrl: typeof baseUrl === 'string' ? baseUrl.trim() : '',
+      ...(via === 'hub' ? { via: 'hub' as const } : {}),
       token: trimmedToken,
       ...(typeof secret === 'string' ? { secret: secret.trim() } : {}),
     })

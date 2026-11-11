@@ -151,6 +151,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
           .filter((route) => route.nodeId === nodeId && typeof route.cwd === 'string' && route.cwd !== '')
           .map((route) => ({ workspaceId: route.workspaceId, cwd: route.cwd as string })),
       ...(config.meshSecret === undefined || config.meshSecret === '' ? {} : { meshSecret: config.meshSecret }),
+      ...(config.hub === undefined || config.hub.url === '' ? {} : { hubUrl: config.hub.url }),
       resolveWorkspace: (workspaceId) => {
         const route = assignment?.assignments.find((item) => item.workspaceId === workspaceId)
         if (route?.cwd === undefined || route.cwd === '') return undefined
@@ -331,7 +332,14 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
         const secret = config.meshSecret ?? ''
         const fromHub = nodes
           .filter(node => node.nodeId !== hubNodeId)
-          .map(node => ({ nodeId: node.nodeId, baseUrl: node.url, token: '', ...(secret === '' ? {} : { secret }) }))
+          .map(node => ({
+            nodeId: node.nodeId,
+            baseUrl: node.url,
+            // No advertised address means the only way in is the hub.
+            ...(node.url === '' ? { via: 'hub' as const } : {}),
+            token: '',
+            ...(secret === '' ? {} : { secret }),
+          }))
         const known = new Set(fromHub.map(peer => peer.nodeId))
         config.peers = [...manualPeers.filter(peer => !known.has(peer.nodeId)), ...fromHub]
         buildTransport()

@@ -332,6 +332,8 @@ POST /api/mesh/hub/forward?nodeId=  { token, method, path, headers?, body?, time
 
 汇点不执行任何东西，也不读对端的会话数据：它只搬一进一出两个 HTTP 包。
 
+传输层对 `via: 'hub'` 的对端就是这样走的：把原本要发给对端的请求包成 `{ method, path, headers, body }` 交给 `forward`，再把 `result` 解回一个普通 `Response`。因此这类对端只能用 relay 模式（凭 `secret` 签 mesh token，不需要登录 token），SSE 流式接口会明确报错而不是挂住。
+
 浏览器侧另有一对（在 fence 内）：
 
 ```text

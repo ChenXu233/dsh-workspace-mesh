@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path'
 
 export interface MeshConfigOverride {
   transport?: 'auto'
-  peers?: Array<{ nodeId: string; baseUrl: string; token: string; secret?: string }>
+  peers?: Array<{ nodeId: string; baseUrl: string; token: string; secret?: string; via?: 'hub' }>
   meshSecret?: string
   publicUrl?: string
   hub?: { url: string; nodeId?: string }
@@ -103,13 +103,17 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
           const baseUrl = record?.baseUrl
           const token = record?.token
           const secret = record?.secret
+          const via = record?.via
+          if (via !== undefined && via !== 'hub') { problems.push(`peers[${index}].via must be "hub"`); bad = true; break }
           if (typeof nodeId !== 'string' || nodeId.trim() === '') { problems.push(`peers[${index}].nodeId must be a non-empty string`); bad = true; break }
-          if (typeof baseUrl !== 'string' || !/^https?:\/\//u.test(baseUrl.trim())) { problems.push(`peers[${index}].baseUrl must start with http:// or https://`); bad = true; break }
+          const urlOk = typeof baseUrl === 'string' && /^https?:\/\//u.test(baseUrl.trim())
+          if (via === 'hub' ? typeof baseUrl !== 'string' : !urlOk) { problems.push(`peers[${index}].baseUrl must start with http:// or https://`); bad = true; break }
           if (tokenOrSecretInvalid(token, secret)) { problems.push(`peers[${index}] needs a token or a secret`); bad = true; break }
           if (secret !== undefined && (typeof secret !== 'string' || secret.trim() === '')) { problems.push(`peers[${index}].secret must be a non-empty string when present`); bad = true; break }
           peers.push({
             nodeId: nodeId.trim(),
-            baseUrl: baseUrl.trim(),
+            baseUrl: typeof baseUrl === 'string' ? baseUrl.trim() : '',
+            ...(via === 'hub' ? { via: 'hub' as const } : {}),
             token: typeof token === 'string' ? token.trim() : '',
             ...(typeof secret === 'string' ? { secret: secret.trim() } : {}),
           })
