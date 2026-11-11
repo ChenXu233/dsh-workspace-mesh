@@ -18,7 +18,10 @@
  * is set — one input, one composer, exactly as on this machine.
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { ReactNode } from 'react'
+// Contract types come from proton; never re-declare them here: a local copy
+// would cut the compile-time check that catches drift.
+import type {} from 'dsh-proton-adapter-dsh/composer'
+import type {} from 'dsh-proton-workspace/services'
 import { en, NS, zh } from './locales'
 import type { RemoteTranslate } from './locales'
 import { currentDispatchTarget, subscribeDispatchTarget } from './dispatch-target'
@@ -38,69 +41,17 @@ export const TRANSCRIPT_SLOT = 'conversation.session' as const
 /** Region name this package uses for the two shadowed seats. */
 export const REMOTE_PAGE_REGION = 'remote.page' as const
 
-/**
- * The section seat the workspace domain provides. Declared here instead of
- * imported so this package builds without the domain package: the runtime
- * service is the contract, and the shape is all this package uses.
- */
-export interface SectionSeat {
-  addSection(section: {
-    id: string
-    order?: number
-    render: (context: Record<string, unknown>) => ReactNode
-  }): () => void
-  addPickerExtras(extras: {
-    rows: {
-      getSnapshot(): readonly { workspaceId: string; title: string }[]
-      subscribe(listener: () => void): () => void
-    }
-    pick(workspaceId: string): boolean
-    selectedId?(): string | undefined
-  }): () => void
-  /**
-   * Hide local Sessions from the workspace list while the remote page owns the
-   * screen (the page borrows one blank Session as its composer shell).
-   */
-  hideSessions?(source: {
-    getSnapshot(): readonly string[]
-    subscribe(listener: () => void): () => void
-  }): () => void
-}
-
 /** The slice of the slot registry this package registers into. */
 interface SlotSeat {
   inject(name: string, callback: () => () => void): () => void
   register(options: { name: string; id: string; order?: number }, component: unknown): () => void
 }
 
-/** One submit the shipped composer is about to perform (the adapter's tap). */
-export interface ComposerSubmitRequest {
-  readonly text: string
-  readonly mode: string
-  readonly source?: string | undefined
-  readonly sessionId?: string | undefined
-  readonly clear?: (() => void) | undefined
-}
-
-declare module '@deepseek-ai/cordis' {
-  interface Context {
-    protonWorkspace: SectionSeat
-  }
-  interface Events {
-    /**
-     * A submit happened in the shipped composer. Returning true takes it over:
-     * the adapter skips the shipped send and the draft is cleared by the caller.
-     * @mode bail
-     */
-    'proton/composer-submit'(request: ComposerSubmitRequest): boolean | undefined
-  }
-}
-
 // The section needs the locale service (own namespace), the workspace domain's
 // section seat, and proton itself. Declared at plugin level on purpose: the
 // loader starts this plugin once they exist, whereas a runtime `ctx.inject`
 // created while one is still missing is never woken by a sibling providing it.
-export const inject = ['slots', 'locale', 'proton', 'protonWorkspace', 'uiConversation'] as const
+export const inject = ['slots', 'locale', 'proton', 'protonWorkspace', 'protonComposer', 'uiConversation'] as const
 
 /** Whether two targets point at the same peer Workspace. */
 function sameTarget(left: DispatchTarget | undefined, right: DispatchTarget | undefined): boolean {
@@ -160,6 +111,9 @@ export function apply(ctx: Context): void {
     // pick itself is remembered as a dispatch target, never as a Session here.
     const extras = createRemotePickerExtras()
     scoped.effect(() => scoped.protonWorkspace.addPickerExtras(extras), 'remote-mesh: picker rows')
+    // The adapter does not take the composer seat on its own; this package is
+    // the asker. The seat leaves with this effect, restoring the shipped path.
+    scoped.effect(() => scoped.protonComposer.addSubmitTap(), 'remote-mesh: composer seat')
     // The shipped composer asks plugins before it sends (the adapter taps its
     // submit verb). While a target is set this claims the submit: the text goes
     // to that machine's Session and the reply arrives in the page above it.
