@@ -22,7 +22,9 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
     var HUB_LINK_PATH = "/api/mesh/hub-link";
     var HUB_ADOPT_PATH = "/api/mesh/hub-adopt";
     var HUB_STATS_PATH = "/api/mesh/hub/stats";
-    var HUB_EVICT_PATH = "/api/mesh/hub/evict";
+    // The operator's own browser removes nodes through the fence; the admin
+    // secret never reaches the page.
+    var HUB_EVICT_PATH = "/api/mesh/hub/admin/evict";
     var HUB_PARAM = "mesh-hub";
     var PAIR_ADDRESS_PATH = "/api/mesh/pair-address";
     var PAIR_LINK_PATH = "/api/mesh/pair-link";

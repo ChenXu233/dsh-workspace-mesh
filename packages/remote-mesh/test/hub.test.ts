@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { handleHubEvict, handleHubForward, handleHubInbox, handleHubJoin, handleHubLive, handleHubNodes, handleHubResult, handleHubStats } from '../src/api/hub.js'
+import { handleHubEvict, handleHubForward, handleHubInbox, handleHubJoin, handleHubLive, handleHubNodes, handleHubOperatorEvict, handleHubResult, handleHubStats } from '../src/api/hub.js'
 import { decodeHubPayload, encodeHubPayload, handleHubAdopt, handleHubLink, HUB_PAYLOAD_VERSION } from '../src/api/hub-link.js'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -17,8 +17,8 @@ import { MESH_TOKEN_TTL_MS, mintMeshToken } from '../src/api/mesh-auth.js'
 const SECRET = 'hub-secret'
 const NOW = 1_000_000
 
-function control(registry: HubRegistry): MeshHubControl {
-  return { secret: () => SECRET, registry, now: () => NOW }
+function control(registry: HubRegistry, adminSecret: string = ''): MeshHubControl {
+  return { secret: () => SECRET, registry, now: () => NOW, adminSecret: () => adminSecret }
 }
 
 function token(nodeId: string, expiresAt: number = NOW + MESH_TOKEN_TTL_MS): string {
@@ -294,15 +294,16 @@ test('stats report queue depth and evict removes a node', async () => {
   assert.equal(body.pending, 1)
   assert.equal(body.nodes.find((node: any) => node.nodeId === 'b').pending, 1)
 
-  const evicted = await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b' }), control(registry))
+  const evicted = await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b', adminSecret: 'admin' }), control(registry, 'admin'))
   assert.deepEqual((await evicted.json()) as Record<string, any>, { ok: true, evicted: true })
   assert.equal(registry.size(), 1)
+  assert.deepEqual(registry.recentEvictions().map(item => [item.nodeId, item.by]), [['b', 'admin']])
 })
 
 test('a node removed from the directory stops being reachable', async () => {
   const registry = new HubRegistry(() => NOW)
   registry.join({ nodeId: 'b', url: '' })
-  await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b' }), control(registry))
+  await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b', adminSecret: 'admin' }), control(registry, 'admin'))
   await assert.rejects(registry.enqueue('b', { method: 'GET', path: '/x', headers: {} }, 10), /unknown hub node/)
 })
 
@@ -332,4 +333,36 @@ test('the live route re-emits a node frame batch as SSE', async () => {
   } finally {
     await reader.cancel()
   }
+})
+
+test('a member cannot evict anyone: membership is not authority', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'a', url: '' })
+  registry.join({ nodeId: 'b', url: '' })
+  // A valid member token, but no admin secret.
+  const refused = await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b' }), control(registry, 'admin'))
+  assert.equal(refused.status, 403)
+  assert.equal(registry.size(), 2)
+  // A wrong secret is refused too.
+  const wrong = await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b', adminSecret: 'nope' }), control(registry, 'admin'))
+  assert.equal(wrong.status, 403)
+  assert.equal(registry.size(), 2)
+  // With no admin secret configured at all nobody may evict.
+  const none = await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b', adminSecret: 'admin' }), control(registry, ''))
+  assert.equal(none.status, 403)
+})
+
+test('evicting a node that is not in the directory answers 404', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'a', url: '' })
+  const response = await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'ghost', adminSecret: 'admin' }), control(registry, 'admin'))
+  assert.equal(response.status, 404)
+})
+
+test('the operator session evicts without any secret and is recorded as such', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'b', url: '' })
+  const response = await handleHubOperatorEvict(post('/api/mesh/hub/admin/evict', { nodeId: 'b' }), control(registry, 'admin'))
+  assert.deepEqual((await response.json()) as Record<string, any>, { ok: true, evicted: true })
+  assert.deepEqual(registry.recentEvictions().map(item => [item.nodeId, item.by]), [['b', 'operator']])
 })

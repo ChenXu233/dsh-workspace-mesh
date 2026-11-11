@@ -22,7 +22,7 @@ export interface MeshConfigOverride {
   peers?: Array<{ nodeId: string; baseUrl: string; token: string; secret?: string; via?: 'hub' }>
   meshSecret?: string
   publicUrl?: string
-  hub?: { url: string; nodeId?: string }
+  hub?: { url: string; nodeId?: string; adminSecret?: string }
   assignmentFile?: string
   leaseMs?: number
   dispatchTimeoutMs?: number
@@ -142,7 +142,12 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
           break
         }
         const nodeId = typeof record.nodeId === 'string' ? record.nodeId.trim() : ''
-        value.hub = nodeId === '' ? { url } : { url, nodeId }
+        const adminSecret = typeof record.adminSecret === 'string' ? record.adminSecret.trim() : ''
+        value.hub = {
+          url,
+          ...(nodeId === '' ? {} : { nodeId }),
+          ...(adminSecret === '' ? {} : { adminSecret }),
+        }
         break
       }
       case 'assignmentFile':

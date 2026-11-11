@@ -26,7 +26,7 @@ $DSH_HOME/mesh-config.json（设置页 POST 写入的补丁）
 | `peers` | 数组 `{ nodeId, baseUrl, token, secret?, via? }` | `[]` | 热生效（配对导入后立即重建） | 跨机传输的对端；空 = 不启用传输，见 §3。`token` 与 `secret` 至少给一个：`secret` 是这一对端专用的握手密钥，配对链接带的就是它。`via: 'hub'` 表示这台对端没有入站端口，经 `hub` 转发（此时 `baseUrl` 留空） |
 | `meshSecret` | string | `''` | 重启（配对生成时立即生效） | 本机对外握手用的密钥；对端没写 `peers[].secret` 时作为兜底 |
 | `publicUrl` | string | `''` | 立即 | 本机对外地址，配对链接用它；留空 = 依次用 `DSH_PUBLIC_URL`、当前页面地址、本机网卡 |
-| `hub` | `{ url, nodeId? }` | 无 | 热生效（采纳链接后立即加入） | 加入哪个汇点：`url` 是汇点地址，`nodeId` 是本机在目录里的名字（留空用主机名或 URL 主机） |
+| `hub` | `{ url, nodeId?, adminSecret? }` | 无 | 热生效（采纳链接后立即加入） | 加入哪个汇点：`url` 是汇点地址，`nodeId` 是本机在目录里的名字（留空用主机名或 URL 主机）。`adminSecret` 只有汇点操作者持有：节点侧 `evict` 要用它，成员没有它 |
 | `assignmentFile` | string | `''` | 立即 | assignment.yml 路径，相对宿主进程 cwd；留空 = 不加载 |
 | `leaseMs` | 整数（毫秒） | `900000` | 立即 | 任务租约时长；必须大于 `dispatchTimeoutMs` |
 | `dispatchTimeoutMs` | 整数（毫秒） | `120000` | 立即 | `mesh_dispatch` 等待最终回复的上限，同时是 `maxDurationMs` 的上限 |

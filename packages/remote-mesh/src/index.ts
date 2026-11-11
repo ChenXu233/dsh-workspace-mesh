@@ -18,7 +18,8 @@ import { registerMeshPairRoutes } from './api/pair.js'
 import { hostname } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { registerMeshHubRoutes } from './api/hub.js'
+import { handleHubOperatorEvict, MESH_HUB_ADMIN_EVICT_PATH, registerMeshHubRoutes } from './api/hub.js'
+import { mountExactRoute, withConnection } from './api/mount.js'
 import { registerMeshHubLinkRoutes } from './api/hub-link.js'
 import { handleHandshake, meshHandshakeControl, MESH_HANDSHAKE_PATH } from './api/handshake.js'
 import { HubRegistry } from './hub/registry.js'
@@ -54,7 +55,7 @@ export interface MeshConfig {
   /** Address other machines should use to reach this one; empty = detect. */
   publicUrl?: string
   /** Join this hub: it keeps the directory and relays to nodes without inbound ports. */
-  hub?: { url: string, nodeId?: string }
+  hub?: { url: string, nodeId?: string, adminSecret?: string }
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -253,7 +254,25 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   const manualPeers = [...(config.peers ?? [])]
   {
     const hubSecret = () => config.meshSecret ?? ''
-    registerMeshHubRoutes(ctx, { secret: hubSecret, registry: hubRegistry })
+    registerMeshHubRoutes(ctx, {
+      secret: hubSecret,
+      registry: hubRegistry,
+      adminSecret: () => config.hub?.adminSecret ?? '',
+    })
+    // The operator's own browser evicts through the fence: its session is the
+    // credential, so the page never holds the admin secret.
+    withConnection(ctx, (inner) => {
+      mountExactRoute(inner, {
+        path: MESH_HUB_ADMIN_EVICT_PATH,
+        methods: ['POST'],
+        fetch: (request) => handleHubOperatorEvict(request, {
+          secret: hubSecret,
+          registry: hubRegistry,
+          adminSecret: () => config.hub?.adminSecret ?? '',
+        }),
+      })
+      return true
+    })
   }
 
   // Self-healing peer credential: handshake mints a short-lived mesh token, the

@@ -22,6 +22,12 @@ export interface MeshHubConfig {
   url: string
   /** This node's id in the hub directory; empty = hostname/URL host. */
   nodeId?: string
+  /**
+   * Secret only the hub operator holds; required to evict a node over the peer
+   * API. Members never see it, which is the whole point: membership and
+   * administration cannot share one credential.
+   */
+  adminSecret?: string
 }
 
 export interface MeshPeerConfig {
@@ -207,14 +213,19 @@ function validate(input: unknown): ValidationResult {
     }
     const record = raw as Record<string, unknown>
     for (const key of Object.keys(record)) {
-      if (key !== 'url' && key !== 'nodeId') return { issues: [{ message: `"hub" has unknown field "${key}"`, path: ['hub'] }] }
+      if (key !== 'url' && key !== 'nodeId' && key !== 'adminSecret') return { issues: [{ message: `"hub" has unknown field "${key}"`, path: ['hub'] }] }
     }
     const url = typeof record.url === 'string' ? record.url.trim().replace(/\/+$/u, '') : ''
     if (url !== '' && !/^https?:\/\/[^\s]+$/u.test(url)) {
       return { issues: [{ message: '"hub.url" must be an http(s) URL', path: ['hub'] }] }
     }
     const nodeId = typeof record.nodeId === 'string' ? record.nodeId.trim() : ''
-    value.hub = nodeId === '' ? { url } : { url, nodeId }
+    const adminSecret = typeof record.adminSecret === 'string' ? record.adminSecret.trim() : ''
+    value.hub = {
+      url,
+      ...(nodeId === '' ? {} : { nodeId }),
+      ...(adminSecret === '' ? {} : { adminSecret }),
+    }
   }
   if (source.peers !== undefined) {
     const peers = validatePeers(source.peers)

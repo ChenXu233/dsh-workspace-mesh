@@ -37,6 +37,15 @@ export const MESH_HUB_LIVE_PATH = '/api/mesh/hub/live'
 export interface MeshHubControl {
   /** The hub's own shared secret; empty = hub routes refuse. */
   secret: () => string
+  /**
+   * Secret that only the hub operator holds.
+   *
+   * Membership and administration cannot share one credential: every member has
+   * the shared secret, so if that secret also authorized eviction, any member
+   * could kick any other. Empty = no node may evict (the browser surface still
+   * can, because it authenticates with the operator's own session).
+   */
+  adminSecret?: () => string
   registry: HubRegistry
   now?: () => number
 }
@@ -338,6 +347,7 @@ export async function handleHubStats(request: Request, control: MeshHubControl):
     nodes,
     pending: nodes.reduce((sum, node) => sum + node.pending, 0),
     total: nodes.length,
+    evictions: control.registry.recentEvictions(),
   }, 200)
 }
 
@@ -356,12 +366,52 @@ export async function handleHubEvict(request: Request, control: MeshHubControl):
   }
   const denied = authorise(control, body.token)
   if (denied !== undefined) return denied
+  // Membership is not authority: the shared secret is held by every member.
+  const admin = (control.adminSecret?.() ?? '').trim()
+  const presented = typeof body.adminSecret === 'string' ? body.adminSecret.trim() : ''
+  if (admin === '' || presented === '' || presented !== admin) {
+    return jsonResponse({ ok: false, error: 'evict requires the hub admin secret (hub.adminSecret)' }, 403)
+  }
   const nodeId = typeof body.nodeId === 'string' ? body.nodeId.trim() : ''
   if (nodeId === '') return jsonResponse({ ok: false, error: 'nodeId is required' }, 400)
-  const before = control.registry.size()
-  control.registry.leave(nodeId, 'removed by the hub operator')
-  return jsonResponse({ ok: true, evicted: control.registry.size() < before }, 200)
+  if (control.registry.directory().every(record => record.nodeId !== nodeId)) {
+    return jsonResponse({ ok: false, error: 'no such node in the directory' }, 404)
+  }
+  const by = typeof body.by === 'string' && body.by.trim() !== '' ? body.by.trim() : 'admin'
+  const evicted = control.registry.leave(nodeId, 'removed by ' + by, by)
+  console.warn('[mesh] hub evicted ' + nodeId + ' (by ' + by + ')')
+  return jsonResponse({ ok: true, evicted }, 200)
 }
+
+/**
+ * The same removal for the operator's own browser session.
+ *
+ * The settings page already authenticated through the Connection fence (its
+ * cookie is the operator's), so it needs no second credential — and it must not
+ * carry one into the page.
+ * @param request - POST `{ nodeId }` from the fenced route.
+ * @param control - hub state.
+ * @returns whether a row was removed.
+ */
+export async function handleHubOperatorEvict(request: Request, control: MeshHubControl): Promise<Response> {
+  let body: Record<string, unknown>
+  try {
+    body = await readJson(request, 'evict body')
+  } catch (err) {
+    return jsonResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }, 400)
+  }
+  const nodeId = typeof body.nodeId === 'string' ? body.nodeId.trim() : ''
+  if (nodeId === '') return jsonResponse({ ok: false, error: 'nodeId is required' }, 400)
+  if (control.registry.directory().every(record => record.nodeId !== nodeId)) {
+    return jsonResponse({ ok: false, error: 'no such node in the directory' }, 404)
+  }
+  const evicted = control.registry.leave(nodeId, 'removed by the hub operator', 'operator')
+  console.warn('[mesh] hub evicted ' + nodeId + ' (by operator session)')
+  return jsonResponse({ ok: true, evicted }, 200)
+}
+
+/** Fenced route for the operator's own browser (cookie-authenticated). */
+export const MESH_HUB_ADMIN_EVICT_PATH = '/api/mesh/hub/admin/evict'
 
 /** Mount every hub route below the fence. */
 export function registerMeshHubRoutes(ctx: Context, control: MeshHubControl): void {

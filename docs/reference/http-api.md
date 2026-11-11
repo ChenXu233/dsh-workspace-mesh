@@ -327,7 +327,7 @@ POST /api/mesh/hub/result        { token, id, status, headers?, body? }
 POST /api/mesh/hub/forward?nodeId=  { token, method, path, headers?, body?, timeoutMs? }
   → { ok, result: { status, headers, body } }
 GET  /api/mesh/hub/stats?token=     → { ok, nodes, pending, total }
-POST /api/mesh/hub/evict            { token, nodeId } → { ok, evicted }
+POST /api/mesh/hub/evict            { token, nodeId, adminSecret, by? } → { ok, evicted }
 GET  /api/mesh/hub/live?token=&nodeId=&sessionId=&since=  → text/event-stream
 ```
 
@@ -335,7 +335,9 @@ GET  /api/mesh/hub/live?token=&nodeId=&sessionId=&since=  → text/event-stream
 
 汇点不执行任何东西，也不读对端的会话数据：它只搬一进一出两个 HTTP 包。目录写在 `$DSH_HOME/mesh-hub.json`（重启后成员不必重新加入），队列**不落盘**——重启时还在排队的请求会以 504 结束，调用方重试即可。
 
-`stats` 是给管理面看的：每个节点的队列深度与「多久没心跳」；`evict` 把它从目录里删掉（它排队中的请求立刻失败，要重新 join）。
+`stats` 是给管理面看的：每个节点的队列深度、「多久没心跳」，以及最近的移除记录（`evictions[]`，含 `by` 与 `reason`）；`evict` 把它从目录里删掉（它排队中的请求立刻失败，要重新 join）。
+
+**权限**：`evict` 除了 mesh token 还要 `hub.adminSecret`——成员与管理员不能共用一把钥匙，否则任何成员都能踢人。没配 `adminSecret` 时节点侧的 `evict` 一律 403。操作者自己的浏览器走 fence 内的 `POST /api/mesh/hub/admin/evict { nodeId }`：cookie 就是凭据，页面里不存 adminSecret。
 
 `live` 把「一条长流」换成「许多次短读」：汇点每 350ms 向目标节点要一次 `assistant-live`（`since` 递增），把增量重新写成 SSE 事件，调用方因此仍是一条打开的响应。代价是每批帧一次队列往返——这是汇点缓冲语义下能给出的最好结果。
 

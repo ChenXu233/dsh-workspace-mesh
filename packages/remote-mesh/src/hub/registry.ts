@@ -62,6 +62,18 @@ interface NodeState {
 }
 
 /** Default time a caller waits for the node to answer. */
+/** One removal, kept for the admin view. */
+export interface EvictionRecord {
+  readonly nodeId: string
+  readonly at: number
+  /** Who did it: an admin node id, or 'operator' for a browser session. */
+  readonly by: string
+  readonly reason: string
+}
+
+/** How many removals are remembered. */
+const MAX_AUDIT = 20
+
 export const FORWARD_TIMEOUT_MS = 30_000
 /** Longest a poll is held open; shorter than most proxy idle timeouts. */
 export const MAX_POLL_MS = 25_000
@@ -70,6 +82,7 @@ export const MAX_POLL_MS = 25_000
 export class HubRegistry {
   private readonly nodes = new Map<string, NodeState>()
   private readonly jobs = new Map<string, ForwardJob>()
+  private readonly audit: EvictionRecord[] = []
   private readonly now: () => number
   private counter = 0
 
@@ -254,14 +267,28 @@ export class HubRegistry {
     return true
   }
 
-  /** Drop a node and fail everything queued for it. */
-  leave(nodeId: string, reason: string = 'node left the hub'): void {
+  /**
+   * Drop a node and fail everything queued for it.
+   * @param nodeId - node to remove.
+   * @param reason - why (propagated to the callers waiting on that node).
+   * @param by - who removed it; recorded in the audit trail.
+   * @returns whether a row was removed.
+   */
+  leave(nodeId: string, reason: string = 'node left the hub', by: string = 'unknown'): boolean {
     const state = this.nodes.get(nodeId)
-    if (state === undefined) return
+    if (state === undefined) return false
     this.nodes.delete(nodeId)
     this.persist()
+    this.audit.unshift({ nodeId, at: this.now(), by, reason })
+    if (this.audit.length > MAX_AUDIT) this.audit.length = MAX_AUDIT
     for (const job of state.queue) job.fail(reason)
     state.waiter?.resolve(undefined)
+    return true
+  }
+
+  /** Removals, newest first: an operator needs to know who kicked whom. */
+  recentEvictions(): ReadonlyArray<EvictionRecord> {
+    return this.audit
   }
 
   /** Node count, for the status surface. */
