@@ -62,6 +62,8 @@ export interface MeshToolRuntime {
   config: MeshToolConfig
   now?: () => number
   newTaskId?: () => string
+  /** Hub role/state for the status surfaces; absent when no hub is configured. */
+  hubStatus?: () => import('../hub/status.js').HubStatus
   /**
    * Re-read the config file and rebuild the transport in place.
    *

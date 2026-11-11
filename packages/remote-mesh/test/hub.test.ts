@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { handleHubForward, handleHubInbox, handleHubJoin, handleHubNodes, handleHubResult } from '../src/api/hub.js'
+import { handleHubEvict, handleHubForward, handleHubInbox, handleHubJoin, handleHubLive, handleHubNodes, handleHubResult, handleHubStats } from '../src/api/hub.js'
 import { decodeHubPayload, encodeHubPayload, handleHubAdopt, handleHubLink, HUB_PAYLOAD_VERSION } from '../src/api/hub-link.js'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -278,5 +278,58 @@ test('a corrupt directory file is ignored instead of failing the hub', async () 
     assert.equal(registry.size(), 1)
   } finally {
     await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('stats report queue depth and evict removes a node', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'a', url: 'http://a:3211' })
+  registry.join({ nodeId: 'b', url: '' })
+  void registry.enqueue('b', { method: 'GET', path: '/x', headers: {} }, 5_000).catch(() => {})
+
+  const stats = await handleHubStats(get('/api/mesh/hub/stats', '?token=' + encodeURIComponent(token('a'))), control(registry))
+  const body = (await stats.json()) as Record<string, any>
+  assert.equal(body.ok, true)
+  assert.equal(body.total, 2)
+  assert.equal(body.pending, 1)
+  assert.equal(body.nodes.find((node: any) => node.nodeId === 'b').pending, 1)
+
+  const evicted = await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b' }), control(registry))
+  assert.deepEqual((await evicted.json()) as Record<string, any>, { ok: true, evicted: true })
+  assert.equal(registry.size(), 1)
+})
+
+test('a node removed from the directory stops being reachable', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'b', url: '' })
+  await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b' }), control(registry))
+  await assert.rejects(registry.enqueue('b', { method: 'GET', path: '/x', headers: {} }, 10), /unknown hub node/)
+})
+
+test('the live route re-emits a node frame batch as SSE', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'b', url: '' })
+  const response = await handleHubLive(
+    get('/api/mesh/hub/live', '?token=' + encodeURIComponent(token('a')) + '&nodeId=b&sessionId=s1&since=0'),
+    control(registry),
+  )
+  assert.match(response.headers.get('content-type') ?? '', /^text\/event-stream/)
+  const reader = response.body!.getReader()
+  try {
+    // The route enqueues a read right away; answer it with one frame batch.
+    await new Promise(resolve => setTimeout(resolve, 10))
+    const job = await registry.take('b', 200)
+    assert.notEqual(job, undefined)
+    registry.settle(job!.id, {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: Buffer.from(JSON.stringify({ ok: true, value: { revision: 1, frames: [{ index: 5, time: 1, chunk: {} }] } }), 'utf8').toString('base64'),
+    })
+    const chunk = await reader.read()
+    const text = new TextDecoder().decode(chunk.value)
+    assert.match(text, /"type":"frames"/)
+    assert.match(text, /"index":5/)
+  } finally {
+    await reader.cancel()
   }
 })

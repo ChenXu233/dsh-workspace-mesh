@@ -326,11 +326,18 @@ POST /api/mesh/hub/result        { token, id, status, headers?, body? }
   → { ok, delivered }
 POST /api/mesh/hub/forward?nodeId=  { token, method, path, headers?, body?, timeoutMs? }
   → { ok, result: { status, headers, body } }
+GET  /api/mesh/hub/stats?token=     → { ok, nodes, pending, total }
+POST /api/mesh/hub/evict            { token, nodeId } → { ok, evicted }
+GET  /api/mesh/hub/live?token=&nodeId=&sessionId=&since=  → text/event-stream
 ```
 
 `inbox` 是长轮询：没有请求时挂住最多 25 秒（`wait` 更小则以它为准），回答里同时带上当前目录，因此新节点是被「已经在跑的那次轮询」告知的，汇点不需要反向拨号。`forward` 把整个请求缓冲进目标节点的队列，等它执行完回填；超时以 504 回答。
 
 汇点不执行任何东西，也不读对端的会话数据：它只搬一进一出两个 HTTP 包。目录写在 `$DSH_HOME/mesh-hub.json`（重启后成员不必重新加入），队列**不落盘**——重启时还在排队的请求会以 504 结束，调用方重试即可。
+
+`stats` 是给管理面看的：每个节点的队列深度与「多久没心跳」；`evict` 把它从目录里删掉（它排队中的请求立刻失败，要重新 join）。
+
+`live` 把「一条长流」换成「许多次短读」：汇点每 350ms 向目标节点要一次 `assistant-live`（`since` 递增），把增量重新写成 SSE 事件，调用方因此仍是一条打开的响应。代价是每批帧一次队列往返——这是汇点缓冲语义下能给出的最好结果。
 
 传输层对 `via: 'hub'` 的对端就是这样走的：把原本要发给对端的请求包成 `{ method, path, headers, body }` 交给 `forward`，再把 `result` 解回一个普通 `Response`。因此这类对端只能用 relay 模式（凭 `secret` 签 mesh token，不需要登录 token），SSE 流式接口会明确报错而不是挂住。
 

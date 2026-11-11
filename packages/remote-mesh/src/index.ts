@@ -22,6 +22,7 @@ import { registerMeshHubRoutes } from './api/hub.js'
 import { registerMeshHubLinkRoutes } from './api/hub-link.js'
 import { handleHandshake, meshHandshakeControl, MESH_HANDSHAKE_PATH } from './api/handshake.js'
 import { HubRegistry } from './hub/registry.js'
+import { hubStatus } from './hub/status.js'
 import { HubAgent } from './hub/agent.js'
 import { registerMeshRemoteRoute } from './api/remote.js'
 import { registerMeshHandshakeRoute } from './api/handshake.js'
@@ -185,6 +186,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     assignment,
     lifecycle,
     config: toolConfig,
+    hubStatus: () => hubStatusView(),
     // Peer mutations (pairing) re-read the override file and rebuild the
     // transport in place: the routes and tools all read this object.
     reload: () => {
@@ -304,6 +306,13 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   }
 
   let hubAgent: HubAgent | undefined
+  /** The hub view the tools and the page read; roles come from the config. */
+  const hubStatusView = () => hubStatus({
+    url: config.hub?.url ?? '',
+    nodeId: config.hub?.nodeId ?? '',
+    registry: hubRegistry,
+    lastError: hubAgent?.lastError ?? '',
+  })
   /**
    * Join the configured hub (idempotent). Called at apply and again when a join
    * link is adopted at runtime, so adopting does not need a restart.
@@ -433,6 +442,7 @@ export {
   registerMeshHubRoutes,
 } from './api/hub.js'
 export { HubRegistry } from './hub/registry.js'
+export { hubStatus } from './hub/status.js'
 export { HubAgent } from './hub/agent.js'
 export { handleHandshake, MESH_HANDSHAKE_PATH, registerMeshHandshakeRoute } from './api/handshake.js'
 export {

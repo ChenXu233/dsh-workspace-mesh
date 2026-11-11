@@ -41,6 +41,33 @@ const LIFECYCLE_SCHEMA: Record<string, unknown> = {
   required: ['state', 'supervisor', 'pid', 'startedAt'],
 }
 
+const HUB_NODE_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    nodeId: { type: 'string' },
+    url: { type: 'string', description: 'Address this node advertised; empty means it is only reachable through the hub.' },
+    pending: { type: 'integer', description: 'Requests queued for this node right now.' },
+    lastSeenAt: { type: 'number', description: 'Unix milliseconds when this node last polled.' },
+    ageMs: { type: 'integer', description: 'Milliseconds since that poll.' },
+  },
+  required: ['nodeId', 'url', 'pending', 'lastSeenAt', 'ageMs'],
+}
+
+const HUB_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    role: { type: 'string', enum: ['hub', 'member', 'off'], description: 'hub: others join this node; member: this node joined one; off: no hub involved.' },
+    url: { type: 'string', description: 'Hub this node joined; empty when it joined none.' },
+    nodeId: { type: 'string', description: 'This node id in the hub directory.' },
+    nodes: { type: 'array', items: HUB_NODE_SCHEMA },
+    pending: { type: 'integer', description: 'Forwarded requests waiting across all nodes.' },
+    lastError: { type: 'string', description: 'Why the last join/poll failed; empty when healthy.' },
+  },
+  required: ['role', 'url', 'nodeId', 'nodes', 'pending', 'lastError'],
+}
+
 const OUTPUT_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
@@ -50,8 +77,9 @@ const OUTPUT_SCHEMA: Record<string, unknown> = {
     assignment: ASSIGNMENT_SUMMARY_SCHEMA,
     board: BOARD_COUNTS_SCHEMA,
     lifecycle: LIFECYCLE_SCHEMA,
+    hub: HUB_SCHEMA,
   },
-  required: ['plugin', 'transport', 'assignment', 'board', 'lifecycle'],
+  required: ['plugin', 'transport', 'assignment', 'board', 'lifecycle', 'hub'],
 }
 
 interface BoardCounts {
@@ -113,6 +141,8 @@ export function createMeshStatusTool(runtime: MeshToolRuntime): MeshToolDefiniti
           pid: lifecycle.pid,
           startedAt: lifecycle.startedAt,
         },
+        // Absent hub support still answers a shape: 'off' with no nodes.
+        hub: runtime.hubStatus?.() ?? { role: 'off', url: '', nodeId: '', nodes: [], pending: 0, lastError: '' },
       }
     },
   }

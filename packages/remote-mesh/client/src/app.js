@@ -21,6 +21,8 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
     // One-click pairing: this node hands out a link, the other machine imports it.
     var HUB_LINK_PATH = "/api/mesh/hub-link";
     var HUB_ADOPT_PATH = "/api/mesh/hub-adopt";
+    var HUB_STATS_PATH = "/api/mesh/hub/stats";
+    var HUB_EVICT_PATH = "/api/mesh/hub/evict";
     var HUB_PARAM = "mesh-hub";
     var PAIR_ADDRESS_PATH = "/api/mesh/pair-address";
     var PAIR_LINK_PATH = "/api/mesh/pair-link";
@@ -782,6 +784,43 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       var joinState = React.useState({ phase: "idle", message: "", tone: "" });
       var joined = joinState[0];
       var setJoined = joinState[1];
+      // Directory with queue depth: the admin view of a node that acts as a hub.
+      // Empty when nobody joined it, or when this node is not a hub at all.
+      var dirState = React.useState([]);
+      var directory = dirState[0];
+      var setDirectory = dirState[1];
+
+      var loadStats = React.useCallback(function () {
+        fetch(HUB_STATS_PATH, { credentials: "same-origin", headers: { accept: "application/json" } })
+          .then(function (response) { return response.status === 200 ? response.json() : null; })
+          .then(function (data) {
+            if (data && data.ok === true && Array.isArray(data.nodes)) setDirectory(data.nodes);
+          })
+          .catch(function () { /* not a hub, or the session is gone */ });
+      }, []);
+
+      React.useEffect(function () {
+        loadStats();
+        var timer = setInterval(loadStats, 15000);
+        return function () { clearInterval(timer); };
+      }, [loadStats]);
+
+      function evict(nodeId) {
+        fetch(HUB_EVICT_PATH, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ nodeId: nodeId })
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            if (!data || data.ok !== true) throw new Error(String((data && data.error) || "remove failed"));
+            loadStats();
+          })
+          .catch(function (error) {
+            setJoined({ phase: "error", message: String((error && error.message) || error), tone: "err" });
+          });
+      }
 
       function makeLink() {
         setOut({ phase: "loading", link: "", message: t("生成中…", "Generating…"), tone: "warn" });
@@ -846,7 +885,28 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
           }, "incoming"),
           jsx.jsx(Btn, { disabled: busyIn || incoming.trim() === "", onClick: adoptLink, children: busyIn ? t("加入中…", "Joining…") : t("加入域", "Join") }, "join")
         ] }, "adopt"),
-        joined.message === "" ? null : jsx.jsx("p", { className: "dwm-hint", "data-tone": joined.tone, children: joined.message }, "in-msg")
+        joined.message === "" ? null : jsx.jsx("p", { className: "dwm-hint", "data-tone": joined.tone, children: joined.message }, "in-msg"),
+        directory.length === 0 ? null : jsx.jsxs("div", { children: [
+          jsx.jsx("h3", { className: "dwm-h3", children: t("本汇点的节点", "Nodes on this hub") }),
+          jsx.jsxs("table", { className: "dwm-table", children: [
+            jsx.jsx("thead", { children: jsx.jsx("tr", { children: [
+              jsx.jsx("th", { children: t("节点", "Node") }),
+              jsx.jsx("th", { children: t("地址", "Address") }),
+              jsx.jsx("th", { children: t("排队", "Queued") }),
+              jsx.jsx("th", { children: t("最近心跳", "Last poll") }),
+              jsx.jsx("th", { children: "" })
+            ] }) }),
+            jsx.jsx("tbody", { children: directory.map(function (node) {
+              return jsx.jsxs("tr", { children: [
+                jsx.jsx("td", { children: node.nodeId }),
+                jsx.jsx("td", { className: "dwm-mono", children: node.url === "" ? t("仅经汇点", "hub only") : node.url }),
+                jsx.jsx("td", { children: String(node.pending) }),
+                jsx.jsx("td", { children: node.ageMs < 60000 ? Math.round(node.ageMs / 1000) + "s" : Math.round(node.ageMs / 60000) + "m" }),
+                jsx.jsx("td", { children: jsx.jsx(Btn, { onClick: function () { evict(node.nodeId); }, children: t("移除", "Remove") }) })
+              ] }, node.nodeId);
+            }) })
+          ] })
+        ] }, "dir")
       ] });
     }
 

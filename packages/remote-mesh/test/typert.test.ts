@@ -483,17 +483,29 @@ test('a hub-only peer is reached through the hub forward envelope', async () => 
   assert.equal(decoded.op, 'workspaces')
 })
 
-test('streaming through a hub is refused with a reason instead of hanging', async () => {
+test('a hub peer streams from the hub live re-emitter', async () => {
+  const seen: string[] = []
+  const fetchImpl = (async (input: string | URL | Request) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    seen.push(url)
+    const payload = 'data: ' + JSON.stringify({ type: 'frames', revision: 1, frames: [{ index: 1, time: 1, chunk: {} }] }) + '\n\n'
+    return new Response(payload, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }) as unknown as typeof fetch
   const transport = createTypertTransport({
     peers: [{ nodeId: 'b', baseUrl: '', via: 'hub', token: '', secret: 'shared' }],
     hubUrl: 'http://hub.internal',
-    fetchImpl: (async () => new Response('{}', { status: 200 })) as unknown as typeof fetch,
+    fetchImpl,
   })
-  const controller = new AbortController()
-  await assert.rejects(
-    transport.openAssistantLiveStream?.('b', 's1', 0, () => {}, controller.signal) ?? Promise.reject(new Error('missing')),
-    /live streaming is not available through a hub/,
-  )
+  const pages: number[] = []
+  const stream = transport.openAssistantLiveStream
+  assert.notEqual(stream, undefined)
+  await stream?.(('b') as never, 's1' as never, 0 as never,
+    ((page: { frames: unknown[] }) => { pages.push(page.frames.length) }) as never,
+    new AbortController().signal)
+  // One request to the hub's live route, carrying node, session, cursor and token.
+  assert.equal(seen.length, 1)
+  assert.match(seen[0] ?? '', /^http:\/\/hub\.internal\/api\/mesh\/hub\/live\?nodeId=b&sessionId=s1&since=0&token=/)
+  assert.deepEqual(pages, [1])
 })
 
 test('a hub peer with an address tries direct first and keeps the hub as fallback', async () => {

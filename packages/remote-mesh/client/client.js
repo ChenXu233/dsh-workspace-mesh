@@ -10397,6 +10397,8 @@ var DISPATCH_PATH = "/api/mesh/dispatch";
 var SESSION_PATH = "/api/mesh/session";
 var HUB_LINK_PATH = "/api/mesh/hub-link";
 var HUB_ADOPT_PATH = "/api/mesh/hub-adopt";
+var HUB_STATS_PATH = "/api/mesh/hub/stats";
+var HUB_EVICT_PATH = "/api/mesh/hub/evict";
 var HUB_PARAM = "mesh-hub";
 var PAIR_ADDRESS_PATH = "/api/mesh/pair-address";
 var PAIR_LINK_PATH = "/api/mesh/pair-link";
@@ -11089,6 +11091,39 @@ function DomainPanel(props) {
   var joinState = React2.useState({ phase: "idle", message: "", tone: "" });
   var joined = joinState[0];
   var setJoined = joinState[1];
+  var dirState = React2.useState([]);
+  var directory = dirState[0];
+  var setDirectory = dirState[1];
+  var loadStats = React2.useCallback(function() {
+    fetch(HUB_STATS_PATH, { credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
+      return response.status === 200 ? response.json() : null;
+    }).then(function(data) {
+      if (data && data.ok === true && Array.isArray(data.nodes)) setDirectory(data.nodes);
+    }).catch(function() {
+    });
+  }, []);
+  React2.useEffect(function() {
+    loadStats();
+    var timer2 = setInterval(loadStats, 15e3);
+    return function() {
+      clearInterval(timer2);
+    };
+  }, [loadStats]);
+  function evict(nodeId) {
+    fetch(HUB_EVICT_PATH, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ nodeId })
+    }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      if (!data || data.ok !== true) throw new Error(String(data && data.error || "remove failed"));
+      loadStats();
+    }).catch(function(error) {
+      setJoined({ phase: "error", message: String(error && error.message || error), tone: "err" });
+    });
+  }
   function makeLink() {
     setOut({ phase: "loading", link: "", message: t("\u751F\u6210\u4E2D\u2026", "Generating\u2026"), tone: "warn" });
     fetch(HUB_LINK_PATH, { credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
@@ -11153,7 +11188,30 @@ function DomainPanel(props) {
       }, "incoming"),
       jsx4.jsx(Btn, { disabled: busyIn || incoming.trim() === "", onClick: adoptLink, children: busyIn ? t("\u52A0\u5165\u4E2D\u2026", "Joining\u2026") : t("\u52A0\u5165\u57DF", "Join") }, "join")
     ] }, "adopt"),
-    joined.message === "" ? null : jsx4.jsx("p", { className: "dwm-hint", "data-tone": joined.tone, children: joined.message }, "in-msg")
+    joined.message === "" ? null : jsx4.jsx("p", { className: "dwm-hint", "data-tone": joined.tone, children: joined.message }, "in-msg"),
+    directory.length === 0 ? null : jsx4.jsxs("div", { children: [
+      jsx4.jsx("h3", { className: "dwm-h3", children: t("\u672C\u6C47\u70B9\u7684\u8282\u70B9", "Nodes on this hub") }),
+      jsx4.jsxs("table", { className: "dwm-table", children: [
+        jsx4.jsx("thead", { children: jsx4.jsx("tr", { children: [
+          jsx4.jsx("th", { children: t("\u8282\u70B9", "Node") }),
+          jsx4.jsx("th", { children: t("\u5730\u5740", "Address") }),
+          jsx4.jsx("th", { children: t("\u6392\u961F", "Queued") }),
+          jsx4.jsx("th", { children: t("\u6700\u8FD1\u5FC3\u8DF3", "Last poll") }),
+          jsx4.jsx("th", { children: "" })
+        ] }) }),
+        jsx4.jsx("tbody", { children: directory.map(function(node) {
+          return jsx4.jsxs("tr", { children: [
+            jsx4.jsx("td", { children: node.nodeId }),
+            jsx4.jsx("td", { className: "dwm-mono", children: node.url === "" ? t("\u4EC5\u7ECF\u6C47\u70B9", "hub only") : node.url }),
+            jsx4.jsx("td", { children: String(node.pending) }),
+            jsx4.jsx("td", { children: node.ageMs < 6e4 ? Math.round(node.ageMs / 1e3) + "s" : Math.round(node.ageMs / 6e4) + "m" }),
+            jsx4.jsx("td", { children: jsx4.jsx(Btn, { onClick: function() {
+              evict(node.nodeId);
+            }, children: t("\u79FB\u9664", "Remove") }) })
+          ] }, node.nodeId);
+        }) })
+      ] })
+    ] }, "dir")
   ] });
 }
 function PairingPanel(props) {

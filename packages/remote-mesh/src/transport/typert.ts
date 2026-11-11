@@ -201,6 +201,11 @@ class TypertClient {
     return this.peer.via === 'hub' && this.hubUrl !== ''
   }
 
+  /** A mesh token for the hub's own routes (same shared secret). */
+  hubToken(): string {
+    return mintMeshToken(this.meshSecret, { nodeId: this.peer.nodeId, expiresAt: Date.now() + MESH_TOKEN_TTL_MS })
+  }
+
   /** Which path the last calls took, for the status surfaces. */
   currentLink(): 'direct' | 'hub' | 'unknown' {
     if (!this.viaHub) return 'direct'
@@ -333,6 +338,24 @@ class TypertClient {
     } catch (err) {
       throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: transport error (${describeError(err)})`, true)
     }
+  }
+
+  /**
+   * Open one absolute URL as a stream.
+   *
+   * Used for the hub's live re-emitter, which is not on the peer's origin: the
+   * hub turns a buffered queue into a stream so the caller keeps one open
+   * response instead of polling itself.
+   * @param url - absolute URL.
+   * @param signal - caller's abort signal.
+   * @returns the response body.
+   */
+  async streamUrl(url: string, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+    const res = await this.fetchImpl(url, { headers: { accept: 'text/event-stream' }, signal })
+    if (!res.ok || res.body === null) {
+      throw new TypertRpcError('remote-failure', `peer ${this.peer.nodeId}: live stream refused (HTTP ${res.status})`)
+    }
+    return res.body
   }
 
   /** Read a JSON body; a connection reset mid-body is a transient failure, not an answer. */
@@ -950,20 +973,25 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
       signal: AbortSignal,
     ): Promise<void> {
       const client = requireClient(nodeId)
-      // The hub buffers a whole request and a whole response, so a long-lived
-      // SSE stream cannot cross it. Say so instead of hanging until the timeout;
-      // the durable transcript still reads normally through the relay.
-      const direct = options.peers.find(peer => peer.nodeId === nodeId)
-      if (direct?.via === 'hub' && options.hubUrl !== undefined && options.hubUrl !== '') {
-        throw new TypertRpcError('unavailable', `peer ${nodeId}: live streaming is not available through a hub`)
-      }
       const at = Math.max(0, Math.floor(since))
-      const body = client.relayMode
-        ? await client.streamRelay('assistant-live', { sessionId, since: at }, signal)
-        : await client.streamGet(
-          '/api/mesh/session/live/stream?sessionId=' + encodeURIComponent(sessionId) + '&since=' + String(at),
+      const direct = options.peers.find(peer => peer.nodeId === nodeId)
+      const hubUrl = options.hubUrl ?? ''
+      // A hub peer's frames come back as many short reads; the hub re-emits them
+      // as one stream, so this call site keeps seeing the same wire shape.
+      const body = direct?.via === 'hub' && hubUrl !== ''
+        ? await client.streamUrl(
+          hubUrl + '/api/mesh/hub/live?nodeId=' + encodeURIComponent(nodeId) +
+            '&sessionId=' + encodeURIComponent(sessionId) +
+            '&since=' + String(at) +
+            '&token=' + encodeURIComponent(client.hubToken()),
           signal,
         )
+        : client.relayMode
+          ? await client.streamRelay('assistant-live', { sessionId, since: at }, signal)
+          : await client.streamGet(
+            '/api/mesh/session/live/stream?sessionId=' + encodeURIComponent(sessionId) + '&since=' + String(at),
+            signal,
+          )
       const reader = body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''

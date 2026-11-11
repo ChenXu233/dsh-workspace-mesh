@@ -76,10 +76,13 @@
   transport: { configured, mode, kind, reason },
   assignment: { configured, file, nodes, assignments },
   board: { total, queued, dispatched, running, done, failed, expired },
-  lifecycle: { state, supervisor, pid, startedAt } }
+  lifecycle: { state, supervisor, pid, startedAt },
+  hub: { role, url, nodeId, nodes[], pending, lastError } }
 ```
 
 不发起跨机调用，所以没有传输时仍然可用——这正是它的用途：先分清「本地没配好」还是「对端不通」。它**不替代** `mesh_task_status`。
+
+`hub` 是这个节点在汇点里的位置：`role: 'hub'` 表示别人加入它、`'member'` 表示它加入了谁、`'off'` 表示没有汇点；`nodes` 每行带 `pending`（为该节点排队的请求数）与 `ageMs`（多久没心跳），`lastError` 是最近一次 join/poll 的失败原因。
 
 ## 5. mesh_dispatch
 
