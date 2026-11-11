@@ -10395,6 +10395,7 @@ var STATE_PATH2 = "/api/mesh/state";
 var CONFIG_PATH = "/api/mesh/config";
 var DISPATCH_PATH = "/api/mesh/dispatch";
 var SESSION_PATH = "/api/mesh/session";
+var PAIR_ADDRESS_PATH = "/api/mesh/pair-address";
 var PAIR_LINK_PATH = "/api/mesh/pair-link";
 var PAIR_PATH = "/api/mesh/pair";
 var PAIR_PARAM = "mesh-pair";
@@ -10493,6 +10494,14 @@ function TextInput(props) {
     onChange: props.onChange,
     onFocus: props.onFocus
   });
+}
+function addressSourceText(source) {
+  if (source === "config") return t("mesh \u914D\u7F6E\u91CC\u7684 publicUrl", "publicUrl in the mesh config");
+  if (source === "env") return t("\u73AF\u5883\u53D8\u91CF DSH_PUBLIC_URL", "the DSH_PUBLIC_URL environment variable");
+  if (source === "request") return t("\u4F60\u5F53\u524D\u8BBF\u95EE\u8FD9\u4E2A\u9875\u9762\u7684\u5730\u5740", "the address you opened this page at");
+  if (source === "lan") return t("\u672C\u673A\u7F51\u5361\uFF08\u5F53\u524D\u8BBF\u95EE\u7684\u662F 127.0.0.1\uFF09", "this machine's network card (you are on 127.0.0.1)");
+  if (source === "custom") return t("\u4F60\u624B\u52A8\u586B\u5199\u7684\u5730\u5740", "the address you typed");
+  return t("\u65E0\u6CD5\u5224\u65AD\uFF1A\u8BF7\u624B\u52A8\u586B\u5199", "unknown - please fill it in");
 }
 function SelectField(props) {
   var openState = React2.useState(false);
@@ -11079,9 +11088,24 @@ function PairingPanel(props) {
   var importState = React2.useState({ phase: "idle", message: "", tone: "" });
   var imported = importState[0];
   var setImported = importState[1];
+  var addrState = React2.useState({ url: "", source: "", candidates: [] });
+  var address = addrState[0];
+  var setAddress = addrState[1];
+  React2.useEffect(function() {
+    fetch(PAIR_ADDRESS_PATH, { credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      if (!data || data.ok !== true) return;
+      setAddress({ url: data.url || "", source: data.source || "", candidates: data.candidates || [] });
+    }).catch(function() {
+    });
+  }, []);
   function makeLink() {
     setOut({ phase: "loading", link: "", message: t("\u751F\u6210\u4E2D\u2026", "Generating\u2026"), tone: "warn" });
-    var query = name.trim() === "" ? "" : "?nodeId=" + encodeURIComponent(name.trim());
+    var params = [];
+    if (name.trim() !== "") params.push("nodeId=" + encodeURIComponent(name.trim()));
+    if (address.url.trim() !== "") params.push("url=" + encodeURIComponent(address.url.trim()));
+    var query = params.length === 0 ? "" : "?" + params.join("&");
     fetch(PAIR_LINK_PATH + query, { credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
       return response.json();
     }).then(function(data) {
@@ -11123,6 +11147,23 @@ function PairingPanel(props) {
       "\u914D\u5BF9\u94FE\u63A5\u91CC\u5E26\u7740\u8FD9\u53F0\u673A\u5668\u7684\u5730\u5740\u4E0E\u5171\u4EAB\u5BC6\u94A5\uFF1A\u5728\u5BF9\u65B9\u673A\u5668\u4E0A\u6253\u5F00\u5B83\uFF0C\u4E24\u8FB9\u5C31\u901A\u4E86\uFF0C\u4E0D\u7528\u624B\u6539 mesh-config.json\u3002",
       "The link carries this machine's URL and shared secret: open it on the other machine and both sides are connected, with no hand-edited mesh-config.json."
     ) }),
+    jsx4.jsxs("div", { className: "dwm-pair-row", children: [
+      jsx4.jsx(TextInput, {
+        value: address.url,
+        placeholder: t("\u672C\u673A\u5BF9\u5916\u5730\u5740\uFF0C\u4F8B\u5982 http://192.168.1.20:3211", "Address others use, e.g. http://192.168.1.20:3211"),
+        onChange: function(event) {
+          setAddress({ url: event.target.value, source: "custom", candidates: address.candidates });
+        }
+      }, "address")
+    ] }, "addr"),
+    address.source === "" ? null : jsx4.jsx("p", { className: "dwm-hint", children: t(
+      "\u94FE\u63A5\u5730\u5740\u6765\u6E90\uFF1A" + addressSourceText(address.source) + (address.candidates.length > 1 ? "\u3002\u53EF\u9009\uFF1A" + address.candidates.map(function(item) {
+        return item.url;
+      }).join(" / ") : ""),
+      "Address source: " + addressSourceText(address.source) + (address.candidates.length > 1 ? ". Candidates: " + address.candidates.map(function(item) {
+        return item.url;
+      }).join(" / ") : "")
+    ) }, "addr-hint"),
     jsx4.jsxs("div", { className: "dwm-pair-row", children: [
       jsx4.jsx(TextInput, {
         value: name,

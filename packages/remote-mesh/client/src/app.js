@@ -19,6 +19,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
     // Remote session history: the peer is the only authority, this route proxies.
     var SESSION_PATH = "/api/mesh/session";
     // One-click pairing: this node hands out a link, the other machine imports it.
+    var PAIR_ADDRESS_PATH = "/api/mesh/pair-address";
     var PAIR_LINK_PATH = "/api/mesh/pair-link";
     var PAIR_PATH = "/api/mesh/pair";
     var PAIR_PARAM = "mesh-pair";
@@ -119,6 +120,16 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
         onChange: props.onChange,
         onFocus: props.onFocus
       });
+    }
+
+    /** Human label for where a pairing address came from. */
+    function addressSourceText(source) {
+      if (source === "config") return t("mesh 配置里的 publicUrl", "publicUrl in the mesh config");
+      if (source === "env") return t("环境变量 DSH_PUBLIC_URL", "the DSH_PUBLIC_URL environment variable");
+      if (source === "request") return t("你当前访问这个页面的地址", "the address you opened this page at");
+      if (source === "lan") return t("本机网卡（当前访问的是 127.0.0.1）", "this machine's network card (you are on 127.0.0.1)");
+      if (source === "custom") return t("你手动填写的地址", "the address you typed");
+      return t("无法判断：请手动填写", "unknown - please fill it in");
     }
 
     /**
@@ -772,10 +783,29 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       var importState = React.useState({ phase: "idle", message: "", tone: "" });
       var imported = importState[0];
       var setImported = importState[1];
+      // The address the link will carry. The host picks it (config -> env ->
+      // page origin -> LAN card) and the operator can correct it here, because
+      // a link that says 127.0.0.1 is useless on the other machine.
+      var addrState = React.useState({ url: "", source: "", candidates: [] });
+      var address = addrState[0];
+      var setAddress = addrState[1];
+
+      React.useEffect(function () {
+        fetch(PAIR_ADDRESS_PATH, { credentials: "same-origin", headers: { accept: "application/json" } })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            if (!data || data.ok !== true) return;
+            setAddress({ url: data.url || "", source: data.source || "", candidates: data.candidates || [] });
+          })
+          .catch(function () { /* the field stays empty and the host still picks one */ });
+      }, []);
 
       function makeLink() {
         setOut({ phase: "loading", link: "", message: t("生成中…", "Generating…"), tone: "warn" });
-        var query = name.trim() === "" ? "" : "?nodeId=" + encodeURIComponent(name.trim());
+        var params = [];
+        if (name.trim() !== "") params.push("nodeId=" + encodeURIComponent(name.trim()));
+        if (address.url.trim() !== "") params.push("url=" + encodeURIComponent(address.url.trim()));
+        var query = params.length === 0 ? "" : "?" + params.join("&");
         fetch(PAIR_LINK_PATH + query, { credentials: "same-origin", headers: { accept: "application/json" } })
           .then(function (response) { return response.json(); })
           .then(function (data) {
@@ -820,6 +850,19 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
           "配对链接里带着这台机器的地址与共享密钥：在对方机器上打开它，两边就通了，不用手改 mesh-config.json。",
           "The link carries this machine's URL and shared secret: open it on the other machine and both sides are connected, with no hand-edited mesh-config.json."
         ) }),
+        jsx.jsxs("div", { className: "dwm-pair-row", children: [
+          jsx.jsx(TextInput, {
+            value: address.url,
+            placeholder: t("本机对外地址，例如 http://192.168.1.20:3211", "Address others use, e.g. http://192.168.1.20:3211"),
+            onChange: function (event) { setAddress({ url: event.target.value, source: "custom", candidates: address.candidates }); }
+          }, "address")
+        ] }, "addr"),
+        address.source === "" ? null : jsx.jsx("p", { className: "dwm-hint", children: t(
+          "链接地址来源：" + addressSourceText(address.source) +
+            (address.candidates.length > 1 ? "。可选：" + address.candidates.map(function (item) { return item.url; }).join(" / ") : ""),
+          "Address source: " + addressSourceText(address.source) +
+            (address.candidates.length > 1 ? ". Candidates: " + address.candidates.map(function (item) { return item.url; }).join(" / ") : "")
+        ) }, "addr-hint"),
         jsx.jsxs("div", { className: "dwm-pair-row", children: [
           jsx.jsx(TextInput, {
             value: name,

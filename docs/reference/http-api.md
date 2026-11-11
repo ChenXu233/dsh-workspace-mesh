@@ -201,8 +201,10 @@ data: { "type": "ping" }
 一键配对：这台机器发一张「名片」，另一台机器打开它就多出一个对端。
 
 ```text
-GET  /api/mesh/pair-link?nodeId=<对方怎么称呼这台机器>
-  → { ok, nodeId, url, secret, token, link }
+GET  /api/mesh/pair-address
+  → { ok, url, source, candidates }
+GET  /api/mesh/pair-link?nodeId=<对方怎么称呼这台机器>&url=<可选，覆盖地址>
+  → { ok, nodeId, url, source, secret, token, link }
 POST /api/mesh/pair   { token } 或 { link }
   → { ok, peers, peer }
 ```
@@ -210,6 +212,8 @@ POST /api/mesh/pair   { token } 或 { link }
 链接形如 `<本机地址>/#mesh-pair=<base64url JSON>`，负载是 `{ v: 1, nodeId, url, secret }`。负载放在 `#` 后面而不是查询串：Web UI 对 `/?token=` 会 302 到 `/`，查询串被丢掉，片段会跟着走。在对方机器上打开链接，前端把负载 POST 回来，对端就写进自己的 `peers`（`secret` 是这一对端专用的），随后重建传输、立即生效。
 
 生成这一侧如果还没有 `meshSecret`，会当场生成并落盘——否则发出去的名片在对方那儿验不过。
+
+地址按「谁最先说清」的顺序取：配置里的 `publicUrl` → 环境变量 `DSH_PUBLIC_URL` → 浏览器访问这个页面的 origin（仅当它不是回环地址）→ 本机网卡 IPv4。`pair-address` 提前把这套判断的结果和候选都交给面板，操作者可以改；`pair-link?url=` 就是用改过的地址生成，非法地址直接 400 而不是悄悄退回猜测值。
 
 | 状态码 | 条件 |
 | --- | --- |

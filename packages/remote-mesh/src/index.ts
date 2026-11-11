@@ -42,6 +42,8 @@ export interface MeshConfig {
   peers?: MeshPeerConfig[]
   /** Shared secret for peer handshakes; enables relay mode (no login token needed). */
   meshSecret?: string
+  /** Address other machines should use to reach this one; empty = detect. */
+  publicUrl?: string
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -88,6 +90,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     ...(override.transport !== undefined ? { transport: override.transport } : {}),
     ...(override.peers !== undefined ? { peers: override.peers } : {}),
     ...(override.meshSecret !== undefined ? { meshSecret: override.meshSecret } : {}),
+    ...(override.publicUrl !== undefined ? { publicUrl: override.publicUrl } : {}),
     ...(override.leaseMs !== undefined ? { leaseMs: override.leaseMs } : {}),
     ...(override.dispatchTimeoutMs !== undefined ? { dispatchTimeoutMs: override.dispatchTimeoutMs } : {}),
     ...(override.leaseOwner !== undefined ? { leaseOwner: override.leaseOwner } : {}),
@@ -176,6 +179,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
       const next = readConfigOverride(overrideFile)
       config.peers = next.peers ?? config.peers
       if (next.meshSecret !== undefined) config.meshSecret = next.meshSecret
+      if (next.publicUrl !== undefined) config.publicUrl = next.publicUrl
       buildTransport()
       toolRuntime.transport = transport
       toolRuntime.transportError = transportError
@@ -218,6 +222,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     runtime: toolRuntime,
     file: overrideFile,
     peers: () => config.peers ?? [],
+    publicUrl: () => config.publicUrl ?? '',
     secret: () => config.meshSecret ?? '',
     setSecret: (secret: string) => {
       config.meshSecret = secret

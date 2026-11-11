@@ -15,7 +15,7 @@
  * fragment — a query parameter would be gone before the client could read it.
  */
 import { randomBytes } from 'node:crypto'
-import { hostname } from 'node:os'
+import { hostname, networkInterfaces } from 'node:os'
 
 import type { Context } from '@deepseek-ai/cordis'
 import { jsonResponse, mountExactRoute, withConnection } from './mount.js'
@@ -24,6 +24,8 @@ import { writeConfigOverride } from '../config/store.js'
 import type { MeshToolRuntime } from '../tools/types.js'
 
 export const MESH_PAIR_LINK_PATH = '/api/mesh/pair-link'
+/** Where this node can be reached, without the side effects of minting a link. */
+export const MESH_PAIR_ADDRESS_PATH = '/api/mesh/pair-address'
 export const MESH_PAIR_PATH = '/api/mesh/pair'
 /** Query parameter the client half watches for. */
 export const PAIR_PARAM = 'mesh-pair'
@@ -47,6 +49,8 @@ export interface MeshPairControl {
   file: string
   /** Peers currently configured on this node. */
   peers: () => ReadonlyArray<{ nodeId: string, baseUrl: string, token: string, secret?: string }>
+  /** This node's configured public address (may be empty). */
+  publicUrl: () => string
   /** This node's shared secret, creating one on first use. */
   secret: () => string
   /** Persist a new secret for this node. */
@@ -111,6 +115,46 @@ export function decodePairToken(token: string): PairPayload | { error: string } 
   return { v: PAIR_PAYLOAD_VERSION, nodeId, url, secret }
 }
 
+/** Trim trailing slashes off an http(s) URL; anything else answers "". */
+function cleanUrl(value: string | undefined): string {
+  const trimmed = (value ?? '').trim().replace(/\/+$/u, '')
+  return /^https?:\/\/[^\s]+$/u.test(trimmed) ? trimmed : ''
+}
+
+/** 127.x, ::1, 0.0.0.0 and "localhost" all mean "this browser is on the box". */
+function isLoopback(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, '').toLowerCase()
+  return host === 'localhost' || host === '::1' || host === '0.0.0.0' || host === '[::1]' || /^127\./u.test(host)
+}
+
+/** One non-internal IPv4 address of this machine, preferring a private range. */
+function lanAddress(): string {
+  const candidates: string[] = []
+  for (const rows of Object.values(networkInterfaces())) {
+    for (const row of rows ?? []) {
+      if (row.internal || row.family !== 'IPv4') continue
+      candidates.push(row.address)
+    }
+  }
+  const privateRange = candidates.find(address => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/u.test(address))
+  return privateRange ?? candidates[0] ?? ''
+}
+
+/** The port this browser used (defaults to the standard dsh web port). */
+function portOf(url: string): string {
+  try {
+    return new URL(url).port === '' ? '3211' : new URL(url).port
+  } catch {
+    return '3211'
+  }
+}
+
+/** Where a pairing link may point, and why that choice was made. */
+export interface PairAddress {
+  readonly url: string
+  readonly source: 'config' | 'env' | 'request' | 'lan' | 'none'
+}
+
 /** The origin this request reached us on: what the other machine should call. */
 function originOf(request: Request): string {
   const headers = request.headers
@@ -129,6 +173,51 @@ function originOf(request: Request): string {
   return host === '' ? '' : proto + '://' + host
 }
 
+/**
+ * Pick the address a pairing link should carry.
+ *
+ * A link that says 127.0.0.1 is useless on the other machine, and the page's own
+ * origin is loopback whenever the operator port-forwards or tunnels. The order
+ * walks from stated to inferred: config, env, the request's origin if it is
+ * routable, then this machine's LAN address.
+ * @param request - the browser's request (its origin is the last resort).
+ * @param control - config access.
+ * @returns the address and which signal produced it.
+ */
+export function resolvePairAddress(request: Request, control: Pick<MeshPairControl, 'publicUrl'>): PairAddress {
+  const configured = cleanUrl(control.publicUrl())
+  if (configured !== '') return { url: configured, source: 'config' }
+  const fromEnv = cleanUrl(process.env.DSH_PUBLIC_URL)
+  if (fromEnv !== '') return { url: fromEnv, source: 'env' }
+  const origin = originOf(request)
+  if (origin !== '') {
+    try {
+      if (!isLoopback(new URL(origin).hostname)) return { url: origin, source: 'request' }
+    } catch {
+      // An unparseable origin falls through to the LAN probe.
+    }
+  }
+  const lan = lanAddress()
+  if (lan !== '') return { url: 'http://' + lan + ':' + portOf(origin), source: 'lan' }
+  return { url: origin, source: 'none' }
+}
+
+/** Every address the operator could reasonably hand out, best first. */
+export function pairAddressCandidates(request: Request, control: Pick<MeshPairControl, 'publicUrl'>): PairAddress[] {
+  const out: PairAddress[] = []
+  const add = (url: string, source: PairAddress['source']): void => {
+    const clean = cleanUrl(url)
+    if (clean === '' || out.some(item => item.url === clean)) return
+    out.push({ url: clean, source })
+  }
+  add(control.publicUrl(), 'config')
+  add(process.env.DSH_PUBLIC_URL ?? '', 'env')
+  add(originOf(request), 'request')
+  const lan = lanAddress()
+  if (lan !== '') add('http://' + lan + ':' + portOf(originOf(request)), 'lan')
+  return out
+}
+
 /** A secret this node can hand out; stable once created. */
 function mintSecret(): string {
   return 'mesh-' + randomBytes(18).toString('base64url')
@@ -141,14 +230,22 @@ function mintSecret(): string {
  * @returns `{ link, url, nodeId }`.
  */
 export async function handlePairLink(request: Request, control: MeshPairControl): Promise<Response> {
-  const url = originOf(request)
-  if (url === '') return jsonResponse({ ok: false, error: 'cannot tell which origin this node is served at' }, 400)
-  const asked = new URL(request.url).searchParams.get('nodeId')?.trim() ?? ''
+  const rawAsked = new URL(request.url).searchParams.get('url')
+  const asked = cleanUrl(rawAsked ?? '')
+  // An explicit ?url= is the operator correcting the guess in the panel; a
+  // malformed one is refused instead of silently replaced by the guess.
+  if (rawAsked !== null && rawAsked.trim() !== '' && asked === '') {
+    return jsonResponse({ ok: false, error: 'url must be an http(s) URL' }, 400)
+  }
+  const resolved = resolvePairAddress(request, control)
+  const url = asked !== '' ? asked : resolved.url
+  if (url === '') return jsonResponse({ ok: false, error: 'cannot tell which address this node is reachable at; set publicUrl in the mesh config' }, 400)
+  const askedName = new URL(request.url).searchParams.get('nodeId')?.trim() ?? ''
   // A container hostname is a hex id and reads as noise in the other machine's
   // list; the URL host at least says which address the peer is being added at.
   const machine = hostname()
   const fallback = /^[0-9a-f]{12,}$/i.test(machine) ? new URL(url).host : machine
-  const nodeId = asked !== '' ? asked : (fallback || new URL(url).host)
+  const nodeId = askedName !== '' ? askedName : (fallback || new URL(url).host)
   let secret = control.secret()
   if (secret === '') {
     secret = mintSecret()
@@ -156,7 +253,15 @@ export async function handlePairLink(request: Request, control: MeshPairControl)
   }
   const payload: PairPayload = { v: PAIR_PAYLOAD_VERSION, nodeId, url, secret }
   const token = encodePairToken(payload)
-  return jsonResponse({ ok: true, nodeId, url, secret, token, link: url + '/#' + PAIR_PARAM + '=' + token }, 200)
+  return jsonResponse({
+    ok: true,
+    nodeId,
+    url,
+    source: asked !== '' ? 'custom' : resolved.source,
+    secret,
+    token,
+    link: url + '/#' + PAIR_PARAM + '=' + token,
+  }, 200)
 }
 
 /**
@@ -198,10 +303,37 @@ export async function handlePair(request: Request, control: MeshPairControl): Pr
   return jsonResponse({ ok: true, peers, peer }, 200)
 }
 
-/** Mount both the link generator and the importer inside the browser fence. */
+/**
+ * Report where this node can be reached, without minting a link.
+ * @param request - GET from the settings panel.
+ * @param control - config access.
+ * @returns the chosen address plus every candidate with its source.
+ */
+export async function handlePairAddress(request: Request, control: MeshPairControl): Promise<Response> {
+  const resolved = resolvePairAddress(request, control)
+  return jsonResponse({
+    ok: true,
+    url: resolved.url,
+    source: resolved.source,
+    candidates: pairAddressCandidates(request, control),
+  }, 200)
+}
+
+/** Mount the link generator, the importer and the address probe inside the browser fence. */
 export function registerMeshPairRoutes(ctx: Context, control: MeshPairControl): void {
   withConnection(ctx, (inner) => {
     const routes: Array<Omit<MeshFetchRoute, 'requestBody'>> = [
+      {
+        path: MESH_PAIR_ADDRESS_PATH,
+        methods: ['GET'],
+        fetch: async (request) => {
+          try {
+            return await handlePairAddress(request, control)
+          } catch (err) {
+            return jsonResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500)
+          }
+        },
+      },
       {
         path: MESH_PAIR_LINK_PATH,
         methods: ['GET'],

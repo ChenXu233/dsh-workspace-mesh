@@ -6,6 +6,9 @@ import test from 'node:test'
 
 import {
   decodePairToken,
+  handlePairAddress,
+  MESH_PAIR_ADDRESS_PATH,
+  resolvePairAddress,
   encodePairToken,
   handlePair,
   handlePairLink,
@@ -55,6 +58,7 @@ test('a pairing link carries the origin, the node name and the secret', async ()
     runtime: runtime([]),
     file: '/nonexistent/mesh-config.json',
     peers: () => [],
+    publicUrl: () => '',
     secret: () => secret,
     setSecret: (next) => { secret = next },
   })
@@ -75,6 +79,7 @@ test('a node with no secret mints one on the spot', async () => {
     runtime: runtime([]),
     file: '/nonexistent/mesh-config.json',
     peers: () => [],
+    publicUrl: () => '',
     secret: () => secret,
     setSecret: (next) => { secret = next },
   })
@@ -102,6 +107,7 @@ test('importing a link writes one peer with its secret and reloads the transport
       runtime: runtime([{ nodeId: 'aliyun', baseUrl: 'http://old', token: 'login-token' }], () => { reloaded += 1 }),
       file,
       peers: () => [{ nodeId: 'aliyun', baseUrl: 'http://old', token: 'login-token' }],
+      publicUrl: () => '',
       secret: () => '',
       setSecret: () => {},
     })
@@ -128,6 +134,7 @@ test('a second machine is added beside the first instead of replacing it', async
     runtime: runtime(peers),
     file,
     peers: () => peers,
+    publicUrl: () => '',
     secret: () => '',
     setSecret: () => {},
   }
@@ -141,20 +148,96 @@ test('a second machine is added beside the first instead of replacing it', async
   }
 })
 
-test('the two pairing routes mount on one context', () => {
+test('the three pairing routes mount on one context', () => {
   const routes: MeshFetchRoute[] = []
   const ctx: MeshRouteContext = { get: () => ({ fetch: { register: (route: MeshFetchRoute) => routes.push(route) } }) }
   registerMeshPairRoutes(ctx as never, {
     runtime: runtime([]),
     file: '/nonexistent/mesh-config.json',
     peers: () => [],
+    publicUrl: () => '',
     secret: () => '',
     setSecret: () => {},
   })
   assert.deepEqual(routes.map(route => [route.path, route.methods]), [
+    [MESH_PAIR_ADDRESS_PATH, ['GET']],
     [MESH_PAIR_LINK_PATH, ['GET']],
     [MESH_PAIR_PATH, ['POST']],
   ])
 })
 
 void registerAgain
+
+test('the link address comes from config, then env, then the page origin', async () => {
+  const request = new Request('http://dsh.internal' + MESH_PAIR_LINK_PATH, { headers: { origin: 'https://page.example' } })
+  // config wins over everything
+  assert.deepEqual(resolvePairAddress(request, { publicUrl: () => 'https://config.example:8443/' }), {
+    url: 'https://config.example:8443',
+    source: 'config',
+  })
+  // then DSH_PUBLIC_URL
+  const previous = process.env.DSH_PUBLIC_URL
+  process.env.DSH_PUBLIC_URL = 'https://env.example'
+  try {
+    assert.deepEqual(resolvePairAddress(request, { publicUrl: () => '' }), { url: 'https://env.example', source: 'env' })
+  } finally {
+    if (previous === undefined) delete process.env.DSH_PUBLIC_URL
+    else process.env.DSH_PUBLIC_URL = previous
+  }
+  // then the origin the browser used, when it is routable
+  assert.deepEqual(resolvePairAddress(request, { publicUrl: () => '' }), { url: 'https://page.example', source: 'request' })
+})
+
+test('a loopback page origin never ends up in the link', () => {
+  const loopback = new Request('http://dsh.internal' + MESH_PAIR_LINK_PATH, { headers: { origin: 'http://127.0.0.1:3212' } })
+  const resolved = resolvePairAddress(loopback, { publicUrl: () => '' })
+  assert.notEqual(resolved.source, 'request')
+  if (resolved.source === 'lan') {
+    assert.match(resolved.url, /^http:\/\/\d+\.\d+\.\d+\.\d+:\d+$/)
+    assert.equal(resolved.url.includes('127.0.0.1'), false)
+  }
+})
+
+test('the address probe reports the choice and its alternatives', async () => {
+  const request = new Request('http://dsh.internal' + MESH_PAIR_ADDRESS_PATH, { headers: { origin: 'https://page.example' } })
+  const response = await handlePairAddress(request, {
+    runtime: runtime([]),
+    file: '/nonexistent/mesh-config.json',
+    peers: () => [],
+    publicUrl: () => 'https://config.example',
+    secret: () => '',
+    setSecret: () => {},
+  })
+  const body = (await response.json()) as Record<string, any>
+  assert.equal(body.url, 'https://config.example')
+  assert.equal(body.source, 'config')
+  // config first, the page origin second; a LAN address may follow as a fallback.
+  assert.deepEqual(body.candidates.slice(0, 2).map((item: any) => item.source), ['config', 'request'])
+})
+
+test('a malformed explicit url is refused instead of guessed', async () => {
+  const response = await handlePairLink(get('?url=ftp://nope', { origin: 'https://page.example' }), {
+    runtime: runtime([]),
+    file: '/nonexistent/mesh-config.json',
+    peers: () => [],
+    publicUrl: () => '',
+    secret: () => 'mesh-x',
+    setSecret: () => {},
+  })
+  assert.equal(response.status, 400)
+})
+
+test('an explicit url overrides the detected one', async () => {
+  const response = await handlePairLink(get('?url=http://10.1.2.3:3211', { origin: 'http://127.0.0.1:3212' }), {
+    runtime: runtime([]),
+    file: '/nonexistent/mesh-config.json',
+    peers: () => [],
+    publicUrl: () => '',
+    secret: () => 'mesh-x',
+    setSecret: () => {},
+  })
+  const body = (await response.json()) as Record<string, any>
+  assert.equal(body.url, 'http://10.1.2.3:3211')
+  assert.equal(body.source, 'custom')
+  assert.match(body.link, /^http:\/\/10\.1\.2\.3:3211\/#mesh-pair=/)
+})

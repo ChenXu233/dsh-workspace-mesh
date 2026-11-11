@@ -21,6 +21,7 @@ export interface MeshConfigOverride {
   transport?: 'auto'
   peers?: Array<{ nodeId: string; baseUrl: string; token: string; secret?: string }>
   meshSecret?: string
+  publicUrl?: string
   assignmentFile?: string
   leaseMs?: number
   dispatchTimeoutMs?: number
@@ -32,6 +33,7 @@ export const MESH_CONFIG_KEYS = [
   'transport',
   'peers',
   'meshSecret',
+  'publicUrl',
   'assignmentFile',
   'leaseMs',
   'dispatchTimeoutMs',
@@ -116,6 +118,11 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
       case 'meshSecret':
         if (!isString(entry)) problems.push('meshSecret must be a string')
         else value.meshSecret = entry.trim()
+        break
+      case 'publicUrl':
+        if (!isString(entry)) problems.push('publicUrl must be a string')
+        else if (entry.trim() !== '' && !/^https?:\/\/\S+$/u.test(entry.trim())) problems.push('publicUrl must be an http(s) URL or empty')
+        else value.publicUrl = entry.trim().replace(/\/+$/u, '')
         break
       case 'assignmentFile':
         if (!isString(entry)) problems.push('assignmentFile must be a string')

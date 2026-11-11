@@ -32,6 +32,8 @@ export interface Config {
   peers?: MeshPeerConfig[]
   /** Shared secret for peer handshakes; enables self-healing relay mode. */
   meshSecret?: string
+  /** Address other machines should use to reach this one; empty = detect. */
+  publicUrl?: string
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -72,6 +74,7 @@ interface ValidationResult {
 const FIELDS = {
   transport: { type: 'enum', values: TRANSPORT_VALUES, fallback: 'auto' as const },
   meshSecret: { type: 'string', fallback: '' },
+  publicUrl: { type: 'string', fallback: '' },
   assignmentFile: { type: 'string', fallback: '' },
   leaseMs: { type: 'integer', fallback: 900000 },
   dispatchTimeoutMs: { type: 'integer', fallback: 120000 },
@@ -163,7 +166,12 @@ function validate(input: unknown): ValidationResult {
       if (typeof raw !== 'string') {
         return { issues: [{ message: `"${key}" must be a string`, path: [key] }] }
       }
-      value[key] = raw
+      // A public address is a URL other machines dial; anything else would
+      // produce pairing links that cannot be opened.
+      if (key === 'publicUrl' && raw.trim() !== '' && !/^https?:\/\/[^\s]+$/u.test(raw.trim())) {
+        return { issues: [{ message: '"publicUrl" must be an http(s) URL or empty', path: [key] }] }
+      }
+      value[key] = key === 'publicUrl' ? raw.trim().replace(/\/+$/u, '') : raw
     } else {
       if (typeof raw !== 'number' || !Number.isFinite(raw) || !Number.isInteger(raw) || raw < 0) {
         return { issues: [{ message: `"${key}" must be a non-negative integer`, path: [key] }] }
@@ -187,6 +195,7 @@ function validate(input: unknown): ValidationResult {
 const HINTS: Record<string, { label: string }> = {
   transport: { label: 'transport: 目前只有 auto（尚无跨机传输实现）; 保存后重启生效' },
   meshSecret: { label: '对端握手共享密钥; 配置后走 relay 模式, 不再依赖会轮换的登录 token' },
+  publicUrl: { label: '本机对外地址（配对链接用它）; 留空 = 依次用 DSH_PUBLIC_URL、当前页面地址、本机网卡' },
   assignmentFile: { label: 'assignment.yml 路径, 相对宿主进程 cwd; 留空 = 不加载' },
   leaseMs: { label: '任务租约时长 (毫秒)' },
   dispatchTimeoutMs: { label: 'mesh_dispatch 等待最终回复的超时 (毫秒)' },
