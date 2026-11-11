@@ -82,6 +82,23 @@ node ./node_modules/typescript/bin/tsc -p tsconfig.test.json
 node --test "lib-test/test/*.test.js"
 ```
 
+### 发布（tag 触发，不要手动 publish）
+
+`.github/workflows/publish.yml` 在 `v*.*.*` tag 上自动跑：verify → 用 npm **Trusted Publishing（OIDC）**
+发布 `dsh-workspace-mesh` → 建 GitHub Release。本机 npm 凭据与发布无关，**不要** `npm publish`。
+
+1. 改版本：根 `package.json` 与 `packages/remote-mesh/package.json` 同步（minor/major 时一起动）。
+2. `pnpm verify` 全绿（CI 的第一道闸就是它；失败时 publish job 根本不会启动）。
+3. `git commit` → `git push origin main`。
+4. `git tag -a vX.Y.Z -m "..."` → `git push origin vX.Y.Z`。
+5. 看结果：`gh run list --workflow=Publish`；npm 上确认 `npm view dsh-workspace-mesh version`。
+
+规则：**tag 里的版本必须等于根 `package.json` 的 version**（工作流会比对，不等就直接失败）；
+同一版本已发布时工作流会跳过 publish（幂等），所以重发要先改版本；
+一次失败的 tag 不能复用——先 `gh release delete` + 删远端/本地 tag，改完再重打。
+
+`dsh-proton-workspace-remote-mesh` 不在 npm 上（以目录/link 方式随插件部署），它的版本只写进 release notes。
+
 ## 5. 改代码后必须同步的文档
 
 | 改了什么 | 同步到 |

@@ -186,7 +186,6 @@ export class HubRegistry {
         this.jobs.delete(id)
         reject(new Error('node ' + nodeId + ' did not answer within ' + timeoutMs + 'ms'))
       }, timeoutMs)
-      if (typeof timer === 'object' && timer !== null && 'unref' in timer && typeof timer.unref === 'function') timer.unref()
       const job: ForwardJob = {
         id,
         nodeId,
@@ -238,7 +237,6 @@ export class HubRegistry {
         resolve(job === undefined ? undefined : { id: job.id, envelope: job.envelope })
       }
       const timer = setTimeout(() => { finish(undefined) }, budget)
-      if (typeof timer === 'object' && timer !== null && 'unref' in timer && typeof timer.unref === 'function') timer.unref()
       state.waiter = { resolve: finish }
     })
   }
