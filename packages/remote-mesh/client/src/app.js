@@ -19,6 +19,9 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
     // Remote session history: the peer is the only authority, this route proxies.
     var SESSION_PATH = "/api/mesh/session";
     // One-click pairing: this node hands out a link, the other machine imports it.
+    var HUB_LINK_PATH = "/api/mesh/hub-link";
+    var HUB_ADOPT_PATH = "/api/mesh/hub-adopt";
+    var HUB_PARAM = "mesh-hub";
     var PAIR_ADDRESS_PATH = "/api/mesh/pair-address";
     var PAIR_LINK_PATH = "/api/mesh/pair-link";
     var PAIR_PATH = "/api/mesh/pair";
@@ -594,6 +597,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       // Pairing lives here now that the standalone page is gone: it is the one
       // action on this page that changes configuration rather than showing it.
       blocks.push(jsx.jsx(PairingPanel, { onPaired: load }, "pair"));
+      blocks.push(jsx.jsx(DomainPanel, { onPaired: load }, "domain"));
 
       blocks.push(jsx.jsx(MeshTopology, {
         peers: peers,
@@ -762,6 +766,90 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
      * native settings navigation (settings.section) plus the live-configuration
      * card on the plugin's own detail page (plugins.detail.section).
      */
+    /**
+     * Domain panel: make this machine a hub, or join someone else's.
+     *
+     * A hub is just a public node others can dial; it keeps the directory and
+     * buffers requests for nodes without inbound ports. Joining is one link.
+     */
+    function DomainPanel(props) {
+      var outState = React.useState({ phase: "idle", link: "", message: "", tone: "" });
+      var out = outState[0];
+      var setOut = outState[1];
+      var inState = React.useState("");
+      var incoming = inState[0];
+      var setIncoming = inState[1];
+      var joinState = React.useState({ phase: "idle", message: "", tone: "" });
+      var joined = joinState[0];
+      var setJoined = joinState[1];
+
+      function makeLink() {
+        setOut({ phase: "loading", link: "", message: t("生成中…", "Generating…"), tone: "warn" });
+        fetch(HUB_LINK_PATH, { credentials: "same-origin", headers: { accept: "application/json" } })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            if (!data || data.ok !== true) throw new Error(String((data && data.error) || "hub link failed"));
+            setOut({ phase: "ready", link: data.link, message: t("已生成，发给要加入的机器", "Generated - send it to the machine joining"), tone: "ok" });
+            if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(data.link).catch(function () {});
+            }
+          })
+          .catch(function (error) {
+            setOut({ phase: "error", link: "", message: String((error && error.message) || error), tone: "err" });
+          });
+      }
+
+      function adoptLink() {
+        var token = incoming.trim();
+        if (token === "") return;
+        setJoined({ phase: "loading", message: t("加入中…", "Joining…"), tone: "warn" });
+        fetch(HUB_ADOPT_PATH, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ link: token })
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            if (!data || data.ok !== true) throw new Error(String((data && data.error) || "hub join failed"));
+            setJoined({ phase: "ready", message: t("已加入 " + data.hub.url + "，正在注册", "Joined " + data.hub.url + "; registering"), tone: "ok" });
+            setIncoming("");
+            if (typeof props.onPaired === "function") props.onPaired();
+          })
+          .catch(function (error) {
+            setJoined({ phase: "error", message: String((error && error.message) || error), tone: "err" });
+          });
+      }
+
+      var busyOut = out.phase === "loading";
+      var busyIn = joined.phase === "loading";
+      return jsx.jsxs("div", { className: "dwm-section", children: [
+        jsx.jsx("h3", { className: "dwm-h3", children: t("域（hub）", "Domain (hub)") }),
+        jsx.jsx("p", { className: "dwm-hint", children: t(
+          "让一台有公网的机器当主轴：它记节点目录，并替没有入站端口的机器缓冲请求。加入只需要主轴的一张链接，之后节点之间自动登记。",
+          "Point one machine with a public address at this: it keeps the directory and buffers requests for nodes without inbound ports. Joining takes one link from the hub; nodes register themselves after that."
+        ) }),
+        jsx.jsxs("div", { className: "dwm-pair-row", children: [
+          jsx.jsx(Btn, { variant: "primary", disabled: busyOut, onClick: makeLink, children: busyOut ? t("生成中…", "Generating…") : t("本机作为主轴：生成加入链接", "Make this machine a hub") }, "make")
+        ] }, "make"),
+        out.link === "" ? null : jsx.jsx(TextInput, {
+          readOnly: true,
+          value: out.link,
+          onFocus: function (event) { event.target.select(); }
+        }, "link"),
+        out.message === "" ? null : jsx.jsx("p", { className: "dwm-hint", "data-tone": out.tone, children: out.message }, "out-msg"),
+        jsx.jsxs("div", { className: "dwm-pair-row", children: [
+          jsx.jsx(TextInput, {
+            value: incoming,
+            placeholder: t("粘贴主轴给的加入链接", "Paste the hub's join link"),
+            onChange: function (event) { setIncoming(event.target.value); }
+          }, "incoming"),
+          jsx.jsx(Btn, { disabled: busyIn || incoming.trim() === "", onClick: adoptLink, children: busyIn ? t("加入中…", "Joining…") : t("加入域", "Join") }, "join")
+        ] }, "adopt"),
+        joined.message === "" ? null : jsx.jsx("p", { className: "dwm-hint", "data-tone": joined.tone, children: joined.message }, "in-msg")
+      ] });
+    }
+
     /**
      * One-click pairing panel.
      *
@@ -956,8 +1044,54 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
         });
     }
 
+    /**
+     * Claim a domain-join link opened on this machine.
+     *
+     * One link from the hub machine is the whole setup: the payload carries the
+     * hub's URL and the shared secret, the host writes both and starts the
+     * agent, and the node registers itself on its first poll.
+     */
+    function claimHubLink() {
+      var token = readParam(HUB_PARAM);
+      if (token === "") return;
+      var clean = function (joined) {
+        try {
+          var url = new URL(window.location.href);
+          url.searchParams.delete(HUB_PARAM);
+          var hash = new URLSearchParams((url.hash || "").replace(/^#/, ""));
+          hash.delete(HUB_PARAM);
+          url.hash = hash.toString();
+          if (joined) url.searchParams.set("hub", joined);
+          window.history.replaceState(null, "", url.toString());
+        } catch (error) {
+          // A browser that refuses replaceState keeps a harmless fragment.
+        }
+      };
+      fetch(HUB_ADOPT_PATH, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ link: token })
+      })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (data && data.ok === true) {
+            console.info("[mesh] joined hub " + data.hub.url);
+            clean(data.hub.url);
+            return;
+          }
+          console.warn("[mesh] hub join refused: " + String((data && data.error) || "unknown"));
+          clean("failed");
+        })
+        .catch(function (error) {
+          console.warn("[mesh] hub join failed: " + String((error && error.message) || error));
+          clean("failed");
+        });
+    }
+
     function apply(ctx) {
       claimPairingLink();
+      claimHubLink();
       // One surface only: the settings section. The rail entry, the standalone
       // page and the plugin-detail card were three doors to the same snapshot;
       // the mesh is configuration, and configuration lives in settings.

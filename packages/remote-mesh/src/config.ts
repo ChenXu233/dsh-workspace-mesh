@@ -16,6 +16,14 @@ import { CONFIG_ENVELOPE } from './config-envelope.gen.js'
  * validation and form rendering working without the dependency.
  */
 
+/** The hub this node joins, if any. */
+export interface MeshHubConfig {
+  /** Hub origin, e.g. https://hub.example */
+  url: string
+  /** This node's id in the hub directory; empty = hostname/URL host. */
+  nodeId?: string
+}
+
 export interface MeshPeerConfig {
   /** Node id used by assignment.yml and the tools. */
   nodeId: string
@@ -34,6 +42,8 @@ export interface Config {
   meshSecret?: string
   /** Address other machines should use to reach this one; empty = detect. */
   publicUrl?: string
+  /** Join this hub: it keeps the directory and relays to nodes without inbound ports. */
+  hub?: MeshHubConfig
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -145,7 +155,7 @@ function validate(input: unknown): ValidationResult {
     return { issues: [{ message: 'expected an object' }] }
   }
   const source = input as Record<string, unknown>
-  const known = new Set([...Object.keys(FIELDS), 'peers'])
+  const known = new Set([...Object.keys(FIELDS), 'peers', 'hub'])
   for (const key of Object.keys(source)) {
     if (!known.has(key)) return { issues: [{ message: `unknown field "${key}"`, path: [key] }] }
   }
@@ -178,6 +188,22 @@ function validate(input: unknown): ValidationResult {
       }
       value[key] = raw
     }
+  }
+  if (source.hub !== undefined) {
+    const raw = source.hub
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { issues: [{ message: '"hub" must be an object', path: ['hub'] }] }
+    }
+    const record = raw as Record<string, unknown>
+    for (const key of Object.keys(record)) {
+      if (key !== 'url' && key !== 'nodeId') return { issues: [{ message: `"hub" has unknown field "${key}"`, path: ['hub'] }] }
+    }
+    const url = typeof record.url === 'string' ? record.url.trim().replace(/\/+$/u, '') : ''
+    if (url !== '' && !/^https?:\/\/[^\s]+$/u.test(url)) {
+      return { issues: [{ message: '"hub.url" must be an http(s) URL', path: ['hub'] }] }
+    }
+    const nodeId = typeof record.nodeId === 'string' ? record.nodeId.trim() : ''
+    value.hub = nodeId === '' ? { url } : { url, nodeId }
   }
   if (source.peers !== undefined) {
     const peers = validatePeers(source.peers)

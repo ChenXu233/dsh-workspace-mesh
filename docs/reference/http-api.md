@@ -11,13 +11,32 @@
 | 组 | 调用者 | 挂在哪 | 认证 |
 | --- | --- | --- | --- |
 | 页面路由（§1–§11） | 浏览器 | Connection 的 fence 内（与宿主 `/api/present.host` 同一席位） | 宿主 `/api` 的签名 cookie |
-| 对端路由（§12–§14） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
+| 对端路由（§12–§15） | 另一台 DSH | `ctx.webServer`，**在 fence 之下** | 自己验 mesh token |
 
 对端路由不能放进 fence：调用方手里还没有 cookie，放进去会先被 401 挡掉，握手永远走不到自己的处理器。它们因此自带校验，且只服务握手、中继与流中继三个操作面；没配 `meshSecret` 时这三条路由仍然挂着，只是拒绝并说明原因（配对可以在运行期补上首个密钥）。
 
 headless 组合没有 web server，两组都不挂载，设置页显示「路由缺失」而不是静默失败。
 
 路由是精确路径匹配，只接受下表列出的方法。
+
+## 目录
+
+- 1. GET /api/mesh/state
+- 2. POST /api/mesh/config
+- 3. GET /api/mesh/workspaces
+- 4. GET /api/mesh/session
+- 5. POST /api/mesh/dispatch
+- 6. GET /api/mesh/session/events
+- 7. POST /api/mesh/session/open
+- 8. POST /api/mesh/session/prompt
+- 9. GET /api/mesh/session/live
+- 10. GET /api/mesh/session/live/stream
+- 11. GET /api/mesh/pair-link 与 POST /api/mesh/pair
+- 12. POST /api/mesh/remote
+- 13. POST /api/mesh/handshake
+- 14. POST /api/mesh/relay
+- 15. 汇点（hub）路由
+- 16. 为什么不用原生 settings 管道
 
 ## 1. GET /api/mesh/state
 
@@ -292,7 +311,38 @@ nonce 只在 60 秒窗口内记一次，同一个 nonce 第二次提交会被拒
 
 把 source 传进 `prompt` 的第二位，报错是 `signal.throwIfAborted is not a function`——错误发生在对端，调用方只看到一句与参数无关的话。`test/relay-route.test.ts` 用「假控制器先调 `signal.throwIfAborted()`」把这条契约钉住。
 
-## 15. 为什么不用原生 settings 管道
+## 15. 汇点（hub）路由
+
+一台有公网的机器当汇点：它保存节点目录，并替没有入站端口的节点缓冲请求。鉴权与 relay 相同——用汇点 `meshSecret` 签发的 mesh token。
+
+```text
+POST /api/mesh/hub/join          { token, nodeId, url? }
+  → { ok, node, peers, revision }
+GET  /api/mesh/hub/nodes?token=
+  → { ok, nodes, revision }
+GET  /api/mesh/hub/inbox?token=&nodeId=&wait=
+  → { ok, job|null, nodes, revision }
+POST /api/mesh/hub/result        { token, id, status, headers?, body? }
+  → { ok, delivered }
+POST /api/mesh/hub/forward?nodeId=  { token, method, path, headers?, body?, timeoutMs? }
+  → { ok, result: { status, headers, body } }
+```
+
+`inbox` 是长轮询：没有请求时挂住最多 25 秒（`wait` 更小则以它为准），回答里同时带上当前目录，因此新节点是被「已经在跑的那次轮询」告知的，汇点不需要反向拨号。`forward` 把整个请求缓冲进目标节点的队列，等它执行完回填；超时以 504 回答。
+
+汇点不执行任何东西，也不读对端的会话数据：它只搬一进一出两个 HTTP 包。
+
+浏览器侧另有一对（在 fence 内）：
+
+```text
+GET  /api/mesh/hub-link   → { ok, url, nodeId, link }
+POST /api/mesh/hub-adopt  { token } 或 { link }
+  → { ok, hub, secret }
+```
+
+`hub-link` 生成 `#mesh-hub=<base64url {v,url,secret,nodeId}>`：加入方打开它，页面把负载 POST 回 `hub-adopt`，本机写入 `hub` 与共享密钥并起 agent，不需要重启。
+
+## 16. 为什么不用原生 settings 管道
 
 原生 `settings.describe/mutate` 只投影 profile `include` 根下的条目；本插件由 profile patch `insert` 挂载，没有 namespace。另一条路 `TypertRemoteService` 也走不通：`link:` 安装的插件目录没有 `node_modules`，解析不到 `@deepseek-ai/dsh-typert-protocol`。
 

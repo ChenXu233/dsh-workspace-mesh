@@ -10395,6 +10395,9 @@ var STATE_PATH2 = "/api/mesh/state";
 var CONFIG_PATH = "/api/mesh/config";
 var DISPATCH_PATH = "/api/mesh/dispatch";
 var SESSION_PATH = "/api/mesh/session";
+var HUB_LINK_PATH = "/api/mesh/hub-link";
+var HUB_ADOPT_PATH = "/api/mesh/hub-adopt";
+var HUB_PARAM = "mesh-hub";
 var PAIR_ADDRESS_PATH = "/api/mesh/pair-address";
 var PAIR_LINK_PATH = "/api/mesh/pair-link";
 var PAIR_PATH = "/api/mesh/pair";
@@ -10921,6 +10924,7 @@ function MeshSection(props) {
     jsx4.jsx(Stat, { label: t("\u4EFB\u52A1", "Tasks"), value: active + " / " + counts.total, hint: t("\u6D3B\u8DC3 / \u7D2F\u8BA1", "active / total") }, "s4")
   ] }, "stats"));
   blocks.push(jsx4.jsx(PairingPanel, { onPaired: load }, "pair"));
+  blocks.push(jsx4.jsx(DomainPanel, { onPaired: load }, "domain"));
   blocks.push(jsx4.jsx(MeshTopology, {
     peers,
     tasks,
@@ -11074,6 +11078,83 @@ function MeshSection(props) {
     state.phase === "error" ? jsx4.jsx("span", { "data-tone": "warn", children: t("\u4E0A\u6B21\u5237\u65B0\u5931\u8D25\uFF1A", "last refresh failed: ") + state.error }) : null
   ] }, "footer"));
   return jsx4.jsxs("div", { className: "dwm-page", children: [header, jsx4.jsx("div", { className: "dwm-body", children: blocks }, "body")] });
+}
+function DomainPanel(props) {
+  var outState = React2.useState({ phase: "idle", link: "", message: "", tone: "" });
+  var out = outState[0];
+  var setOut = outState[1];
+  var inState = React2.useState("");
+  var incoming = inState[0];
+  var setIncoming = inState[1];
+  var joinState = React2.useState({ phase: "idle", message: "", tone: "" });
+  var joined = joinState[0];
+  var setJoined = joinState[1];
+  function makeLink() {
+    setOut({ phase: "loading", link: "", message: t("\u751F\u6210\u4E2D\u2026", "Generating\u2026"), tone: "warn" });
+    fetch(HUB_LINK_PATH, { credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      if (!data || data.ok !== true) throw new Error(String(data && data.error || "hub link failed"));
+      setOut({ phase: "ready", link: data.link, message: t("\u5DF2\u751F\u6210\uFF0C\u53D1\u7ED9\u8981\u52A0\u5165\u7684\u673A\u5668", "Generated - send it to the machine joining"), tone: "ok" });
+      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(data.link).catch(function() {
+        });
+      }
+    }).catch(function(error) {
+      setOut({ phase: "error", link: "", message: String(error && error.message || error), tone: "err" });
+    });
+  }
+  function adoptLink() {
+    var token = incoming.trim();
+    if (token === "") return;
+    setJoined({ phase: "loading", message: t("\u52A0\u5165\u4E2D\u2026", "Joining\u2026"), tone: "warn" });
+    fetch(HUB_ADOPT_PATH, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ link: token })
+    }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      if (!data || data.ok !== true) throw new Error(String(data && data.error || "hub join failed"));
+      setJoined({ phase: "ready", message: t("\u5DF2\u52A0\u5165 " + data.hub.url + "\uFF0C\u6B63\u5728\u6CE8\u518C", "Joined " + data.hub.url + "; registering"), tone: "ok" });
+      setIncoming("");
+      if (typeof props.onPaired === "function") props.onPaired();
+    }).catch(function(error) {
+      setJoined({ phase: "error", message: String(error && error.message || error), tone: "err" });
+    });
+  }
+  var busyOut = out.phase === "loading";
+  var busyIn = joined.phase === "loading";
+  return jsx4.jsxs("div", { className: "dwm-section", children: [
+    jsx4.jsx("h3", { className: "dwm-h3", children: t("\u57DF\uFF08hub\uFF09", "Domain (hub)") }),
+    jsx4.jsx("p", { className: "dwm-hint", children: t(
+      "\u8BA9\u4E00\u53F0\u6709\u516C\u7F51\u7684\u673A\u5668\u5F53\u4E3B\u8F74\uFF1A\u5B83\u8BB0\u8282\u70B9\u76EE\u5F55\uFF0C\u5E76\u66FF\u6CA1\u6709\u5165\u7AD9\u7AEF\u53E3\u7684\u673A\u5668\u7F13\u51B2\u8BF7\u6C42\u3002\u52A0\u5165\u53EA\u9700\u8981\u4E3B\u8F74\u7684\u4E00\u5F20\u94FE\u63A5\uFF0C\u4E4B\u540E\u8282\u70B9\u4E4B\u95F4\u81EA\u52A8\u767B\u8BB0\u3002",
+      "Point one machine with a public address at this: it keeps the directory and buffers requests for nodes without inbound ports. Joining takes one link from the hub; nodes register themselves after that."
+    ) }),
+    jsx4.jsxs("div", { className: "dwm-pair-row", children: [
+      jsx4.jsx(Btn, { variant: "primary", disabled: busyOut, onClick: makeLink, children: busyOut ? t("\u751F\u6210\u4E2D\u2026", "Generating\u2026") : t("\u672C\u673A\u4F5C\u4E3A\u4E3B\u8F74\uFF1A\u751F\u6210\u52A0\u5165\u94FE\u63A5", "Make this machine a hub") }, "make")
+    ] }, "make"),
+    out.link === "" ? null : jsx4.jsx(TextInput, {
+      readOnly: true,
+      value: out.link,
+      onFocus: function(event) {
+        event.target.select();
+      }
+    }, "link"),
+    out.message === "" ? null : jsx4.jsx("p", { className: "dwm-hint", "data-tone": out.tone, children: out.message }, "out-msg"),
+    jsx4.jsxs("div", { className: "dwm-pair-row", children: [
+      jsx4.jsx(TextInput, {
+        value: incoming,
+        placeholder: t("\u7C98\u8D34\u4E3B\u8F74\u7ED9\u7684\u52A0\u5165\u94FE\u63A5", "Paste the hub's join link"),
+        onChange: function(event) {
+          setIncoming(event.target.value);
+        }
+      }, "incoming"),
+      jsx4.jsx(Btn, { disabled: busyIn || incoming.trim() === "", onClick: adoptLink, children: busyIn ? t("\u52A0\u5165\u4E2D\u2026", "Joining\u2026") : t("\u52A0\u5165\u57DF", "Join") }, "join")
+    ] }, "adopt"),
+    joined.message === "" ? null : jsx4.jsx("p", { className: "dwm-hint", "data-tone": joined.tone, children: joined.message }, "in-msg")
+  ] });
 }
 function PairingPanel(props) {
   var nameState = React2.useState("");
@@ -11245,8 +11326,44 @@ function claimPairingLink() {
     clean("failed");
   });
 }
+function claimHubLink() {
+  var token = readParam(HUB_PARAM);
+  if (token === "") return;
+  var clean = function(joined) {
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.delete(HUB_PARAM);
+      var hash = new URLSearchParams((url.hash || "").replace(/^#/, ""));
+      hash.delete(HUB_PARAM);
+      url.hash = hash.toString();
+      if (joined) url.searchParams.set("hub", joined);
+      window.history.replaceState(null, "", url.toString());
+    } catch (error) {
+    }
+  };
+  fetch(HUB_ADOPT_PATH, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ link: token })
+  }).then(function(response) {
+    return response.json();
+  }).then(function(data) {
+    if (data && data.ok === true) {
+      console.info("[mesh] joined hub " + data.hub.url);
+      clean(data.hub.url);
+      return;
+    }
+    console.warn("[mesh] hub join refused: " + String(data && data.error || "unknown"));
+    clean("failed");
+  }).catch(function(error) {
+    console.warn("[mesh] hub join failed: " + String(error && error.message || error));
+    clean("failed");
+  });
+}
 function apply(ctx) {
   claimPairingLink();
+  claimHubLink();
   ctx.slots.inject("settings.section", function() {
     return ctx.slots.register({
       name: "settings.section",

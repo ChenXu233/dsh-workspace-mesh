@@ -185,6 +185,7 @@ relay 模式下，调用方用共享密钥签 `mesh-handshake:<nodeId>:<ts>:<non
 | `transport` | `auto` | `auto` | 重启 |
 | `peers` | `{ nodeId, baseUrl, token }[]` | `[]` | 重启 |
 | `meshSecret` | string | `''` | 重启 |
+| `hub` | `{ url, nodeId? }` | 无 | 热生效 | 加入哪个汇点：它记目录，并替没有入站端口的节点缓冲请求 |
 | `publicUrl` | string | `''` | 立即 | 别的机器拨这个地址来找本机（配对链接写的就是它）；留空 = 依次用 `DSH_PUBLIC_URL`、当前页面地址、本机网卡 |
 | `assignmentFile` | string | `''`（不加载） | 立即 |
 | `leaseMs` | 整数，毫秒 | `900000` | 立即 |

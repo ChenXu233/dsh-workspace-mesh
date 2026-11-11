@@ -22,6 +22,7 @@ export interface MeshConfigOverride {
   peers?: Array<{ nodeId: string; baseUrl: string; token: string; secret?: string }>
   meshSecret?: string
   publicUrl?: string
+  hub?: { url: string; nodeId?: string }
   assignmentFile?: string
   leaseMs?: number
   dispatchTimeoutMs?: number
@@ -34,6 +35,7 @@ export const MESH_CONFIG_KEYS = [
   'peers',
   'meshSecret',
   'publicUrl',
+  'hub',
   'assignmentFile',
   'leaseMs',
   'dispatchTimeoutMs',
@@ -124,6 +126,21 @@ export function sanitizeOverride(raw: unknown): SanitizeResult {
         else if (entry.trim() !== '' && !/^https?:\/\/\S+$/u.test(entry.trim())) problems.push('publicUrl must be an http(s) URL or empty')
         else value.publicUrl = entry.trim().replace(/\/+$/u, '')
         break
+      case 'hub': {
+        if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+          problems.push('hub must be an object')
+          break
+        }
+        const record = entry as Record<string, unknown>
+        const url = typeof record.url === 'string' ? record.url.trim().replace(/\/+$/u, '') : ''
+        if (url !== '' && !/^https?:\/\/\S+$/u.test(url)) {
+          problems.push('hub.url must be an http(s) URL')
+          break
+        }
+        const nodeId = typeof record.nodeId === 'string' ? record.nodeId.trim() : ''
+        value.hub = nodeId === '' ? { url } : { url, nodeId }
+        break
+      }
       case 'assignmentFile':
         if (!isString(entry)) problems.push('assignmentFile must be a string')
         else value.assignmentFile = entry.trim()

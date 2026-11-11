@@ -388,6 +388,22 @@ export function readSessionController(ctx: unknown): SessionControllerLike | und
   return ok ? (service as SessionControllerLike) : undefined
 }
 
+export function meshRelayControl(
+  source: unknown,
+  secret: () => string | undefined,
+  workspaces?: () => unknown,
+  registry?: () => RelayWorkspaceRegistry | undefined,
+  live?: () => AssistantLiveHub | undefined,
+): MeshRelayControl {
+  return {
+    secret,
+    controller: () => readSessionController(source),
+    ...(workspaces === undefined ? {} : { workspaces }),
+    ...(registry === undefined ? {} : { registry }),
+    ...(live === undefined ? {} : { live }),
+  }
+}
+
 export function registerMeshRelayRoute(
   ctx: Context,
   source: unknown,
@@ -396,13 +412,7 @@ export function registerMeshRelayRoute(
   registry?: () => RelayWorkspaceRegistry | undefined,
   live?: () => AssistantLiveHub | undefined,
 ): void {
-  const control: MeshRelayControl = {
-    secret,
-    controller: () => readSessionController(source),
-    ...(workspaces === undefined ? {} : { workspaces }),
-    ...(registry === undefined ? {} : { registry }),
-    ...(live === undefined ? {} : { live }),
-  }
+  const control = meshRelayControl(source, secret, workspaces, registry, live)
   // The mesh token is the credential here, so the route lives below the browser
   // fence and checks the token itself.
   registerMeshPublicRoute(ctx, MESH_RELAY_PATH, (request) => handleRelay(request, control))

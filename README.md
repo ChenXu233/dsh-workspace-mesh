@@ -200,6 +200,7 @@ The entry config (`config:` in the profile patch) is layered under
 | `transport` | `auto` | `auto` | restart |
 | `peers` | `{ nodeId, baseUrl, token }[]` | `[]` | restart |
 | `meshSecret` | string | `''` | restart |
+| `hub` | `{ url, nodeId? }` | none | hot | join a hub: it keeps the directory and relays to nodes without inbound ports |
 | `publicUrl` | string | `''` | immediate | the address other machines dial for this one (pairing links carry it); empty = `DSH_PUBLIC_URL`, then the page origin, then this machine's LAN address |
 | `assignmentFile` | string | `''` (not loaded) | immediately |
 | `leaseMs` | integer, ms | `900000` | immediately |

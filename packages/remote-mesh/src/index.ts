@@ -15,9 +15,15 @@ import { registerMeshWorkspacesRoute } from './api/workspaces.js'
 import { registerMeshSessionPageRoutes, registerMeshSessionRoute } from './api/session.js'
 import { AssistantLiveHub } from './live/assistant.js'
 import { registerMeshPairRoutes } from './api/pair.js'
+import { hostname } from 'node:os'
+
+import { registerMeshHubRoutes } from './api/hub.js'
+import { registerMeshHubLinkRoutes } from './api/hub-link.js'
+import { HubRegistry } from './hub/registry.js'
+import { HubAgent } from './hub/agent.js'
 import { registerMeshRemoteRoute } from './api/remote.js'
 import { registerMeshHandshakeRoute } from './api/handshake.js'
-import { registerMeshRelayRoute, registerMeshRelayStreamRoute } from './api/relay.js'
+import { handleRelay, MESH_RELAY_PATH, meshRelayControl, registerMeshRelayRoute, registerMeshRelayStreamRoute } from './api/relay.js'
 import { buildWorkspacesPayload, readWorkspaceRegistry } from './api/workspaces.js'
 import { meshConfigPath, readConfigOverride, writeConfigOverride } from './config/store.js'
 import { PLUGIN_NAME, registerMeshTools } from './tools/index.js'
@@ -44,6 +50,8 @@ export interface MeshConfig {
   meshSecret?: string
   /** Address other machines should use to reach this one; empty = detect. */
   publicUrl?: string
+  /** Join this hub: it keeps the directory and relays to nodes without inbound ports. */
+  hub?: { url: string, nodeId?: string }
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -91,6 +99,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     ...(override.peers !== undefined ? { peers: override.peers } : {}),
     ...(override.meshSecret !== undefined ? { meshSecret: override.meshSecret } : {}),
     ...(override.publicUrl !== undefined ? { publicUrl: override.publicUrl } : {}),
+    ...(override.hub !== undefined ? { hub: override.hub } : {}),
     ...(override.leaseMs !== undefined ? { leaseMs: override.leaseMs } : {}),
     ...(override.dispatchTimeoutMs !== undefined ? { dispatchTimeoutMs: override.dispatchTimeoutMs } : {}),
     ...(override.leaseOwner !== undefined ? { leaseOwner: override.leaseOwner } : {}),
@@ -229,6 +238,18 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
       writeConfigOverride({ meshSecret: secret }, overrideFile)
     },
   })
+  // Hub: one public machine that keeps the directory and buffers requests for
+  // nodes with no inbound port. The routes are cheap and harmless on a node that
+  // is not a hub (nobody joins it), so they are always mounted.
+  const hubRegistry = new HubRegistry()
+  // Peers the operator configured by hand. A directory update must not delete
+  // them: joining a hub adds nodes, it does not take the list over.
+  const manualPeers = [...(config.peers ?? [])]
+  {
+    const hubSecret = () => config.meshSecret ?? ''
+    registerMeshHubRoutes(ctx, { secret: hubSecret, registry: hubRegistry })
+  }
+
   // Self-healing peer credential: handshake mints a short-lived mesh token, the
   // relay executes session operations locally. Neither touches the login token.
   const meshSecret = () => config.meshSecret ?? ''
@@ -250,6 +271,98 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     registerMeshRelayStreamRoute(ctx, meshSecret, () => liveHub)
     console.info('[mesh] peer handshake + relay mounted')
   }
+
+  // What a hub delivery can run on this node. Only the relay surface: it is
+  // already token-authenticated per call, so a relayed request cannot do more
+  // than a peer could do directly.
+  const relayControl = meshRelayControl(
+    ctx,
+    meshSecret,
+    () => buildWorkspacesPayload(readWorkspaceRegistry(ctx)),
+    () => readWorkspaceRegistry(ctx),
+    () => liveHub,
+  )
+  const localDispatch = async (delivery: { method: string; path: string; headers: Readonly<Record<string, string>>; body?: string }): Promise<Response> => {
+    if (delivery.path !== MESH_RELAY_PATH) {
+      return new Response(JSON.stringify({ ok: false, error: 'this node does not serve ' + delivery.path + ' through the hub' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    const request = new Request('http://mesh.local' + delivery.path, {
+      method: delivery.method,
+      headers: { ...delivery.headers, 'content-type': 'application/json' },
+      ...(delivery.body === undefined ? {} : { body: Buffer.from(delivery.body, 'base64') }),
+    })
+    return await handleRelay(request, relayControl)
+  }
+
+  let hubAgent: HubAgent | undefined
+  /**
+   * Join the configured hub (idempotent). Called at apply and again when a join
+   * link is adopted at runtime, so adopting does not need a restart.
+   */
+  const startHubAgent = (): void => {
+    if (hubAgent !== undefined) return
+    if (config.hub === undefined || config.hub.url === '') return
+    const hubUrl = config.hub.url
+    // Name in the directory: what the operator set, else the address others dial,
+    // else the hostname when it is a real name (a container id is a hex blob).
+    const machine = hostname()
+    const derived = config.publicUrl !== undefined && config.publicUrl !== ''
+      ? new URL(config.publicUrl).host
+      : (/^[0-9a-f]{12,}$/i.test(machine) ? '' : machine)
+    const hubNodeId = config.hub.nodeId !== undefined && config.hub.nodeId !== ''
+      ? config.hub.nodeId
+      : (derived === '' ? 'node' : derived)
+    const agent = new HubAgent({
+      hubUrl,
+      nodeId: hubNodeId === '' ? 'node' : hubNodeId,
+      publicUrl: () => config.publicUrl ?? '',
+      secret: () => config.meshSecret ?? '',
+      dispatch: async (delivery) => {
+        const response = await localDispatch(delivery)
+        const body = Buffer.from(await response.arrayBuffer()).toString('base64')
+        return { status: response.status, headers: { 'content-type': response.headers.get('content-type') ?? 'application/json' }, body }
+      },
+      onDirectory: (nodes) => {
+        // Everyone the hub knows becomes a peer here: direct ones get their URL,
+        // relay-only ones keep an empty baseUrl until the relay path lands.
+        const secret = config.meshSecret ?? ''
+        const fromHub = nodes
+          .filter(node => node.nodeId !== hubNodeId)
+          .map(node => ({ nodeId: node.nodeId, baseUrl: node.url, token: '', ...(secret === '' ? {} : { secret }) }))
+        const known = new Set(fromHub.map(peer => peer.nodeId))
+        config.peers = [...manualPeers.filter(peer => !known.has(peer.nodeId)), ...fromHub]
+        buildTransport()
+        toolRuntime.transport = transport
+        toolRuntime.transportError = transportError
+      },
+    })
+    hubAgent = agent
+    agent.start()
+    ctx.effect(() => () => { void agent.stop() }, 'mesh: hub agent')
+    console.info('[mesh] joined hub ' + hubUrl + ' as ' + hubNodeId)
+  }
+
+  startHubAgent()
+
+  // Domain join: one link from the hub machine, and this node registers there.
+  registerMeshHubLinkRoutes(ctx, {
+    runtime: toolRuntime,
+    file: overrideFile,
+    secret: () => config.meshSecret ?? '',
+    setSecret: (secret: string) => {
+      config.meshSecret = secret
+      writeConfigOverride({ meshSecret: secret }, overrideFile)
+    },
+    publicUrl: () => config.publicUrl ?? '',
+    setHub: (hub) => {
+      config.hub = hub
+      writeConfigOverride({ hub }, overrideFile)
+      startHubAgent()
+    },
+  })
 
   if (!transport) {
     console.info('[mesh] loaded without a transport: mesh_* tools will report "no transport configured"')
@@ -281,10 +394,36 @@ export {
   registerMeshSessionRoute,
 } from './api/session.js'
 export { handleRemote, MESH_REMOTE_PATH, mountMeshRemoteRoute, registerMeshRemoteRoute } from './api/remote.js'
+export {
+  encodeHubPayload,
+  decodeHubPayload,
+  handleHubAdopt,
+  handleHubLink,
+  HUB_PAYLOAD_VERSION,
+  MESH_HUB_ADOPT_PATH,
+  MESH_HUB_LINK_PATH,
+  registerMeshHubLinkRoutes,
+} from './api/hub-link.js'
+export {
+  handleHubForward,
+  handleHubInbox,
+  handleHubJoin,
+  handleHubNodes,
+  handleHubResult,
+  MESH_HUB_FORWARD_PATH,
+  MESH_HUB_INBOX_PATH,
+  MESH_HUB_JOIN_PATH,
+  MESH_HUB_NODES_PATH,
+  MESH_HUB_RESULT_PATH,
+  registerMeshHubRoutes,
+} from './api/hub.js'
+export { HubRegistry } from './hub/registry.js'
+export { HubAgent } from './hub/agent.js'
 export { handleHandshake, MESH_HANDSHAKE_PATH, registerMeshHandshakeRoute } from './api/handshake.js'
 export {
   handleRelay,
   handleRelayStream,
+  meshRelayControl,
   MESH_RELAY_PATH,
   MESH_RELAY_STREAM_PATH,
   readSessionController,
