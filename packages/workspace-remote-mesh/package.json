@@ -1,6 +1,6 @@
 {
   "name": "dsh-proton-workspace-remote-mesh",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "侧栏「远程工作区」段：由质子托管的区段条目，只画对端的工作区",
   "type": "module",
   "license": "Apache-2.0",
