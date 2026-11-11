@@ -61,14 +61,16 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Upgrade npm (OIDC trusted publishing needs npm >= 11.5.1)
         run: npm install -g npm@latest
-      - name: Check that the git tag matches package.json
+      # The published package lives in the workspace; the repo root is private
+      # and must never be packed.
+      - name: Check that the git tag matches the published package version
         if: github.ref_type == 'tag'
         run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
+          PKG_VERSION=$(node -p "require('./packages/remote-mesh/package.json').version")
           TAG_VERSION=${GITHUB_REF_NAME#v}
-          echo "package.json=$PKG_VERSION tag=$TAG_VERSION"
+          echo "packages/remote-mesh=$PKG_VERSION tag=$TAG_VERSION"
           if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::tag $TAG_VERSION does not match package.json version $PKG_VERSION"
+            echo "::error::tag $TAG_VERSION does not match packages/remote-mesh/package.json version $PKG_VERSION"
             exit 1
           fi
       # Idempotent: re-pointing an existing release tag at a rewritten history
@@ -76,7 +78,7 @@ jobs:
       - name: Check whether this version is already on npm
         id: published
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$(node -p "require('./packages/remote-mesh/package.json').version")
           if npm view "dsh-workspace-mesh@$VERSION" version >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "::notice::dsh-workspace-mesh@$VERSION is already on npm - skipping publish"
@@ -84,12 +86,15 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Inspect the publishable tarball
+        working-directory: packages/remote-mesh
         run: npm pack --dry-run
       - name: Publish
         if: ${{ steps.published.outputs.exists == 'false' && !(github.event_name == 'workflow_dispatch' && inputs['dry-run']) }}
+        working-directory: packages/remote-mesh
         run: npm publish --provenance --access public
       - name: Dry run (no upload)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs['dry-run'] }}
+        working-directory: packages/remote-mesh
         run: npm publish --provenance --access public --dry-run
 
   release:
