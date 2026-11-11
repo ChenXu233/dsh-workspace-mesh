@@ -196,9 +196,25 @@ class TypertClient {
     private readonly hubUrl: string = '',
   ) {}
 
-  /** True when this peer is only reachable through the hub. */
+  /** True when this peer can be reached through the hub. */
   private get viaHub(): boolean {
     return this.peer.via === 'hub' && this.hubUrl !== ''
+  }
+
+  /** When the last direct attempt failed; a peer is not re-probed on every call. */
+  private directFailedAt = 0
+  /** How long a failed direct attempt is trusted: long enough to skip the double cost. */
+  private static readonly DIRECT_COOLDOWN_MS = 60_000
+
+  /**
+   * One bounded direct attempt: a dialable peer answers fast or not at all.
+   * @param url - peer URL.
+   * @param init - normal fetch init.
+   * @returns the peer's response.
+   */
+  private async probe(url: string, init: RequestInit): Promise<Response> {
+    if (init.signal !== undefined) return await this.fetchImpl(url, init)
+    return await this.fetchImpl(url, { ...init, signal: AbortSignal.timeout(5_000) })
   }
 
   /**
@@ -213,6 +229,17 @@ class TypertClient {
    */
   private async dispatch(url: string, init: RequestInit = {}): Promise<Response> {
     if (!this.viaHub) return await this.fetchImpl(url, init)
+    // Direct first when the peer advertised an address: a dialable peer is
+    // faster and keeps streaming possible. A failed probe parks the peer on the
+    // hub for a while instead of paying the probe on every call.
+    if (this.peer.baseUrl !== '' && Date.now() - this.directFailedAt > TypertClient.DIRECT_COOLDOWN_MS) {
+      try {
+        return await this.probe(url, init)
+      } catch (err) {
+        this.directFailedAt = Date.now()
+        this.onFailure()
+      }
+    }
     if (this.meshSecret === '') {
       throw new TypertRpcError('forbidden', `peer ${this.peer.nodeId}: a hub peer needs a shared secret`)
     }

@@ -19,6 +19,7 @@ import { hostname } from 'node:os'
 
 import { registerMeshHubRoutes } from './api/hub.js'
 import { registerMeshHubLinkRoutes } from './api/hub-link.js'
+import { handleHandshake, meshHandshakeControl, MESH_HANDSHAKE_PATH } from './api/handshake.js'
 import { HubRegistry } from './hub/registry.js'
 import { HubAgent } from './hub/agent.js'
 import { registerMeshRemoteRoute } from './api/remote.js'
@@ -257,8 +258,9 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Mounted unconditionally: pairing can mint this node's first secret while it
   // runs, and a route that was never registered cannot start answering later.
   // With an empty secret each handler refuses with 503 and says why.
+  const handshakeControl = meshHandshakeControl(meshSecret)
   {
-    registerMeshHandshakeRoute(ctx, meshSecret)
+    registerMeshHandshakeRoute(ctx, meshSecret, handshakeControl)
     registerMeshRelayRoute(
       ctx,
       ctx,
@@ -284,7 +286,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     () => liveHub,
   )
   const localDispatch = async (delivery: { method: string; path: string; headers: Readonly<Record<string, string>>; body?: string }): Promise<Response> => {
-    if (delivery.path !== MESH_RELAY_PATH) {
+    if (delivery.path !== MESH_RELAY_PATH && delivery.path !== MESH_HANDSHAKE_PATH) {
       return new Response(JSON.stringify({ ok: false, error: 'this node does not serve ' + delivery.path + ' through the hub' }), {
         status: 404,
         headers: { 'content-type': 'application/json' },
@@ -295,6 +297,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
       headers: { ...delivery.headers, 'content-type': 'application/json' },
       ...(delivery.body === undefined ? {} : { body: Buffer.from(delivery.body, 'base64') }),
     })
+    if (delivery.path === MESH_HANDSHAKE_PATH) return await handleHandshake(request, handshakeControl)
     return await handleRelay(request, relayControl)
   }
 
@@ -335,8 +338,10 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
           .map(node => ({
             nodeId: node.nodeId,
             baseUrl: node.url,
-            // No advertised address means the only way in is the hub.
-            ...(node.url === '' ? { via: 'hub' as const } : {}),
+            // Behind a hub every node keeps the hub as its fallback: an address
+            // that answers is used directly (faster, and streaming stays
+            // possible), an address that does not falls back to the queue.
+            via: 'hub' as const,
             token: '',
             ...(secret === '' ? {} : { secret }),
           }))

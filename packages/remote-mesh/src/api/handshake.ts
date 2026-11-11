@@ -58,8 +58,16 @@ export function mountMeshHandshakeRoute(ctx: MeshRouteContext, control: MeshHand
   return mountExactRoute(ctx, route)
 }
 
-export function registerMeshHandshakeRoute(ctx: Context, secret: () => string | undefined): void {
-  const nonces = new NonceCache()
+/** One handshake control: one nonce cache, shared by the route and any relayed call. */
+export function meshHandshakeControl(secret: () => string | undefined): MeshHandshakeControl {
+  return { secret, nonces: new NonceCache() }
+}
+
+export function registerMeshHandshakeRoute(
+  ctx: Context,
+  secret: () => string | undefined,
+  control: MeshHandshakeControl = meshHandshakeControl(secret),
+): void {
   // Must sit below the browser fence: the caller has no cookie yet.
-  registerMeshPublicRoute(ctx, MESH_HANDSHAKE_PATH, (request) => handleHandshake(request, { secret, nonces }))
+  registerMeshPublicRoute(ctx, MESH_HANDSHAKE_PATH, (request) => handleHandshake(request, control))
 }

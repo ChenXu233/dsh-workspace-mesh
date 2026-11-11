@@ -495,3 +495,62 @@ test('streaming through a hub is refused with a reason instead of hanging', asyn
     /live streaming is not available through a hub/,
   )
 })
+
+test('a hub peer with an address tries direct first and keeps the hub as fallback', async () => {
+  const peer = fakePeer({ meshSecret: 'shared', sessions: [{ sessionId: 's1' }] })
+  const attempts: string[] = []
+  let directWorks = false
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    attempts.push(url.startsWith('http://peer.internal') ? 'direct' : 'hub')
+    // The peer's own address is dead from here; the hub forward is the way in.
+    if (url.startsWith('http://peer.internal')) {
+      if (!directWorks) throw new TypeError('fetch failed')
+      return await peer.fetchImpl(url, init)
+    }
+    const envelope = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+    const response = await peer.fetchImpl('http://peer.internal' + String(envelope.path), {
+      method: String(envelope.method),
+      headers: envelope.headers as Record<string, string>,
+      body: Buffer.from(String(envelope.body ?? ''), 'base64').toString('utf8'),
+    })
+    const body = Buffer.from(await response.arrayBuffer()).toString('base64')
+    return new Response(JSON.stringify({ ok: true, result: { status: response.status, headers: {}, body } }), { status: 200 })
+  }) as unknown as typeof fetch
+
+  const transport = createTypertTransport({
+    peers: [{ nodeId: 'b', baseUrl: 'http://peer.internal', via: 'hub', token: '', secret: 'shared' }],
+    hubUrl: 'http://hub.internal',
+    fetchImpl,
+  })
+  await transport.listWorkspaces('b')
+  // One probe that failed, then the hub carried the rest of the call.
+  assert.equal(attempts[0], 'direct')
+  assert.equal(attempts.includes('hub'), true)
+
+  // Inside the cooldown the next call skips the doomed probe entirely.
+  const afterFirst = attempts.length
+  await transport.listWorkspaces('b')
+  assert.equal(attempts.slice(afterFirst).includes('direct'), false)
+})
+
+test('a hub peer whose address answers is served directly', async () => {
+  const peer = fakePeer({ meshSecret: 'shared', sessions: [{ sessionId: 's1' }] })
+  const attempts: string[] = []
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    if (url.startsWith('http://hub.internal')) {
+      attempts.push('hub')
+      return new Response('{}', { status: 500 })
+    }
+    attempts.push('direct')
+    return await peer.fetchImpl(url, init)
+  }) as unknown as typeof fetch
+  const transport = createTypertTransport({
+    peers: [{ nodeId: 'b', baseUrl: 'http://peer.internal', via: 'hub', token: '', secret: 'shared' }],
+    hubUrl: 'http://hub.internal',
+    fetchImpl,
+  })
+  await transport.listWorkspaces('b')
+  assert.equal(attempts.includes('hub'), false)
+})
