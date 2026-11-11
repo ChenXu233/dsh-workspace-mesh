@@ -10391,7 +10391,6 @@ function createMeshWorkspaceSource(fetcher) {
 }
 
 // client/src/app.js
-var NS = "mesh";
 var STATE_PATH2 = "/api/mesh/state";
 var CONFIG_PATH = "/api/mesh/config";
 var DISPATCH_PATH = "/api/mesh/dispatch";
@@ -10399,24 +10398,6 @@ var SESSION_PATH = "/api/mesh/session";
 var PAIR_LINK_PATH = "/api/mesh/pair-link";
 var PAIR_PATH = "/api/mesh/pair";
 var PAIR_PARAM = "mesh-pair";
-var FIELDS = [
-  {
-    key: "transport",
-    label: "\u4F20\u8F93\u6A21\u5F0F",
-    kind: "select",
-    options: ["auto"],
-    hint: "\u914D\u4E86 peers \u65F6\u8D70 typert\uFF1B\u4FDD\u5B58\u540E\u91CD\u542F\u751F\u6548"
-  },
-  {
-    key: "assignmentFile",
-    label: "assignment.yml \u8DEF\u5F84",
-    kind: "text",
-    hint: "\u76F8\u5BF9\u5BBF\u4E3B\u8FDB\u7A0B cwd\uFF08\u5BB9\u5668\u5185\u4E3A /data/workspace\uFF09\uFF1B\u7559\u7A7A = \u4E0D\u52A0\u8F7D"
-  },
-  { key: "leaseMs", label: "\u4EFB\u52A1\u79DF\u7EA6\u65F6\u957F (ms)", kind: "number", hint: "\u9ED8\u8BA4 900000" },
-  { key: "dispatchTimeoutMs", label: "dispatch \u8D85\u65F6 (ms)", kind: "number", hint: "\u9ED8\u8BA4 120000" },
-  { key: "leaseOwner", label: "\u79DF\u7EA6\u5F52\u5C5E\u8005", kind: "text", hint: "\u9ED8\u8BA4 mesh-lead" }
-];
 var CONFIG_FIELDS = [
   {
     key: "transport",
@@ -10439,7 +10420,7 @@ var css = [
   ".dwm-page{display:flex;flex-direction:column;align-items:center;height:100%;box-sizing:border-box;padding:0 clamp(24px,4vw,48px) 48px;color:var(--dsw-alias-label-primary);overflow-y:auto}",
   ".dwm-page>*{flex:none;width:100%;max-width:960px}",
   ".dwm-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px;padding-top:28px}",
-  ".dwm-headText{min-width:0;max-width:100%}",
+  ".dwm-headText{flex:1 1 0%;min-width:0;max-width:100%}",
   ".dwm-h2{margin:0;font-size:20px;font-weight:500;line-height:28px}",
   ".dwm-intro{margin:4px 0 0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
   ".dwm-body{display:flex;flex-direction:column;gap:32px;padding:32px 0 0}",
@@ -10455,7 +10436,7 @@ var css = [
   ".dwm-select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
   ".dwm-selectText{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
   ".dwm-selectChevron{flex:none}",
-  ".dwm-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
+  ".dwm-actions{display:flex;flex:none;align-items:center;gap:8px;flex-wrap:wrap}",
   ".dwm-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--dsw-alias-label-caption)}",
   ".dwm-grid{display:flex;gap:48px;flex-wrap:wrap}",
   ".dwm-stat{display:flex;flex-direction:column;gap:2px;min-width:0}",
@@ -10560,110 +10541,6 @@ function prefersChinese() {
 }
 function t(zh, en) {
   return prefersChinese() ? zh : en;
-}
-function ConfigSection(props) {
-  var ctx = props.ctx;
-  var subject = props.subject;
-  var pkgName = subject && subject.pkg && typeof subject.pkg === "object" ? subject.pkg.name : subject.pkg;
-  if (subject) {
-    if (subject.kind !== "bundle" || pkgName !== "dsh-workspace-mesh") return null;
-  }
-  var st = React2.useState({ phase: "loading", values: {}, revision: void 0, dirty: {}, message: "", tone: "warn" });
-  var state = st[0], set3 = st[1];
-  var load = React2.useCallback(function() {
-    if (!ctx.remote || !ctx.remote.settings) {
-      set3({ phase: "error", values: {}, revision: void 0, dirty: {}, message: "ctx.remote.settings \u4E0D\u53EF\u7528", tone: "err" });
-      return;
-    }
-    ctx.remote.settings.describe().then(function(doc) {
-      var nsList = doc && doc.namespaces || [];
-      var ns = null;
-      for (var i = 0; i < nsList.length; i++) if (nsList[i].ns === NS) ns = nsList[i];
-      if (!ns) {
-        set3({ phase: "missing", values: {}, revision: void 0, dirty: {}, message: "namespaces=[" + nsList.map(function(n) {
-          return n.ns;
-        }).join(",") + "]", tone: "warn" });
-        return;
-      }
-      set3({ phase: "ready", values: ns.value || {}, revision: ns.revision, dirty: {}, message: "", tone: "warn" });
-    }).catch(function(err) {
-      set3({ phase: "error", values: {}, revision: void 0, dirty: {}, message: String(err && err.message || err), tone: "err" });
-    });
-  }, [ctx]);
-  React2.useEffect(function() {
-    load();
-  }, [load]);
-  if (state.phase === "loading") return jsx4.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "\u6B63\u5728\u8BFB\u53D6 mesh \u914D\u7F6E\u2026" });
-  if (state.phase === "missing") return jsx4.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "\u8BBE\u7F6E\u670D\u52A1\u672A\u66B4\u9732 mesh \u547D\u540D\u7A7A\u95F4 " + (state.message || "") });
-  if (state.phase === "error") return jsx4.jsxs("p", { className: "dwm-status", "data-tone": "err", children: ["\u8BFB\u53D6\u5931\u8D25\uFF1A", state.message] });
-  var dirtyKeys = Object.keys(state.dirty);
-  function setDirty(key, value2) {
-    set3(function(s) {
-      var d = Object.assign({}, s.dirty);
-      d[key] = value2;
-      return Object.assign({}, s, { dirty: d });
-    });
-  }
-  function onSave() {
-    var ops = [];
-    for (var i = 0; i < dirtyKeys.length; i++) {
-      var key = dirtyKeys[i];
-      var field = null;
-      for (var j = 0; j < FIELDS.length; j++) if (FIELDS[j].key === key) field = FIELDS[j];
-      var value2 = state.dirty[key];
-      if (field && field.kind === "number") value2 = Number(value2);
-      ops.push({ op: "set", path: [key], value: value2 });
-    }
-    set3(function(s) {
-      return Object.assign({}, s, { message: "\u4FDD\u5B58\u4E2D\u2026", tone: "warn" });
-    });
-    ctx.remote.settings.mutate(NS, ops, state.revision).then(function() {
-      set3(function(s) {
-        return Object.assign({}, s, { message: "\u5DF2\u4FDD\u5B58\u5E76\u5B9E\u65F6\u751F\u6548", tone: "ok", dirty: {} });
-      });
-      load();
-    }).catch(function(err) {
-      set3(function(s) {
-        return Object.assign({}, s, { message: "\u4FDD\u5B58\u5931\u8D25\uFF1A" + String(err && err.message || err), tone: "err" });
-      });
-    });
-  }
-  var rows = [];
-  for (var k = 0; k < FIELDS.length; k++) {
-    (function(f) {
-      var current = state.dirty[f.key] !== void 0 ? state.dirty[f.key] : state.values[f.key] === void 0 ? "" : String(state.values[f.key]);
-      var control;
-      if (f.kind === "select") {
-        var opts = [];
-        for (var m = 0; m < f.options.length; m++) opts.push({ value: f.options[m], label: f.options[m] });
-        control = jsx4.jsx(SelectField, {
-          value: current,
-          onChange: function(next) {
-            setDirty(f.key, next);
-          },
-          options: opts
-        });
-      } else {
-        control = jsx4.jsx(TextInput, { type: f.kind === "number" ? "number" : "text", value: current, onChange: function(e) {
-          setDirty(f.key, e.target.value);
-        } });
-      }
-      rows.push(jsx4.jsxs("label", { className: "dwm-row", children: [
-        jsx4.jsx("span", { className: "dwm-label", children: f.label }),
-        control,
-        jsx4.jsx("span", { className: "dwm-hint", children: f.hint })
-      ], key: f.key }));
-    })(FIELDS[k]);
-  }
-  return jsx4.jsxs("div", { className: "dwm-section", children: [
-    jsx4.jsx("h3", { style: { margin: "0", fontSize: "15px", fontWeight: "600" }, children: "mesh \u914D\u7F6E" }),
-    jsx4.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "\u4FEE\u6539\u901A\u8FC7\u539F\u751F\u8BBE\u7F6E\u670D\u52A1\u5B9E\u65F6\u751F\u6548\uFF08volatile live \u914D\u7F6E\uFF0C\u5199\u5165 profile patch\uFF09" }),
-    rows,
-    jsx4.jsxs("div", { className: "dwm-actions", children: [
-      jsx4.jsx(Btn, { variant: "primary", disabled: dirtyKeys.length === 0 || state.message === "\u4FDD\u5B58\u4E2D\u2026", onClick: onSave, children: "\u4FDD\u5B58" }),
-      state.message ? jsx4.jsx("span", { className: "dwm-status", "data-tone": state.tone, children: state.message }) : null
-    ] })
-  ] });
 }
 function pad(value2) {
   return value2 < 10 ? "0" + value2 : String(value2);
@@ -11034,6 +10911,7 @@ function MeshSection(props) {
     jsx4.jsx(Stat, { label: t("\u5DE5\u4F5C\u533A", "Workspaces"), value: String(workspaces), hint: assignment.configured ? "assignment.yml " + assignment.assignments + " \u6761\u8DEF\u7531" : t("\u672A\u914D\u7F6E assignment.yml", "no assignment.yml") }, "s3"),
     jsx4.jsx(Stat, { label: t("\u4EFB\u52A1", "Tasks"), value: active + " / " + counts.total, hint: t("\u6D3B\u8DC3 / \u7D2F\u8BA1", "active / total") }, "s4")
   ] }, "stats"));
+  blocks.push(jsx4.jsx(PairingPanel, { onPaired: load }, "pair"));
   blocks.push(jsx4.jsx(MeshTopology, {
     peers,
     tasks,
@@ -11328,33 +11206,6 @@ function claimPairingLink() {
 }
 function apply(ctx) {
   claimPairingLink();
-  ctx.slots.inject("plugins.detail.section", function() {
-    return ctx.slots.register({
-      name: "plugins.detail.section",
-      id: "mesh-config"
-    }, function(props) {
-      return ConfigSection(Object.assign({}, props, { ctx }));
-    });
-  });
-  ctx.slots.inject("sidebar.panellist", function() {
-    return ctx.slots.register({
-      name: "sidebar.panellist",
-      id: "mesh",
-      order: 15,
-      label: function() {
-        return t("\u5DE5\u4F5C\u533A\u7F51\u683C", "Workspace mesh");
-      }
-    }, MeshPanelIcon);
-  });
-  ctx.slots.inject("main", function() {
-    return ctx.slots.register({
-      name: "main",
-      key: "mesh",
-      label: function() {
-        return t("\u5DE5\u4F5C\u533A\u7F51\u683C", "Workspace mesh");
-      }
-    }, MeshWorkspacePage);
-  });
   ctx.slots.inject("settings.section", function() {
     return ctx.slots.register({
       name: "settings.section",
@@ -11374,85 +11225,6 @@ function apply(ctx) {
       }, "mesh: proton workspace source");
     });
   }
-}
-function MeshPanelIcon() {
-  return jsx4.jsxs("svg", {
-    width: 20,
-    height: 20,
-    viewBox: "0 0 20 20",
-    fill: "none",
-    "aria-hidden": "true",
-    children: [
-      jsx4.jsx("circle", { cx: 4.5, cy: 10, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
-      jsx4.jsx("circle", { cx: 15.5, cy: 5, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
-      jsx4.jsx("circle", { cx: 15.5, cy: 15, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
-      jsx4.jsx("path", { d: "M6.6 9.2 L13.4 5.8 M6.6 10.8 L13.4 14.2", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round" })
-    ]
-  });
-}
-function MeshWorkspacePage() {
-  var st = React2.useState({ phase: "loading", data: null, error: "", at: 0 });
-  var state = st[0];
-  var set3 = st[1];
-  var load = React2.useCallback(function() {
-    fetch(STATE_PATH2, { method: "GET", credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
-      if (!response.ok) throw new Error("HTTP " + response.status);
-      return response.json();
-    }).then(function(data2) {
-      set3({ phase: "ready", data: data2, error: "", at: Date.now() });
-    }).catch(function(err) {
-      set3({ phase: "error", data: null, error: String(err && err.message || err), at: Date.now() });
-    });
-  }, []);
-  React2.useEffect(function() {
-    load();
-    if (typeof document === "undefined") return;
-    var onVisible = function() {
-      if (!document.hidden) load();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return function() {
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [load]);
-  var data = state.data || {};
-  var peers = data.peers || [];
-  var rows = workspaceRows(peers);
-  var online = 0;
-  for (var i = 0; i < rows.length; i += 1) if (rows[i].status === "online") online += 1;
-  var justPaired = readParam("paired");
-  return jsx4.jsxs("div", { className: "dwm-page", children: [
-    jsx4.jsxs("header", { className: "dwm-head", children: [
-      jsx4.jsxs("div", { className: "dwm-headText", children: [
-        jsx4.jsx("h1", { className: "dwm-h2", children: t("\u5DE5\u4F5C\u533A\u7F51\u683C", "Workspace mesh") }),
-        jsx4.jsx("p", { className: "dwm-intro", children: state.phase === "error" ? t("\u8BFB\u53D6 mesh \u72B6\u6001\u5931\u8D25\uFF1A", "Failed to read mesh state: ") + state.error : t("\u6BCF\u4E2A\u5DE5\u4F5C\u533A\u90FD\u5C5E\u4E8E\u67D0\u53F0\u673A\u5668\uFF1A\u6D88\u606F\u4F20\u8FC7\u53BB\uFF0C\u6267\u884C\u7559\u5728\u90A3\u53F0\u673A\u5668\u4E0A\u3002", "Each workspace belongs to one machine: the message travels, the work stays there.") })
-      ] }, "text"),
-      jsx4.jsx("div", { className: "dwm-actions", children: jsx4.jsx(Btn, {
-        onClick: load,
-        children: t("\u5237\u65B0", "Refresh")
-      }, "refresh") }, "actions")
-    ] }, "head"),
-    justPaired === "" ? null : jsx4.jsx("p", {
-      className: "dwm-hint",
-      "data-tone": justPaired === "failed" ? "err" : "ok",
-      children: justPaired === "failed" ? t("\u914D\u5BF9\u94FE\u63A5\u6CA1\u80FD\u5BFC\u5165\uFF1A\u770B\u63A7\u5236\u53F0\u91CC\u7684\u539F\u56E0\u3002", "The pairing link could not be imported; see the console for why.") : t("\u5DF2\u4E0E " + justPaired + " \u914D\u5BF9\uFF0C\u7ACB\u5373\u751F\u6548\u3002", "Paired with " + justPaired + "; it applies immediately.")
-    }, "paired-banner"),
-    jsx4.jsxs("div", { className: "dwm-body", children: [
-      jsx4.jsx(PairingPanel, { onPaired: load }, "pair"),
-      jsx4.jsxs("div", { className: "dwm-grid", children: [
-        jsx4.jsx(Stat, { label: t("\u5728\u7EBF\u5DE5\u4F5C\u533A", "Online"), value: String(online) }, "s1"),
-        jsx4.jsx(Stat, { label: t("\u5DE5\u4F5C\u533A\u603B\u6570", "Total"), value: String(rows.length) }, "s2")
-      ] }, "stats"),
-      jsx4.jsx(RemoteWorkspacePanel, { rows }, "remote"),
-      jsx4.jsxs("div", { className: "dwm-footer", children: [
-        jsx4.jsx("span", { children: t("\u66F4\u65B0\u4E8E ", "updated ") + (state.at ? fmtClock(state.at) : "\u2014") }, "time"),
-        jsx4.jsx("p", { className: "dwm-note", children: t(
-          "\u65AD\u7F51\u6216\u5BF9\u7AEF\u79BB\u7EBF\u65F6\uFF0C\u5DE5\u4F5C\u533A\u72B6\u6001\u53D8\u79BB\u7EBF\uFF0C\u53D1\u9001\u4F1A\u76F4\u63A5\u5931\u8D25\u2014\u2014\u4E0D\u4F1A\u7559\u4E0B\u534A\u622A\u4EFB\u52A1\u3002",
-          "When the network or the peer is down the workspace turns offline and sending fails fast; nothing is left half-queued."
-        ) }, "note")
-      ] }, "footer")
-    ] }, "body")
-  ] });
 }
 /*! Bundled license information:
 

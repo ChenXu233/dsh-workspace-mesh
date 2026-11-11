@@ -23,16 +23,6 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
     var PAIR_PATH = "/api/mesh/pair";
     var PAIR_PARAM = "mesh-pair";
 
-    var FIELDS = [
-      { key: "transport", label: "传输模式", kind: "select", options: ["auto"],
-        hint: "配了 peers 时走 typert；保存后重启生效" },
-      { key: "assignmentFile", label: "assignment.yml 路径", kind: "text",
-        hint: "相对宿主进程 cwd（容器内为 /data/workspace）；留空 = 不加载" },
-      { key: "leaseMs", label: "任务租约时长 (ms)", kind: "number", hint: "默认 900000" },
-      { key: "dispatchTimeoutMs", label: "dispatch 超时 (ms)", kind: "number", hint: "默认 120000" },
-      { key: "leaseOwner", label: "租约归属者", kind: "text", hint: "默认 mesh-lead" }
-    ];
-
     /** Settings-page form: same five fields, saved through POST /api/mesh/config. */
     var CONFIG_FIELDS = [
       { key: "transport", label: "传输模式", kind: "select", options: ["auto"],
@@ -51,7 +41,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       ".dwm-page{display:flex;flex-direction:column;align-items:center;height:100%;box-sizing:border-box;padding:0 clamp(24px,4vw,48px) 48px;color:var(--dsw-alias-label-primary);overflow-y:auto}",
       ".dwm-page>*{flex:none;width:100%;max-width:960px}",
       ".dwm-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px;padding-top:28px}",
-      ".dwm-headText{min-width:0;max-width:100%}",
+      ".dwm-headText{flex:1 1 0%;min-width:0;max-width:100%}",
       ".dwm-h2{margin:0;font-size:20px;font-weight:500;line-height:28px}",
       ".dwm-intro{margin:4px 0 0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
       ".dwm-body{display:flex;flex-direction:column;gap:32px;padding:32px 0 0}",
@@ -67,7 +57,7 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       ".dwm-select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
       ".dwm-selectText{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
       ".dwm-selectChevron{flex:none}",
-      ".dwm-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
+      ".dwm-actions{display:flex;flex:none;align-items:center;gap:8px;flex-wrap:wrap}",
       ".dwm-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--dsw-alias-label-caption)}",
       ".dwm-grid{display:flex;gap:48px;flex-wrap:wrap}",
       ".dwm-stat{display:flex;flex-direction:column;gap:2px;min-width:0}",
@@ -183,92 +173,6 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
     function t(zh, en) { return prefersChinese() ? zh : en; }
 
     /** The plugin detail page configuration card (kept from the first increment). */
-    function ConfigSection(props) {
-      var ctx = props.ctx;
-      var subject = props.subject;
-      var pkgName = subject && subject.pkg && typeof subject.pkg === "object" ? subject.pkg.name : subject.pkg;
-      // The detail page re-renders this slot once without a subject; keep
-      // rendering our section there and only hide on a DIFFERENT bundle.
-      if (subject) {
-        if (subject.kind !== "bundle" || pkgName !== "dsh-workspace-mesh") return null;
-      }
-      var st = React.useState({ phase: "loading", values: {}, revision: undefined, dirty: {}, message: "", tone: "warn" });
-      var state = st[0], set = st[1];
-      var load = React.useCallback(function () {
-        if (!ctx.remote || !ctx.remote.settings) {
-          set({ phase: "error", values: {}, revision: undefined, dirty: {}, message: "ctx.remote.settings 不可用", tone: "err" });
-          return;
-        }
-        ctx.remote.settings.describe().then(function (doc) {
-          var nsList = (doc && doc.namespaces) || [];
-          var ns = null;
-          for (var i = 0; i < nsList.length; i++) if (nsList[i].ns === NS) ns = nsList[i];
-          if (!ns) { set({ phase: "missing", values: {}, revision: undefined, dirty: {}, message: "namespaces=[" + nsList.map(function (n) { return n.ns; }).join(",") + "]", tone: "warn" }); return; }
-          set({ phase: "ready", values: ns.value || {}, revision: ns.revision, dirty: {}, message: "", tone: "warn" });
-        }).catch(function (err) {
-          set({ phase: "error", values: {}, revision: undefined, dirty: {}, message: String((err && err.message) || err), tone: "err" });
-        });
-      }, [ctx]);
-      React.useEffect(function () { load(); }, [load]);
-      if (state.phase === "loading") return jsx.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "正在读取 mesh 配置…" });
-      if (state.phase === "missing") return jsx.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "设置服务未暴露 mesh 命名空间 " + (state.message || "") });
-      if (state.phase === "error") return jsx.jsxs("p", { className: "dwm-status", "data-tone": "err", children: ["读取失败：", state.message] });
-      var dirtyKeys = Object.keys(state.dirty);
-      function setDirty(key, value) {
-        set(function (s) { var d = Object.assign({}, s.dirty); d[key] = value; return Object.assign({}, s, { dirty: d }); });
-      }
-      function onSave() {
-        var ops = [];
-        for (var i = 0; i < dirtyKeys.length; i++) {
-          var key = dirtyKeys[i];
-          var field = null;
-          for (var j = 0; j < FIELDS.length; j++) if (FIELDS[j].key === key) field = FIELDS[j];
-          var value = state.dirty[key];
-          if (field && field.kind === "number") value = Number(value);
-          ops.push({ op: "set", path: [key], value: value });
-        }
-        set(function (s) { return Object.assign({}, s, { message: "保存中…", tone: "warn" }); });
-        ctx.remote.settings.mutate(NS, ops, state.revision).then(function () {
-          set(function (s) { return Object.assign({}, s, { message: "已保存并实时生效", tone: "ok", dirty: {} }); });
-          load();
-        }).catch(function (err) {
-          set(function (s) { return Object.assign({}, s, { message: "保存失败：" + String((err && err.message) || err), tone: "err" }); });
-        });
-      }
-      var rows = [];
-      for (var k = 0; k < FIELDS.length; k++) {
-        (function (f) {
-          var current = state.dirty[f.key] !== undefined ? state.dirty[f.key] : (state.values[f.key] === undefined ? "" : String(state.values[f.key]));
-          var control;
-          if (f.kind === "select") {
-            var opts = [];
-            for (var m = 0; m < f.options.length; m++) opts.push({ value: f.options[m], label: f.options[m] });
-            control = jsx.jsx(SelectField, {
-              value: current,
-              onChange: function (next) { setDirty(f.key, next); },
-              options: opts
-            });
-          } else {
-            control = jsx.jsx(TextInput, { type: f.kind === "number" ? "number" : "text", value: current, onChange: function (e) { setDirty(f.key, e.target.value); } });
-          }
-          rows.push(jsx.jsxs("label", { className: "dwm-row", children: [
-            jsx.jsx("span", { className: "dwm-label", children: f.label }),
-            control,
-            jsx.jsx("span", { className: "dwm-hint", children: f.hint })
-          ], key: f.key }));
-        })(FIELDS[k]);
-      }
-      return jsx.jsxs("div", { className: "dwm-section", children: [
-        jsx.jsx("h3", { style: { margin: "0", fontSize: "15px", fontWeight: "600" }, children: "mesh 配置" }),
-        jsx.jsx("p", { className: "dwm-status", "data-tone": "warn", children: "修改通过原生设置服务实时生效（volatile live 配置，写入 profile patch）" }),
-        rows,
-        jsx.jsxs("div", { className: "dwm-actions", children: [
-          jsx.jsx(Btn, { variant: "primary", disabled: dirtyKeys.length === 0 || state.message === "保存中…", onClick: onSave, children: "保存" }),
-          state.message ? jsx.jsx("span", { className: "dwm-status", "data-tone": state.tone, children: state.message }) : null
-        ] })
-      ] });
-    }
-
     function pad(value) { return value < 10 ? "0" + value : String(value); }
     function fmtClock(ms) {
       var date = new Date(ms);
@@ -676,6 +580,10 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
         jsx.jsx(Stat, { label: t("任务", "Tasks"), value: active + " / " + counts.total, hint: t("活跃 / 累计", "active / total") }, "s4")
       ] }, "stats"));
 
+      // Pairing lives here now that the standalone page is gone: it is the one
+      // action on this page that changes configuration rather than showing it.
+      blocks.push(jsx.jsx(PairingPanel, { onPaired: load }, "pair"));
+
       blocks.push(jsx.jsx(MeshTopology, {
         peers: peers,
         tasks: tasks,
@@ -1007,31 +915,9 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
 
     function apply(ctx) {
       claimPairingLink();
-      ctx.slots.inject("plugins.detail.section", function () {
-        return ctx.slots.register({
-          name: "plugins.detail.section",
-          id: "mesh-config",
-        }, function (props) {
-          return ConfigSection(Object.assign({}, props, { ctx: ctx }));
-        });
-      });
-      // Left-rail entry + full page: reachable without opening settings.
-      ctx.slots.inject("sidebar.panellist", function () {
-        return ctx.slots.register({
-          name: "sidebar.panellist",
-          id: "mesh",
-          order: 15,
-          label: function () { return t("工作区网格", "Workspace mesh"); }
-        }, MeshPanelIcon);
-      });
-      ctx.slots.inject("main", function () {
-        return ctx.slots.register({
-          name: "main",
-          key: "mesh",
-          label: function () { return t("工作区网格", "Workspace mesh"); }
-        }, MeshWorkspacePage);
-      });
-
+      // One surface only: the settings section. The rail entry, the standalone
+      // page and the plugin-detail card were three doors to the same snapshot;
+      // the mesh is configuration, and configuration lives in settings.
       ctx.slots.inject("settings.section", function () {
         return ctx.slots.register({
           name: "settings.section",
@@ -1059,91 +945,4 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
     }
 
     /** Left-rail icon: a hub with two peers. */
-    function MeshPanelIcon() {
-      return jsx.jsxs("svg", {
-        width: 20, height: 20, viewBox: "0 0 20 20", fill: "none", "aria-hidden": "true",
-        children: [
-          jsx.jsx("circle", { cx: 4.5, cy: 10, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
-          jsx.jsx("circle", { cx: 15.5, cy: 5, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
-          jsx.jsx("circle", { cx: 15.5, cy: 15, r: 2.1, stroke: "currentColor", strokeWidth: 1.4 }),
-          jsx.jsx("path", { d: "M6.6 9.2 L13.4 5.8 M6.6 10.8 L13.4 14.2", stroke: "currentColor", strokeWidth: 1.2, strokeLinecap: "round" })
-        ]
-      });
-    }
-
-    /**
-     * Full-page panel: every workspace this instance can reach, which machine
-     * owns it, and a box to send that workspace a message. A remote workspace is
-     * virtual here — the page never touches its files, it only posts a message
-     * and shows the reply the owning machine produced.
-     */
-    function MeshWorkspacePage() {
-      var st = React.useState({ phase: "loading", data: null, error: "", at: 0 });
-      var state = st[0];
-      var set = st[1];
-      var load = React.useCallback(function () {
-        fetch(STATE_PATH, { method: "GET", credentials: "same-origin", headers: { accept: "application/json" } })
-          .then(function (response) {
-            if (!response.ok) throw new Error("HTTP " + response.status);
-            return response.json();
-          })
-          .then(function (data) { set({ phase: "ready", data: data, error: "", at: Date.now() }); })
-          .catch(function (err) { set({ phase: "error", data: null, error: String((err && err.message) || err), at: Date.now() }); });
-      }, []);
-      // Same rule as the settings section: the fan-out is paid for when someone
-      // asks for it, not on a timer nobody watches.
-      React.useEffect(function () {
-        load();
-        if (typeof document === "undefined") return;
-        var onVisible = function () { if (!document.hidden) load(); };
-        document.addEventListener("visibilitychange", onVisible);
-        return function () { document.removeEventListener("visibilitychange", onVisible); };
-      }, [load]);
-
-      var data = state.data || {};
-      var peers = data.peers || [];
-      var rows = workspaceRows(peers);
-      var online = 0;
-      for (var i = 0; i < rows.length; i += 1) if (rows[i].status === "online") online += 1;
-
-      var justPaired = readParam("paired");
-      return jsx.jsxs("div", { className: "dwm-page", children: [
-        jsx.jsxs("header", { className: "dwm-head", children: [
-          jsx.jsxs("div", { className: "dwm-headText", children: [
-            jsx.jsx("h1", { className: "dwm-h2", children: t("工作区网格", "Workspace mesh") }),
-            jsx.jsx("p", { className: "dwm-intro", children: state.phase === "error"
-              ? t("读取 mesh 状态失败：", "Failed to read mesh state: ") + state.error
-              : t("每个工作区都属于某台机器：消息传过去，执行留在那台机器上。", "Each workspace belongs to one machine: the message travels, the work stays there.") })
-          ] }, "text"),
-          jsx.jsx("div", { className: "dwm-actions", children: jsx.jsx(Btn, {
-            onClick: load,
-            children: t("刷新", "Refresh")
-          }, "refresh") }, "actions")
-        ] }, "head"),
-        justPaired === "" ? null : jsx.jsx("p", {
-          className: "dwm-hint",
-          "data-tone": justPaired === "failed" ? "err" : "ok",
-          children: justPaired === "failed"
-            ? t("配对链接没能导入：看控制台里的原因。", "The pairing link could not be imported; see the console for why.")
-            : t("已与 " + justPaired + " 配对，立即生效。", "Paired with " + justPaired + "; it applies immediately.")
-        }, "paired-banner"),
-        jsx.jsxs("div", { className: "dwm-body", children: [
-          jsx.jsx(PairingPanel, { onPaired: load }, "pair"),
-          jsx.jsxs("div", { className: "dwm-grid", children: [
-            jsx.jsx(Stat, { label: t("在线工作区", "Online"), value: String(online) }, "s1"),
-            jsx.jsx(Stat, { label: t("工作区总数", "Total"), value: String(rows.length) }, "s2")
-          ] }, "stats"),
-          jsx.jsx(RemoteWorkspacePanel, { rows: rows }, "remote"),
-          jsx.jsxs("div", { className: "dwm-footer", children: [
-            jsx.jsx("span", { children: t("更新于 ", "updated ") + (state.at ? fmtClock(state.at) : "—") }, "time"),
-            jsx.jsx("p", { className: "dwm-note", children: t(
-              "断网或对端离线时，工作区状态变离线，发送会直接失败——不会留下半截任务。",
-              "When the network or the peer is down the workspace turns offline and sending fails fast; nothing is left half-queued."
-            ) }, "note")
-          ] }, "footer")
-        ] }, "body")
-      ] });
-    }
-
-
 export { apply, inject };
