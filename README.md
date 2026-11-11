@@ -58,6 +58,7 @@ flowchart LR
 | Node.js | `>=20` |
 | Runtime dependencies | none |
 | Peers | a DSH instance serving its web UI (the transport calls `/connect` and `/api/...` there) |
+| Network | the caller dials every peer's `publicUrl`. A peer without a public address still works on the same LAN, behind an overlay network (Tailscale/WireGuard), or behind a reverse tunnel — put that address in `publicUrl` |
 
 ## Install
 
@@ -199,6 +200,7 @@ The entry config (`config:` in the profile patch) is layered under
 | `transport` | `auto` | `auto` | restart |
 | `peers` | `{ nodeId, baseUrl, token }[]` | `[]` | restart |
 | `meshSecret` | string | `''` | restart |
+| `publicUrl` | string | `''` | immediate | the address other machines dial for this one (pairing links carry it); empty = `DSH_PUBLIC_URL`, then the page origin, then this machine's LAN address |
 | `assignmentFile` | string | `''` (not loaded) | immediately |
 | `leaseMs` | integer, ms | `900000` | immediately |
 | `dispatchTimeoutMs` | integer, ms | `120000` | immediately |

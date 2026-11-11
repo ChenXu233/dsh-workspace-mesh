@@ -53,6 +53,7 @@ flowchart LR
 | Node.js | `>=20` |
 | 运行时依赖 | 无 |
 | 对端 | 一台对外提供 web UI 的 DSH 实例（传输调它的 `/connect` 与 `/api/...`） |
+| 网络 | 调用方要能拨到每个对端的 `publicUrl`。没有公网地址的对端也能用：同局域网、走 Tailscale/WireGuard 这类 overlay、或挂在反向隧道后面——把那个地址填进 `publicUrl` |
 
 ## 安装
 
@@ -184,6 +185,7 @@ relay 模式下，调用方用共享密钥签 `mesh-handshake:<nodeId>:<ts>:<non
 | `transport` | `auto` | `auto` | 重启 |
 | `peers` | `{ nodeId, baseUrl, token }[]` | `[]` | 重启 |
 | `meshSecret` | string | `''` | 重启 |
+| `publicUrl` | string | `''` | 立即 | 别的机器拨这个地址来找本机（配对链接写的就是它）；留空 = 依次用 `DSH_PUBLIC_URL`、当前页面地址、本机网卡 |
 | `assignmentFile` | string | `''`（不加载） | 立即 |
 | `leaseMs` | 整数，毫秒 | `900000` | 立即 |
 | `dispatchTimeoutMs` | 整数，毫秒 | `120000` | 立即 |
