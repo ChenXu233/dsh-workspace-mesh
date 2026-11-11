@@ -20,13 +20,18 @@
 把对话代理到那台机器已经能用，方向也对：agent loop 留在文件所在的地方。缺的是反方向——**让一个 Lead 按工作区
 把任务投递到归属它的机器，并拿回结果**，而不用先搞清楚哪台是哪台。
 
-```text
-  调用方节点                                    归属节点
-  ┌──────────────────────────┐                 ┌──────────────────────────┐
-  │ Lead agent               │  mesh_dispatch  │ ws-blog 里的会话         │
-  │ mesh_dispatch(ws-blog) ──┼─── 只传消息 ───▶│ agent loop 在这里跑      │
-  │                          │◀─── 回最终回复 ─┤ 仓库、凭据、会话都在本机 │
-  └──────────────────────────┘                 └──────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph caller["调用方节点"]
+    lead["Lead agent<br/>mesh_dispatch(ws-blog)"]
+  end
+  subgraph owner["归属节点"]
+    sess["ws-blog 里的会话<br/>agent loop 在这里跑"]
+    assets["仓库、凭据、会话都在本机"]
+    sess --- assets
+  end
+  lead -- 只传消息 --> sess
+  sess -- 回最终回复 --> lead
 ```
 
 ## 它做什么

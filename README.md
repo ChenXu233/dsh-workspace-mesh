@@ -24,13 +24,18 @@ stays where the files are. What is missing is the other direction — **one Lead
 by workspace, to the machine that owns it, and reads the result back**, without knowing which box
 is which.
 
-```text
-  caller node                                  owning node
-  ┌──────────────────────────┐                 ┌──────────────────────────┐
-  │ Lead agent               │  mesh_dispatch  │ session in ws-blog       │
-  │ mesh_dispatch(ws-blog) ──┼─── messages ───▶│ agent loop runs HERE     │
-  │                          │◀─── reply ──────┤ repo, creds, sessions    │
-  └──────────────────────────┘                 └──────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph caller["caller node"]
+    lead["Lead agent<br/>mesh_dispatch(ws-blog)"]
+  end
+  subgraph owner["owning node"]
+    sess["session in ws-blog<br/>agent loop runs HERE"]
+    assets["repo · creds · sessions"]
+    sess --- assets
+  end
+  lead -- messages --> sess
+  sess -- reply --> lead
 ```
 
 ## What it does
