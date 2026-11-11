@@ -17,6 +17,11 @@ const PEER_SCHEMA: Record<string, unknown> = {
     nodeId: { type: 'string' },
     label: { type: 'string' },
     endpoint: { type: 'string' },
+    link: {
+      type: 'string',
+      enum: ['direct', 'hub', 'unknown'],
+      description: 'How the transport reaches this node right now: direct, through the hub, or not known yet.',
+    },
     online: {
       type: 'boolean',
       description: 'SPEC §18 NodeDescriptor.online; true only when a transport receipt says online.',

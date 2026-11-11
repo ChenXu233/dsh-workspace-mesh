@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import { handleHubForward, handleHubInbox, handleHubJoin, handleHubNodes, handleHubResult } from '../src/api/hub.js'
 import { decodeHubPayload, encodeHubPayload, handleHubAdopt, handleHubLink, HUB_PAYLOAD_VERSION } from '../src/api/hub-link.js'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInMemoryBoard } from '../src/board/index.js'
@@ -241,6 +241,41 @@ test('adopting a join link writes the hub and the shared secret', async () => {
     const written = JSON.parse(await readFile(file, 'utf8')) as Record<string, any>
     assert.deepEqual(written.hub, { url: 'https://hub.example' })
     assert.equal(written.meshSecret, 'mesh-shared')
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('the hub directory survives a restart but queued work does not', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'mesh-hub-store-'))
+  const file = join(dir, 'mesh-hub.json')
+  try {
+    const first = new HubRegistry(() => NOW, file)
+    first.join({ nodeId: 'a', url: 'http://a:3211' })
+    first.join({ nodeId: 'b', url: '' })
+    // A restart: same file, new instance.
+    const second = new HubRegistry(() => NOW, file)
+    assert.deepEqual(second.directory().map(node => [node.nodeId, node.url]).sort(), [['a', 'http://a:3211'], ['b', '']])
+    // The queue is not persisted: a caller enqueued before the restart must not
+    // be silently "answered" afterwards.
+    await assert.rejects(
+      second.enqueue('b', { method: 'GET', path: '/x', headers: {} }, 10),
+      /did not answer/,
+    )
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('a corrupt directory file is ignored instead of failing the hub', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'mesh-hub-bad-'))
+  const file = join(dir, 'mesh-hub.json')
+  try {
+    await writeFile(file, '{ not json', 'utf8')
+    const registry = new HubRegistry(() => NOW, file)
+    assert.equal(registry.size(), 0)
+    registry.join({ nodeId: 'a', url: '' })
+    assert.equal(registry.size(), 1)
   } finally {
     await rm(dir, { recursive: true, force: true })
   }

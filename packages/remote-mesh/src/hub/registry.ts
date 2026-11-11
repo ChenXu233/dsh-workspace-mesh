@@ -10,11 +10,13 @@
  *    \`/api/mesh/hub/inbox\` and takes whole HTTP requests off a per-node queue,
  *    then posts the result back. The hub therefore moves bytes, never runs work.
  *
- * Nothing here is durable: a hub restart forgets the directory and fails the
- * in-flight forwards, which the caller sees as a network error and retries. That
- * is the honest behaviour for a rendezvous process — pretending to have state it
- * does not have would be worse.
+ * The **directory** is persisted (a restart keeps the node list, so members do
+ * not have to re-join); the **queues** are not: an in-flight forward dies with
+ * the process and its caller sees a 504 and retries. Buffering requests across a
+ * restart would need a durable store and a story for stale work — not worth it
+ * for a rendezvous process.
  */
+import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 
 /** One node as the hub knows it. */
 export interface HubNodeRecord {
@@ -73,9 +75,53 @@ export class HubRegistry {
 
   /**
    * @param now - clock (tests pin it).
+   * @param file - where the directory is persisted; empty = memory only.
    */
-  constructor(now: () => number = Date.now) {
+  constructor(now: () => number = Date.now, private readonly file: string = '') {
     this.now = now
+    this.restore()
+  }
+
+  /** Load the persisted directory, ignoring anything unreadable. */
+  private restore(): void {
+    if (this.file === '') return
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(readFileSync(this.file, 'utf8'))
+    } catch {
+      return
+    }
+    const rows = (parsed as { nodes?: unknown }).nodes
+    if (!Array.isArray(rows)) return
+    for (const row of rows) {
+      if (row === null || typeof row !== 'object' || Array.isArray(row)) continue
+      const record = row as Record<string, unknown>
+      const nodeId = typeof record.nodeId === 'string' ? record.nodeId : ''
+      if (nodeId === '') continue
+      const url = typeof record.url === 'string' ? record.url : ''
+      this.nodes.set(nodeId, {
+        record: {
+          nodeId,
+          url,
+          joinedAt: typeof record.joinedAt === 'number' ? record.joinedAt : this.now(),
+          lastSeenAt: typeof record.lastSeenAt === 'number' ? record.lastSeenAt : 0,
+        },
+        queue: [],
+      })
+    }
+  }
+
+  /** Write the directory; a failure only loses the next restart's memory. */
+  private persist(): void {
+    if (this.file === '') return
+    const payload = { version: 1, nodes: this.directory() }
+    try {
+      const temporary = this.file + '.tmp'
+      writeFileSync(temporary, JSON.stringify(payload, null, 2) + '\n', 'utf8')
+      renameSync(temporary, this.file)
+    } catch (err) {
+      console.warn('[mesh] hub directory not persisted: ' + (err instanceof Error ? err.message : String(err)))
+    }
   }
 
   /**
@@ -96,6 +142,7 @@ export class HubRegistry {
     // Rebuild rather than mutate: the record is exposed to readers as-is.
     const state: NodeState = { record, queue: next.queue, ...(next.waiter === undefined ? {} : { waiter: next.waiter }) }
     this.nodes.set(record.nodeId, state)
+    this.persist()
     return {
       node: record,
       peers: [...this.nodes.values()]
@@ -214,6 +261,7 @@ export class HubRegistry {
     const state = this.nodes.get(nodeId)
     if (state === undefined) return
     this.nodes.delete(nodeId)
+    this.persist()
     for (const job of state.queue) job.fail(reason)
     state.waiter?.resolve(undefined)
   }

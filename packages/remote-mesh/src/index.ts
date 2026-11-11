@@ -16,6 +16,7 @@ import { registerMeshSessionPageRoutes, registerMeshSessionRoute } from './api/s
 import { AssistantLiveHub } from './live/assistant.js'
 import { registerMeshPairRoutes } from './api/pair.js'
 import { hostname } from 'node:os'
+import { dirname, join } from 'node:path'
 
 import { registerMeshHubRoutes } from './api/hub.js'
 import { registerMeshHubLinkRoutes } from './api/hub-link.js'
@@ -243,7 +244,8 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
   // Hub: one public machine that keeps the directory and buffers requests for
   // nodes with no inbound port. The routes are cheap and harmless on a node that
   // is not a hub (nobody joins it), so they are always mounted.
-  const hubRegistry = new HubRegistry()
+  // The directory survives a restart (so members need not re-join); queues do not.
+  const hubRegistry = new HubRegistry(Date.now, join(dirname(overrideFile), 'mesh-hub.json'))
   // Peers the operator configured by hand. A directory update must not delete
   // them: joining a hub adds nodes, it does not take the list over.
   const manualPeers = [...(config.peers ?? [])]

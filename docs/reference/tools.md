@@ -51,12 +51,13 @@
 
 ```text
 { transport: { configured, mode, kind, reason },
-  peers: [ { nodeId, label, endpoint, online, status, source,
+  peers: [ { nodeId, label, endpoint, link, online, status, source,
              lastSeenAt?, workspaces[], assignedWorkspaceIds[] } ],
   notes: string[] }
 ```
 
 - `status` 取 `online` / `offline` / `unknown`，只来自传输回执；没有回执就是 `unknown`，**绝不伪造 online**。
+- `link` 取 `direct` / `hub` / `unknown`：这台对端此刻走的是直连还是汇点兜底（直连探测失败后 60 秒内会标 `hub`），排查「为什么这次慢」时不用翻日志。
 - 每个 peer 的 `workspaces[]` 带 `sessions`（数量）与 `sessionList`（`{sessionId, title, updatedAt, busy}`，按更新时间倒序）；对端是 typert 时来自对端注册表 + 会话日志，不是猜的。
 - 注册表只登记显式建进工作区的会话；按目录建的旧会话会按 `cwd` 归组，目录没有对应工作区时出现一个 `cwd:<路径>` 的组，所以**对端上的每个会话都看得到**。
 - `transport.kind` 是 `typert`（配了 `peers`）或 `mock`（测试构造）；没配 `peers` 时为空字符串，`configured: false` 且 `reason` 说明原因。

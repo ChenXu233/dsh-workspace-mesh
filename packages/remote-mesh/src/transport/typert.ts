@@ -201,6 +201,13 @@ class TypertClient {
     return this.peer.via === 'hub' && this.hubUrl !== ''
   }
 
+  /** Which path the last calls took, for the status surfaces. */
+  currentLink(): 'direct' | 'hub' | 'unknown' {
+    if (!this.viaHub) return 'direct'
+    if (this.peer.baseUrl !== '' && Date.now() - this.directFailedAt > TypertClient.DIRECT_COOLDOWN_MS) return 'direct'
+    return 'hub'
+  }
+
   /** When the last direct attempt failed; a peer is not re-probed on every call. */
   private directFailedAt = 0
   /** How long a failed direct attempt is trusted: long enough to skip the double cost. */
@@ -553,6 +560,16 @@ class TypertClient {
 
 export interface TypertTransport extends MeshTransport {
   readonly kind: 'typert'
+  /**
+   * Which path this peer is reached on right now.
+   *
+   * A hub peer with a working address is dialled directly; one whose probe
+   * failed during the cooldown goes through the hub. The status page shows this
+   * so "why is it slow" has an answer without reading logs.
+   * @param nodeId - peer id.
+   * @returns 'direct', 'hub', or 'unknown' for a node this transport does not know.
+   */
+  linkMode(nodeId: string): 'direct' | 'hub' | 'unknown'
 }
 
 export function createTypertTransport(options: TypertTransportOptions): TypertTransport {
@@ -988,6 +1005,17 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
           // A cancelled reader releases itself.
         }
       }
+    },
+
+    /**
+     * How this peer is reached right now, for the status surfaces.
+     * @param nodeId - peer id.
+     * @returns direct, hub (fallback active), or unknown.
+     */
+    linkMode(nodeId: string): 'direct' | 'hub' | 'unknown' {
+      const client = clients.get(nodeId)
+      if (client === undefined) return 'unknown'
+      return client.currentLink()
     },
 
     async control(nodeId: string, op: MeshControlOp, args: Record<string, unknown>): Promise<unknown> {

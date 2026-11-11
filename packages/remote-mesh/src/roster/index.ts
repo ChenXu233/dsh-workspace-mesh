@@ -19,6 +19,8 @@ export interface PeerView {
   nodeId: string
   label: string
   endpoint: string
+  /** Which path the transport is using right now (direct / hub / unknown). */
+  link: 'direct' | 'hub' | 'unknown'
   status: PeerStatus
   source: PeerSource
   lastSeenAt?: number
@@ -51,6 +53,7 @@ export function seedFromAssignment(
       nodeId: node.nodeId,
       label: node.label ?? '',
       endpoint: node.endpoint ?? '',
+      link: 'unknown',
       status: 'unknown',
       source: 'assignment',
       workspaces: [],
@@ -64,6 +67,7 @@ export function seedFromAssignment(
       nodeId: route.nodeId,
       label: '',
       endpoint: '',
+      link: 'unknown',
       status: 'unknown',
       source: 'assignment',
       workspaces: [],
@@ -71,6 +75,13 @@ export function seedFromAssignment(
     })
   }
   return peers
+}
+
+/** Which path the transport would use for this node; 'unknown' without such a transport. */
+function linkOf(runtime: MeshToolRuntime, nodeId: string): PeerView['link'] {
+  const transport = runtime.transport as { linkMode?: (id: string) => PeerView['link'] } | undefined
+  const mode = transport?.linkMode?.(nodeId)
+  return mode === 'direct' || mode === 'hub' ? mode : 'unknown'
 }
 
 export function mergeDescriptor(peer: PeerView, descriptor: NodeDescriptor): void {
@@ -88,6 +99,7 @@ export function wirePeer(peer: PeerView): Record<string, unknown> {
     nodeId: peer.nodeId,
     label: peer.label === '' ? peer.nodeId : peer.label,
     endpoint: peer.endpoint,
+    link: peer.link,
     online: peer.status === 'online',
     status: peer.status,
     source: peer.source,
@@ -117,6 +129,7 @@ export async function deriveRoster(runtime: MeshToolRuntime): Promise<RosterSnap
           nodeId: descriptor.nodeId,
           label: descriptor.label,
           endpoint: descriptor.endpoint,
+          link: linkOf(runtime, descriptor.nodeId),
           status: descriptor.online ? 'online' : 'offline',
           source: 'transport',
           lastSeenAt: descriptor.lastSeenAt,
