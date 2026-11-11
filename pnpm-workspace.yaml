@@ -1,8 +1,9 @@
 packages:
   - packages/*
 
-onlyBuiltDependencies:
-  - esbuild
+# pnpm 11 replaced onlyBuiltDependencies with allowBuilds.
+allowBuilds:
+  esbuild: true
 
 # dsh-proton* is published from another repo we own; its releases are too fresh
 # for the default quarantine window, and pinning an older version would mean
