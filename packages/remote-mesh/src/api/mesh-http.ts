@@ -45,13 +45,19 @@ export function readWebServer(ctx: unknown): MeshWebServerLike | undefined {
   return typeof (service as { register?: unknown }).register === 'function' ? (service as MeshWebServerLike) : undefined
 }
 
-async function toRequest(req: NodeRequest): Promise<Request> {
+export async function toRequest(req: NodeRequest): Promise<Request> {
   const chunks: Uint8Array[] = []
   for await (const chunk of req) chunks.push(chunk)
   const body = chunks.length === 0 ? undefined : Buffer.concat(chunks)
   const headers = new Headers()
-  const contentType = req.headers['content-type']
-  if (typeof contentType === 'string') headers.set('content-type', contentType)
+  // Copy every header: identity signatures ride on x-mesh-* and a Request built
+  // from only content-type would look unsigned to the handler.
+  const hopByHop = new Set(['host', 'connection', 'content-length', 'transfer-encoding', 'keep-alive', 'upgrade', 'te', 'trailer'])
+  for (const [name, value] of Object.entries(req.headers)) {
+    if (value === undefined || hopByHop.has(name.toLowerCase())) continue
+    if (Array.isArray(value)) headers.set(name, value.join(', '))
+    else headers.set(name, String(value))
+  }
   return new Request(`http://mesh.invalid${req.url ?? '/'}`, {
     method: req.method ?? 'POST',
     headers,

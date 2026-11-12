@@ -40,6 +40,11 @@ export interface HubAgentOptions {
   hubUrl: string
   /** This node's id in the directory. */
   nodeId: string
+  /**
+   * This node's key pair: the public half is registered on join, the private
+   * half signs every request so the hub knows who is calling.
+   */
+  identity: import('./identity.js').NodeIdentity
   /** Address other nodes can dial for this one; empty = relay only. */
   publicUrl: () => string
   /** Shared secret with the hub. */
@@ -119,6 +124,7 @@ export class HubAgent {
       token,
       nodeId: this.options.nodeId,
       url: this.options.publicUrl(),
+      publicKey: this.options.identity.publicKey,
     })
     const peers = (joined as { peers?: HubNodeView[] }).peers ?? []
     this.publishDirectory([...(joined as { node?: HubNodeView }).node ? [(joined as { node: HubNodeView }).node] : [], ...peers])
@@ -128,7 +134,12 @@ export class HubAgent {
     url.searchParams.set('token', this.token())
     url.searchParams.set('nodeId', this.options.nodeId)
     url.searchParams.set('wait', String(wait))
-    const response = await this.fetchImpl(url.toString(), { headers: { accept: 'application/json' } })
+    const response = await this.fetchImpl(url.toString(), {
+      headers: {
+        accept: 'application/json',
+        ...this.options.identity.headers({ nodeId: this.options.nodeId, method: 'GET', path: url.pathname + url.search }),
+      },
+    })
     if (!response.ok) throw new Error('hub inbox answered HTTP ' + response.status)
     const body = (await response.json()) as {
       ok?: boolean
@@ -167,10 +178,16 @@ export class HubAgent {
 
   /** POST JSON to the hub. */
   private async post(path: string, body: unknown): Promise<unknown> {
-    const response = await this.fetchImpl(new URL(path, this.options.hubUrl).toString(), {
+    const target = new URL(path, this.options.hubUrl)
+    const payload = JSON.stringify(body)
+    const response = await this.fetchImpl(target.toString(), {
       method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json',
+        ...this.options.identity.headers({ nodeId: this.options.nodeId, method: 'POST', path: target.pathname, body: payload }),
+      },
+      body: payload,
     })
     if (!response.ok) throw new Error('hub ' + path + ' answered HTTP ' + response.status)
     return await response.json()

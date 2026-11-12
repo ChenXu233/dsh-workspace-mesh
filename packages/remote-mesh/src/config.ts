@@ -28,6 +28,8 @@ export interface MeshHubConfig {
    * administration cannot share one credential.
    */
   adminSecret?: string
+  /** Node ids allowed to administer this hub (evict). Their requests must be signed. */
+  admins?: string[]
 }
 
 export interface MeshPeerConfig {
@@ -213,7 +215,7 @@ function validate(input: unknown): ValidationResult {
     }
     const record = raw as Record<string, unknown>
     for (const key of Object.keys(record)) {
-      if (key !== 'url' && key !== 'nodeId' && key !== 'adminSecret') return { issues: [{ message: `"hub" has unknown field "${key}"`, path: ['hub'] }] }
+      if (key !== 'url' && key !== 'nodeId' && key !== 'adminSecret' && key !== 'admins') return { issues: [{ message: `"hub" has unknown field "${key}"`, path: ['hub'] }] }
     }
     const url = typeof record.url === 'string' ? record.url.trim().replace(/\/+$/u, '') : ''
     if (url !== '' && !/^https?:\/\/[^\s]+$/u.test(url)) {
@@ -221,10 +223,14 @@ function validate(input: unknown): ValidationResult {
     }
     const nodeId = typeof record.nodeId === 'string' ? record.nodeId.trim() : ''
     const adminSecret = typeof record.adminSecret === 'string' ? record.adminSecret.trim() : ''
+    const admins = Array.isArray(record.admins)
+      ? (record.admins as unknown[]).filter((item): item is string => typeof item === 'string' && item.trim() !== '').map(item => item.trim())
+      : []
     value.hub = {
       url,
       ...(nodeId === '' ? {} : { nodeId }),
       ...(adminSecret === '' ? {} : { adminSecret }),
+      ...(admins.length === 0 ? {} : { admins }),
     }
   }
   if (source.peers !== undefined) {

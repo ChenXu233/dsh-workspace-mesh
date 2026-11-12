@@ -12,17 +12,43 @@ import type { MeshToolConfig, MeshToolRuntime } from '../src/tools/types.js'
 import type { MeshHubControl } from '../src/api/hub.js'
 import { HubAgent } from '../src/hub/agent.js'
 import { HubRegistry } from '../src/hub/registry.js'
+import { createIdentity, loadOrCreateKeyPair } from '../src/hub/identity.js'
 import { MESH_TOKEN_TTL_MS, mintMeshToken } from '../src/api/mesh-auth.js'
+import { toRequest } from '../src/api/mesh-http.js'
 
 const SECRET = 'hub-secret'
 const NOW = 1_000_000
+// Two node identities, generated once for the file.
+const IDENTITY_A = createIdentity(loadOrCreateKeyPair(join(tmpdir(), 'mesh-hub-test-a-' + process.pid + '.json')))
+const IDENTITY_B = createIdentity(loadOrCreateKeyPair(join(tmpdir(), 'mesh-hub-test-b-' + process.pid + '.json')))
+const KEY_A = IDENTITY_A.publicKey
+const KEY_B = IDENTITY_B.publicKey
 
-function control(registry: HubRegistry, adminSecret: string = ''): MeshHubControl {
-  return { secret: () => SECRET, registry, now: () => NOW, adminSecret: () => adminSecret }
+function control(registry: HubRegistry, adminSecret: string = '', admins: readonly string[] = []): MeshHubControl {
+  return { secret: () => SECRET, registry, now: () => NOW, adminSecret: () => adminSecret, admins: () => admins }
 }
 
 function token(nodeId: string, expiresAt: number = NOW + MESH_TOKEN_TTL_MS): string {
   return mintMeshToken(SECRET, { nodeId, expiresAt })
+}
+
+/** A request whose body is signed by `identity`, claiming `nodeId`. */
+function signedRequest(
+  path: string,
+  body: unknown,
+  identity: { headers(input: { nodeId: string, method: string, path: string, body?: string }): Record<string, string> },
+  nodeId: string,
+): Request {
+  const text = JSON.stringify(body)
+  return new Request('http://hub.internal' + path, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      // The hub verifies against its own clock, which the tests pin to NOW.
+      ...identity.headers({ nodeId, method: 'POST', path, body: text, now: NOW } as never),
+    },
+    body: text,
+  })
 }
 
 function post(path: string, body: unknown, query = ''): Request {
@@ -40,14 +66,14 @@ function get(path: string, query: string): Request {
 test('a joining node is handed the directory and everyone else sees it', async () => {
   const registry = new HubRegistry(() => NOW)
   const first = await handleHubJoin(post('/api/mesh/hub/join', {
-    token: token('a'), nodeId: 'a', url: 'http://a:3211',
+    token: token('a'), nodeId: 'a', url: 'http://a:3211', publicKey: KEY_A,
   }), control(registry))
   const firstBody = (await first.json()) as Record<string, any>
   assert.equal(firstBody.ok, true)
   assert.deepEqual(firstBody.peers, [])
 
   const second = await handleHubJoin(post('/api/mesh/hub/join', {
-    token: token('b'), nodeId: 'b',
+    token: token('b'), nodeId: 'b', publicKey: KEY_B,
   }), control(registry))
   const secondBody = (await second.json()) as Record<string, any>
   assert.deepEqual(secondBody.peers.map((node: any) => node.nodeId), ['a'])
@@ -157,6 +183,7 @@ test('the agent joins, takes a delivery, runs it locally and answers', async () 
   const agent = new HubAgent({
     hubUrl: 'http://hub.internal',
     nodeId: 'b',
+    identity: IDENTITY_B,
     publicUrl: () => '',
     secret: () => SECRET,
     waitMs: 5,
@@ -297,7 +324,7 @@ test('stats report queue depth and evict removes a node', async () => {
   const evicted = await handleHubEvict(post('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b', adminSecret: 'admin' }), control(registry, 'admin'))
   assert.deepEqual((await evicted.json()) as Record<string, any>, { ok: true, evicted: true })
   assert.equal(registry.size(), 1)
-  assert.deepEqual(registry.recentEvictions().map(item => [item.nodeId, item.by]), [['b', 'admin']])
+  assert.deepEqual(registry.recentEvictions().map(item => [item.nodeId, item.by]), [['b', 'admin-secret']])
 })
 
 test('a node removed from the directory stops being reachable', async () => {
@@ -365,4 +392,59 @@ test('the operator session evicts without any secret and is recorded as such', a
   const response = await handleHubOperatorEvict(post('/api/mesh/hub/admin/evict', { nodeId: 'b' }), control(registry, 'admin'))
   assert.deepEqual((await response.json()) as Record<string, any>, { ok: true, evicted: true })
   assert.deepEqual(registry.recentEvictions().map(item => [item.nodeId, item.by]), [['b', 'operator']])
+})
+
+test('a signed request from a registered admin node evicts and is attributed to it', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'a', url: '', publicKey: KEY_A })
+  registry.join({ nodeId: 'b', url: '', publicKey: KEY_B })
+  const signed = signedRequest('/api/mesh/hub/evict', { token: token('a'), nodeId: 'b' }, IDENTITY_A, 'a')
+  const response = await handleHubEvict(signed, control(registry, '', ['a']))
+  assert.deepEqual((await response.json()) as Record<string, any>, { ok: true, evicted: true })
+  assert.deepEqual(registry.recentEvictions().map(item => [item.nodeId, item.by]), [['b', 'a']])
+})
+
+test('a member cannot act as an admin by signing with its own key', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'a', url: '', publicKey: KEY_A })
+  registry.join({ nodeId: 'b', url: '', publicKey: KEY_B })
+  // 'b' signs a request that claims to be admin node 'a'.
+  const forged = signedRequest('/api/mesh/hub/evict', { token: token('b'), nodeId: 'a' }, IDENTITY_B, 'a')
+  const response = await handleHubEvict(forged, control(registry, '', ['a']))
+  assert.equal(response.status, 403)
+  assert.equal(registry.size(), 2)
+})
+
+test('a re-join cannot rebind a node id to another key', async () => {
+  const registry = new HubRegistry(() => NOW)
+  registry.join({ nodeId: 'a', url: '', publicKey: KEY_A })
+  registry.join({ nodeId: 'a', url: '', publicKey: KEY_B })
+  assert.equal(registry.publicKeyOf('a'), KEY_A)
+})
+
+test('a below-fence request keeps every header, not just content-type', async () => {
+  const chunks = [Buffer.from('{"a":1}')]
+  const req = {
+    url: '/api/mesh/hub/evict',
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-mesh-node': 'a',
+      'x-mesh-ts': '1',
+      'x-mesh-nonce': 'n',
+      'x-mesh-sig': 'sig',
+      connection: 'keep-alive',
+      host: 'hub.internal',
+    },
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) yield chunk
+    },
+  }
+  const request = await toRequest(req as never)
+  // Identity signatures ride on x-mesh-*; dropping them makes every signed call
+  // look unsigned to the handler behind it.
+  assert.equal(request.headers.get('x-mesh-node'), 'a')
+  assert.equal(request.headers.get('x-mesh-sig'), 'sig')
+  assert.equal(request.headers.get('connection'), null)
+  assert.equal(await request.text(), '{"a":1}')
 })

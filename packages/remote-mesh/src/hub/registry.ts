@@ -23,6 +23,14 @@ export interface HubNodeRecord {
   readonly nodeId: string
   /** Address other machines can dial directly; empty means relay-only. */
   readonly url: string
+  /**
+   * SPKI PEM of this node's signing key.
+   *
+   * Pinned on first join (trust on first use): a later join for the same node id
+   * keeps the original key, so claiming someone else's id needs their private
+   * key, not just the shared secret.
+   */
+  publicKey?: string
   readonly joinedAt: number
   lastSeenAt: number
 }
@@ -116,6 +124,9 @@ export class HubRegistry {
         record: {
           nodeId,
           url,
+          ...(typeof (row as { publicKey?: unknown }).publicKey === 'string'
+            ? { publicKey: (row as { publicKey: string }).publicKey }
+            : {}),
           joinedAt: typeof record.joinedAt === 'number' ? record.joinedAt : this.now(),
           lastSeenAt: typeof record.lastSeenAt === 'number' ? record.lastSeenAt : 0,
         },
@@ -142,12 +153,17 @@ export class HubRegistry {
    * @param input - node id and its dialable address (empty for relay-only).
    * @returns the stored record and the other nodes it should learn about.
    */
-  join(input: { nodeId: string; url?: string }): { node: HubNodeRecord; peers: HubNodeRecord[] } {
+  join(input: { nodeId: string; url?: string; publicKey?: string }): { node: HubNodeRecord; peers: HubNodeRecord[] } {
     const at = this.now()
     const existing = this.nodes.get(input.nodeId)
+    const announced = (input.publicKey ?? '').trim()
+    // First join pins the key; afterwards only the pinned key is believed, so a
+    // member cannot re-register another node's id with its own key.
+    const publicKey = existing?.record.publicKey ?? (announced === '' ? undefined : announced)
     const record: HubNodeRecord = {
       nodeId: input.nodeId,
       url: (input.url ?? '').trim(),
+      ...(publicKey === undefined ? {} : { publicKey }),
       joinedAt: existing?.record.joinedAt ?? at,
       lastSeenAt: at,
     }
@@ -169,6 +185,11 @@ export class HubRegistry {
     const state = this.nodes.get(nodeId)
     if (state === undefined) return
     state.record.lastSeenAt = this.now()
+  }
+
+  /** The signing key registered for a node, if any. */
+  publicKeyOf(nodeId: string): string | undefined {
+    return this.nodes.get(nodeId)?.record.publicKey
   }
 
   /** Directory snapshot, newest first. */

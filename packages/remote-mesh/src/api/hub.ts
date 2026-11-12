@@ -13,6 +13,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 
 import { MESH_TOKEN_TTL_MS, mintMeshToken, verifyMeshToken } from './mesh-auth.js'
+import { IDENTITY_HEADERS, verifySignedRequest } from '../hub/identity.js'
 import { jsonResponse, mountExactRoute } from './mount.js'
 
 import { registerMeshPublicRoute } from './mesh-http.js'
@@ -46,6 +47,10 @@ export interface MeshHubControl {
    * can, because it authenticates with the operator's own session).
    */
   adminSecret?: () => string
+  /** Node ids that may administer this hub; their requests must carry a signature. */
+  admins?: () => readonly string[]
+  /** Signed-request nonce cache (replay protection). */
+  nonces?: import('./mesh-auth.js').NonceCache
   registry: HubRegistry
   now?: () => number
 }
@@ -66,6 +71,29 @@ function authorise(control: MeshHubControl, token: unknown): Response | undefine
   if (secret === '') return jsonResponse({ ok: false, error: 'this node has no meshSecret; the hub cannot authenticate callers' }, 503)
   const check = verifyMeshToken(secret, token, (control.now ?? Date.now)())
   return check.ok ? undefined : refuse(check.reason)
+}
+
+/**
+ * Authenticate a signed hub request.
+ * @param request - the incoming request.
+ * @param body - its already-read text (signatures cover the exact bytes).
+ * @param control - hub state.
+ * @returns the authenticated node id, or undefined for an unsigned/refused one.
+ */
+function signedCaller(request: Request, body: string, control: MeshHubControl): { nodeId?: string; reason: string } {
+  const check = verifySignedRequest({
+    headers: request.headers,
+    method: request.method,
+    path: new URL(request.url).pathname,
+    body,
+    publicKeyOf: nodeId => control.registry.publicKeyOf(nodeId),
+    now: (control.now ?? Date.now)(),
+  })
+  if (!check.ok) return { reason: check.reason }
+  // Replay protection: the same nonce twice inside the window is refused.
+  const nonce = request.headers.get(IDENTITY_HEADERS.nonce) ?? ''
+  if (control.nonces !== undefined && !control.nonces.claim(nonce, (control.now ?? Date.now)())) return { reason: 'replay' }
+  return { nodeId: check.nodeId, reason: '' }
 }
 
 /** Read a JSON body, answering 400 on malformed input. */
@@ -107,10 +135,14 @@ export async function handleHubJoin(request: Request, control: MeshHubControl): 
   const nodeId = typeof body.nodeId === 'string' ? body.nodeId.trim() : ''
   if (nodeId === '') return jsonResponse({ ok: false, error: 'nodeId must be a non-empty string' }, 400)
   const url = typeof body.url === 'string' ? body.url.trim() : ''
-  const joined = control.registry.join({ nodeId, url })
+  const publicKey = typeof body.publicKey === 'string' ? body.publicKey.trim() : ''
+  if (publicKey === '' || !publicKey.includes('BEGIN PUBLIC KEY')) {
+    return jsonResponse({ ok: false, error: 'join requires the node public key (SPKI PEM)' }, 400)
+  }
+  const joined = control.registry.join({ nodeId, url, publicKey })
   return jsonResponse({
     ok: true,
-    node: toWire(joined.node),
+    node: { ...toWire(joined.node), publicKey: joined.node.publicKey ?? publicKey },
     peers: joined.peers.map(toWire),
     revision: control.registry.size(),
   }, 200)
@@ -366,18 +398,28 @@ export async function handleHubEvict(request: Request, control: MeshHubControl):
   }
   const denied = authorise(control, body.token)
   if (denied !== undefined) return denied
-  // Membership is not authority: the shared secret is held by every member.
+  // Membership is not authority, and identity must be proved, not claimed: the
+  // caller is either a node whose signed request checks out and whose id is in
+  // hub.admins, or the operator presenting hub.adminSecret.
+  const rawBody = JSON.stringify(body)
+  const signed = signedCaller(request, rawBody, control)
+  const admins = control.admins?.() ?? []
+  const signedAdmin = signed.nodeId !== undefined && admins.includes(signed.nodeId)
   const admin = (control.adminSecret?.() ?? '').trim()
   const presented = typeof body.adminSecret === 'string' ? body.adminSecret.trim() : ''
-  if (admin === '' || presented === '' || presented !== admin) {
-    return jsonResponse({ ok: false, error: 'evict requires the hub admin secret (hub.adminSecret)' }, 403)
+  const secretOk = admin !== '' && presented !== '' && presented === admin
+  if (!signedAdmin && !secretOk) {
+    const why = signed.nodeId === undefined
+      ? `signed request refused: ${signed.reason}`
+      : `node ${signed.nodeId} is not in hub.admins`
+    return jsonResponse({ ok: false, error: 'evict requires a signed admin node or the hub admin secret (' + why + ')' }, 403)
   }
   const nodeId = typeof body.nodeId === 'string' ? body.nodeId.trim() : ''
   if (nodeId === '') return jsonResponse({ ok: false, error: 'nodeId is required' }, 400)
   if (control.registry.directory().every(record => record.nodeId !== nodeId)) {
     return jsonResponse({ ok: false, error: 'no such node in the directory' }, 404)
   }
-  const by = typeof body.by === 'string' && body.by.trim() !== '' ? body.by.trim() : 'admin'
+  const by = signedAdmin ? String(signed.nodeId) : 'admin-secret'
   const evicted = control.registry.leave(nodeId, 'removed by ' + by, by)
   console.warn('[mesh] hub evicted ' + nodeId + ' (by ' + by + ')')
   return jsonResponse({ ok: true, evicted }, 200)

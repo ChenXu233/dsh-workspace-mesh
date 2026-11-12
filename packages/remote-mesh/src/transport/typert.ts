@@ -71,6 +71,14 @@ export interface TypertTransportOptions {
   /** Hub origin; required when any peer is marked `via: 'hub'`. */
   hubUrl?: string
   /**
+   * This node's signing identity for hub requests.
+   *
+   * The hub pins the public half on join; every forwarded request carries a
+   * signature over method + path + body so the hub (and its audit trail) knows
+   * which node is calling instead of trusting a claim.
+   */
+  hubIdentity?: { nodeId: string; headers(input: { nodeId: string, method: string, path: string, body?: string }): Record<string, string> }
+  /**
    * How long one peer is left alone after a failed call (default 60s).
    *
    * The page polls state every few seconds; without a cooldown a stale token
@@ -193,7 +201,9 @@ class TypertClient {
     /** Shared secret; set means relay mode. */
     private readonly meshSecret: string = '',
     /** Hub origin for `via: 'hub'` peers; empty = dial the peer directly. */
-    private readonly hubUrl: string = '',
+    private readonly hubUrl: string,
+  /** Signing identity for hub requests; absent = unsigned (legacy). */
+  private readonly hubIdentity?: TypertTransportOptions['hubIdentity'],
   ) {}
 
   /** True when this peer can be reached through the hub. */
@@ -272,11 +282,24 @@ class TypertClient {
       headers,
       ...(rawBody === undefined ? {} : { body: Buffer.from(rawBody, 'utf8').toString('base64') }),
     }
-    const response = await this.fetchImpl(new URL('/api/mesh/hub/forward?nodeId=' + encodeURIComponent(this.peer.nodeId), this.hubUrl).toString(), {
+    const forwardPath = '/api/mesh/hub/forward'
+    const envelopeText = JSON.stringify(envelope)
+    // Prove which node is calling: the hub verifies this against the key pinned
+    // at join, so a member cannot act as another node.
+    const identityHeaders = this.hubIdentity?.headers({
+      nodeId: this.hubIdentity.nodeId,
       method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify(envelope),
-    })
+      path: forwardPath,
+      body: envelopeText,
+    }) ?? {}
+    const response = await this.fetchImpl(
+      new URL(forwardPath + '?nodeId=' + encodeURIComponent(this.peer.nodeId), this.hubUrl).toString(),
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json', ...identityHeaders },
+        body: envelopeText,
+      },
+    )
     const payload = (await response.json()) as {
       ok?: boolean
       error?: string
@@ -595,7 +618,9 @@ export interface TypertTransport extends MeshTransport {
   linkMode(nodeId: string): 'direct' | 'hub' | 'unknown'
 }
 
-export function createTypertTransport(options: TypertTransportOptions): TypertTransport {
+export function createTypertTransport(input: TypertTransportOptions): TypertTransport {
+  // A config without `peers` is legitimate (a hub-only node has none yet).
+  const options: TypertTransportOptions = { ...input, peers: input.peers ?? [] }
   const fetchImpl = options.fetchImpl ?? fetch
   const pollMs = options.pollMs ?? 1000
   const now = options.now ?? Date.now
@@ -633,6 +658,7 @@ export function createTypertTransport(options: TypertTransportOptions): TypertTr
         // fallback for configs that predate per-peer secrets.
         peer.secret ?? options.meshSecret ?? '',
         options.hubUrl ?? '',
+        options.hubIdentity,
       ),
     )
   }

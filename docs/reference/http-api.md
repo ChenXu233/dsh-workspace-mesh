@@ -337,7 +337,18 @@ GET  /api/mesh/hub/live?token=&nodeId=&sessionId=&since=  → text/event-stream
 
 `stats` 是给管理面看的：每个节点的队列深度、「多久没心跳」，以及最近的移除记录（`evictions[]`，含 `by` 与 `reason`）；`evict` 把它从目录里删掉（它排队中的请求立刻失败，要重新 join）。
 
-**权限**：`evict` 除了 mesh token 还要 `hub.adminSecret`——成员与管理员不能共用一把钥匙，否则任何成员都能踢人。没配 `adminSecret` 时节点侧的 `evict` 一律 403。操作者自己的浏览器走 fence 内的 `POST /api/mesh/hub/admin/evict { nodeId }`：cookie 就是凭据，页面里不存 adminSecret。
+**身份**：共享密钥只证明「属于这个域」，不能证明「是哪台」。所以每个节点有自己的 Ed25519 密钥对（`$DSH_HOME/mesh-node-key.json`），join 时把公钥交给汇点（首次即绑定）；之后发往汇点的请求带
+
+```text
+x-mesh-node: <nodeId>
+x-mesh-ts: <unix ms>            # 与服务端时钟差 > 60s 即拒
+x-mesh-nonce: <随机串>          # 窗口内重复即拒
+x-mesh-sig: <base64url 签名>    # 覆盖 nodeId\nts\nnonce\n方法\n路径\nbody 的 sha256
+```
+
+汇点用首次绑定的公钥验签，于是「自称是谁」不再等于「是谁」——成员用自己的私钥冒充别人只会得到 `bad-signature`。
+
+**权限**：`evict` 的调用者要么是签名通过、且 nodeId 在 `hub.admins` 里的节点，要么持有 `hub.adminSecret`；两者都不满足一律 403。操作者自己的浏览器走 fence 内的 `POST /api/mesh/hub/admin/evict { nodeId }`：cookie 就是凭据，页面里不存 adminSecret。
 
 `live` 把「一条长流」换成「许多次短读」：汇点每 350ms 向目标节点要一次 `assistant-live`（`since` 递增），把增量重新写成 SSE 事件，调用方因此仍是一条打开的响应。代价是每批帧一次队列往返——这是汇点缓冲语义下能给出的最好结果。
 

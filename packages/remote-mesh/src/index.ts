@@ -19,11 +19,13 @@ import { hostname } from 'node:os'
 import { dirname, join } from 'node:path'
 
 import { handleHubOperatorEvict, MESH_HUB_ADMIN_EVICT_PATH, registerMeshHubRoutes } from './api/hub.js'
+import { NonceCache } from './api/mesh-auth.js'
 import { mountExactRoute, withConnection } from './api/mount.js'
 import { registerMeshHubLinkRoutes } from './api/hub-link.js'
 import { handleHandshake, meshHandshakeControl, MESH_HANDSHAKE_PATH } from './api/handshake.js'
 import { HubRegistry } from './hub/registry.js'
 import { hubStatus } from './hub/status.js'
+import { createIdentity, loadOrCreateKeyPair } from './hub/identity.js'
 import { HubAgent } from './hub/agent.js'
 import { registerMeshRemoteRoute } from './api/remote.js'
 import { registerMeshHandshakeRoute } from './api/handshake.js'
@@ -55,7 +57,7 @@ export interface MeshConfig {
   /** Address other machines should use to reach this one; empty = detect. */
   publicUrl?: string
   /** Join this hub: it keeps the directory and relays to nodes without inbound ports. */
-  hub?: { url: string, nodeId?: string, adminSecret?: string }
+  hub?: { url: string, nodeId?: string, adminSecret?: string, admins?: string[] }
   /** Assignment table path (SPEC §5.4), resolved against the host process cwd. */
   assignmentFile?: string
   /** Default lease TTL for a dispatched task. */
@@ -141,6 +143,22 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
    * pair: everything downstream reads `runtime.transport`, never a captured
    * variable, which is what makes the swap take effect without a restart.
    */
+  /** This node's name in a hub directory: config, else the dialable address, else the hostname. */
+  const meshNodeId = (): string => {
+    if (config.hub?.nodeId !== undefined && config.hub.nodeId !== '') return config.hub.nodeId
+    if (config.publicUrl !== undefined && config.publicUrl !== '') return new URL(config.publicUrl).host
+    const machine = hostname()
+    return /^[0-9a-f]{12,}$/i.test(machine) ? 'node' : machine
+  }
+
+  /** This node's key pair: generated on first use, never leaves the machine. */
+  const identityKeyFile = join(dirname(overrideFile), 'mesh-node-key.json')
+  let nodeIdentity: ReturnType<typeof createIdentity> | undefined
+  const identityFor = (nodeId: string): ReturnType<typeof createIdentity> => {
+    if (nodeIdentity === undefined) nodeIdentity = createIdentity(loadOrCreateKeyPair(identityKeyFile))
+    return nodeIdentity
+  }
+
   const buildTransport = (): void => {
     const peers = config.peers ?? []
     if (peers.length === 0) {
@@ -156,6 +174,17 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
           .map((route) => ({ workspaceId: route.workspaceId, cwd: route.cwd as string })),
       ...(config.meshSecret === undefined || config.meshSecret === '' ? {} : { meshSecret: config.meshSecret }),
       ...(config.hub === undefined || config.hub.url === '' ? {} : { hubUrl: config.hub.url }),
+      // Signed hub calls: the hub pins this key on join, so "who is calling" is
+      // proved rather than claimed.
+      ...(config.meshSecret === undefined || config.meshSecret === ''
+        ? {}
+        : {
+          hubIdentity: {
+            nodeId: meshNodeId(),
+            headers: (input: { nodeId: string, method: string, path: string, body?: string }) =>
+              identityFor(input.nodeId).headers(input),
+          },
+        }),
       resolveWorkspace: (workspaceId) => {
         const route = assignment?.assignments.find((item) => item.workspaceId === workspaceId)
         if (route?.cwd === undefined || route.cwd === '') return undefined
@@ -258,6 +287,8 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
       secret: hubSecret,
       registry: hubRegistry,
       adminSecret: () => config.hub?.adminSecret ?? '',
+      admins: () => config.hub?.admins ?? [],
+      nonces: new NonceCache(),
     })
     // The operator's own browser evicts through the fence: its session is the
     // credential, so the page never holds the admin secret.
@@ -269,6 +300,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
           secret: hubSecret,
           registry: hubRegistry,
           adminSecret: () => config.hub?.adminSecret ?? '',
+          admins: () => config.hub?.admins ?? [],
         }),
       })
       return true
@@ -336,6 +368,7 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
    * Join the configured hub (idempotent). Called at apply and again when a join
    * link is adopted at runtime, so adopting does not need a restart.
    */
+
   const startHubAgent = (): void => {
     if (hubAgent !== undefined) return
     if (config.hub === undefined || config.hub.url === '') return
@@ -349,9 +382,13 @@ export function apply(ctx: Context, rawConfig: MeshConfig = {}): void {
     const hubNodeId = config.hub.nodeId !== undefined && config.hub.nodeId !== ''
       ? config.hub.nodeId
       : (derived === '' ? 'node' : derived)
+    const nodeId = hubNodeId === '' ? 'node' : hubNodeId
     const agent = new HubAgent({
       hubUrl,
-      nodeId: hubNodeId === '' ? 'node' : hubNodeId,
+      nodeId,
+      // Signed requests: the hub pins this key on first join and can then tell
+      // one node from another instead of trusting a self-filled claim.
+      identity: identityFor(nodeId),
       publicUrl: () => config.publicUrl ?? '',
       secret: () => config.meshSecret ?? '',
       dispatch: async (delivery) => {
