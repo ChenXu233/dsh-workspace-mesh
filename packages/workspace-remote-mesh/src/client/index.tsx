@@ -26,7 +26,6 @@ import { en, NS, zh } from './locales'
 import type { RemoteTranslate } from './locales'
 import { currentDispatchTarget, subscribeDispatchTarget } from './dispatch-target'
 import type { DispatchTarget } from './dispatch-target'
-import { createRemotePickerExtras } from './picker-source'
 import { protonOf, RemoteSessionHeader, RemoteTranscript, ShippedConversation } from './remote-page'
 import { sendRemoteMessage, shellSessionSource, syncRemoteSession } from './remote-session'
 import { RemoteSection } from './remote-section'
@@ -107,10 +106,6 @@ export function apply(ctx: Context): void {
         'remote-mesh: hidden shell session',
       )
     }
-    // The hero picker offers the peer's Workspaces beside the local ones; the
-    // pick itself is remembered as a dispatch target, never as a Session here.
-    const extras = createRemotePickerExtras()
-    scoped.effect(() => scoped.protonWorkspace.addPickerExtras(extras), 'remote-mesh: picker rows')
     // The adapter does not take the composer seat on its own; this package is
     // the asker. The seat leaves with this effect, restoring the shipped path.
     scoped.effect(() => scoped.protonComposer.addSubmitTap(), 'remote-mesh: composer seat')
