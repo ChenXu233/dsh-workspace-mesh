@@ -75,6 +75,10 @@ node scripts/build-client.mjs   # 只重建浏览器半区（改 client/src 后�
 node --check client/client.js   # 改过浏览器半区后必须跑
 ```
 
+`workspace-remote-mesh` 的 vendor 树由 `patches/` 叠加：它的 `typecheck`/`build` 脚本会先打补丁。
+裸跑 `tsc -p packages/workspace-remote-mesh/tsconfig.json` 看到的是未打补丁的 vendor 树，
+那里的报错不代表代码有问题（例如 `GroupNode.remote` 只存在于补丁里）。
+
 没有 pnpm 时的等价写法：
 
 ```sh
