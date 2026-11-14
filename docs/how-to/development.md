@@ -13,7 +13,7 @@
 | 方式 | 谁用 | 需要什么 | 每轮迭代 |
 | --- | --- | --- | --- |
 | **A. pack 云端 dev 链路（我们自己的做法）** | 维护者，以及有自己服务器的贡献者 | 自己的开发服务器 + oh-my-dsh-pack 的开发覆盖层 | `pnpm verify` + 一条同步脚本 + 容器重启 |
-| B. 本地安装（`link:` / `file:`） | 只改浏览器半侧、或本机调试 | 本地 dsh ≥ 0.2.1-rc.2 | `pnpm build` + 重启本地 dsh |
+| B. 本地安装（`link:` / `file:`） | 只改浏览器半侧、或本机调试 | 本地 dsh ≥ 0.2.2-rc.3 | `pnpm build` + 重启本地 dsh |
 | C. 发布物安装 | 使用者 / 别的项目 | `dsh plugin add dsh-workspace-mesh` | 发版本 |
 
 ## 1. 我们的开发方式：pack 云端 dev 链路

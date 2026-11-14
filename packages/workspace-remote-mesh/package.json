@@ -1,6 +1,6 @@
 {
   "name": "dsh-proton-workspace-remote-mesh",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "侧栏「远程工作区」段：由质子托管的区段条目，只画对端的工作区",
   "type": "module",
   "license": "Apache-2.0",
@@ -34,7 +34,7 @@
       "patch": "./cordis.patch.yml"
     },
     "engines": {
-      "dsh": ">=0.2.2-rc.1"
+      "dsh": ">=0.2.2-rc.3"
     },
     "client": {
       "platform": "web",

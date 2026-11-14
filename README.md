@@ -54,7 +54,7 @@ flowchart LR
 
 | | |
 | --- | --- |
-| dsh | `>=0.2.1-rc.2` — declared in `dsh.engines`, checked when the bundle loads |
+| dsh | `>=0.2.2-rc.3` — declared in `dsh.engines`, checked when the bundle loads |
 | Node.js | `>=20` |
 | Runtime dependencies | none |
 | Peers | a DSH instance serving its web UI (the transport calls `/connect` and `/api/...` there) |

@@ -49,7 +49,7 @@ flowchart LR
 
 | | |
 | --- | --- |
-| dsh | `>=0.2.1-rc.2`——写在 `dsh.engines` 里，bundle 加载时校验 |
+| dsh | `>=0.2.2-rc.3`——写在 `dsh.engines` 里，bundle 加载时校验 |
 | Node.js | `>=20` |
 | 运行时依赖 | 无 |
 | 对端 | 一台对外提供 web UI 的 DSH 实例（传输调它的 `/connect` 与 `/api/...`） |

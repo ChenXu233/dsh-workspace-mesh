@@ -1,6 +1,6 @@
 {
   "name": "dsh-workspace-mesh",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Workspace mesh for DeepSeek Harness: declare which workspace lives on which host, dispatch tasks by workspace across paired DSH instances, and control the remote host lifecycle. The agent loop never leaves the owning machine.",
   "type": "module",
   "main": "lib/index.js",
@@ -79,7 +79,7 @@
       "patch": "./cordis.patch.yml"
     },
     "engines": {
-      "dsh": ">=0.2.1-rc.2"
+      "dsh": ">=0.2.2-rc.3"
     },
     "client": {
       "platform": "web",
