@@ -1,7 +1,7 @@
 {
   "name": "dsh-workspace-mesh-repo",
   "private": true,
-  "version": "0.3.3",
+  "version": "0.3.4",
   "type": "module",
   "packageManager": "pnpm@11.28.5",
   "license": "Apache-2.0",
