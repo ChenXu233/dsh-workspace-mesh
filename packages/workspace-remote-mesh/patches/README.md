@@ -14,5 +14,4 @@ node scripts/vendor-upstream.mjs --check
 
 当前补丁：
 
-- `01-remote-rows.patch` —— 让官方行组件认识「远程工作区」这一种行：地球图标、`@机器名` 后缀、隐藏本机动作、悬浮卡写机器与远端路径。官方段不经过这份补丁；它只服务我们自己的段。
-- `02-session-cell-metrics.patch` —— 补上官方会话行后来的两条样式：标题占满行内剩余空间（时间列才贴右边）、时间包在可被悬浮动作替换的 resting 单元格里，内缩用侧栏自己的 `--dsh-sidebar-*` 令牌算。远程组的会话行复用这份单元格样式。
+- `01-remote-rows.patch` —— 在官方 `Rows.tsx` 里加一个只服务远程段的 `RemoteProjectRowItem` 变体：地球图标、`@机器名` 后缀、悬浮卡写机器与远端路径；没有本地动作。官方 `ProjectRowItem` 与官方段不经过它。

@@ -77,7 +77,7 @@ const provenanceOf = (id) => {
 let conflicts = 0
 for (const pkg of selected) {
   const provenance = provenanceOf(pkg.id)
-  const tag = value('--tag') ?? provenance.tag ?? 'dsh-v0.2.1-rc.5'
+  const tag = value('--tag') ?? provenance.tag ?? 'dsh-v0.2.2-rc.3'
   const target = join(VENDOR, pkg.id)
 
   const tmp = join(REPO_ROOT, '.vendor-tmp-' + pkg.id)

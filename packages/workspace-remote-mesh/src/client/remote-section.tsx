@@ -6,10 +6,11 @@
  * the shipped list and owns only its own rows. It never sees the shipped list,
  * never wraps it, and never registers a second workspace browser.
  *
- * Rows are drawn by the shipped browser's own row component (vendor copy), so a
- * remote Workspace looks and behaves like a local one without either list
- * knowing about the other: the row receives a remote mark, and every local-only
- * affordance (drag, rename, delete, new Session) is absent by construction.
+ * Rows reuse the shipped browser's row layout through the vendored
+ * `RemoteProjectRowItem` variant, so a remote Workspace looks like a local one
+ * without either list knowing about the other: the row carries a remote mark,
+ * and every local-only affordance (drag, rename, delete, new Session) is absent
+ * by construction.
  *
  * A remote group opens onto the Session summaries its owning machine publishes
  * (the mesh transport already collects them). They are read-only here: the log,
@@ -21,7 +22,7 @@ import {
   IconProjectAddOutlineRegular, StateDot, Tooltip, relativeTime,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { WorkspaceBrowserProps } from '../../vendor/ui-workspace/src/client/contract/slots.ts'
-import { ProjectRowItem } from '../../vendor/ui-workspace/src/client/rows/Rows.tsx'
+import { RemoteProjectRowItem } from '../../vendor/ui-workspace/src/client/rows/Rows.tsx'
 import css from '../../vendor/ui-workspace/src/client/rows/Rows.module.css'
 import type { GroupNode } from '../../vendor/ui-workspace/src/client/tree.ts'
 import type { RemoteTranslate } from './locales'
@@ -221,11 +222,10 @@ export function RemoteSection({ t, rowT }: RemoteSectionProps): JSX.Element {
           const active = key === activeKey
           return (
             <div key={key} style={GROUP}>
-              <ProjectRowItem
+              <RemoteProjectRowItem
                 group={groupOf(row, open)}
                 t={rowT}
                 onToggle={() => { toggle(key) }}
-                onCreate={() => {}}
               />
               {open && (
                 <div role="group" aria-label={row.title === '' ? baseName(row.remotePath) : row.title}>

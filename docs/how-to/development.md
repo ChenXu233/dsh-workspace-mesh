@@ -68,7 +68,7 @@ pwsh <pack>/scripts/sync-plugin.ps1 -Plugin dsh-workspace-mesh
 
 **官方 `ui-workspace` 不要停用**：它仍是被渲染的组件，质子只是在它外面占座。profile patch 里保留官方的 `- id: ui-workspace`，另外 `insert` 上面四个包。
 
-改 vendor 的姿势固定三步：改 `vendor/ui-workspace/**` → `git diff` 落到 `packages/workspace-remote-mesh/patches/<主题>.patch` → `git checkout -- packages/workspace-remote-mesh/vendor`。构建与 typecheck 走 `scripts/with-vendor-patches.mjs`，补丁套不上会直接失败。vendor 只用于**远程段的行组件**（`ProjectRowItem`）与其 CSS，官方段不经过它。
+改 vendor 的姿势固定三步：改 `vendor/ui-workspace/**` → `git diff` 落到 `packages/workspace-remote-mesh/patches/<主题>.patch` → `git checkout -- packages/workspace-remote-mesh/vendor`。构建与 typecheck 走 `scripts/with-vendor-patches.mjs`，补丁套不上会直接失败。vendor 只用于**远程段的行组件**（`Rows.tsx` 的 `RemoteProjectRowItem` 变体）与其 CSS，官方段与官方 `ProjectRowItem` 不经过它。
 
 远程段只读 `assignment.yml` 与 `/api/mesh/state` 的 `peers[].workspaces`，不创建本地记录、不写目录。
 

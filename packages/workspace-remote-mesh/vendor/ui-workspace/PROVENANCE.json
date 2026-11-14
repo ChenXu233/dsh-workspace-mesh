@@ -1,7 +1,7 @@
 {
   "source": "https://github.com/deepseek-ai/deepseek-harness",
-  "tag": "dsh-v0.2.1-rc.5",
-  "commit": "b830ec950faba0a46dda564be3e2d854afed94f1",
+  "tag": "dsh-v0.2.2-rc.3",
+  "commit": "38a6a5c965aa99ab525161efb7cc5cf1fe62fced",
   "path": "packages/client/ui-workspace",
   "license": "MIT",
   "copied": [
@@ -9,6 +9,8 @@
     "locale",
     "package.json"
   ],
-  "patches": [],
-  "note": "原样存放，不手工编辑。改动放 packages/workspace-seat/patches/。"
+  "patches": [
+    "01-remote-rows.patch"
+  ],
+  "note": "原样存放，不手工编辑。改动放 packages/workspace-remote-mesh/patches/。"
 }

@@ -151,17 +151,17 @@ mesh 只有在多台 DSH 实例说同一种语言时才有用，采用率优先�
 
 - `sidebar.workspaces` 由 `dsh-proton-adapter-dsh` 影子（outlet 的 priority 默认 -100，官方注册默认 0，低者占格）。官方 entry 仍在槽里，质子用 entry face 合成它需要的 kit 后渲染**官方原组件**；官方 bundle 不禁用、不替换，其他插件往官方声明的子槽（`directoryFlow`、`session.menu.item`、`session.row.action`、`sidebar.session.row.*`）注册的条目照常渲染。
 - 质子在这个座位里分栏：主栏是官方浏览器（`flex:1`，内部滚动），下栏是该 region 的 contributions（本仓库的「远程工作区」就是一条），中间是可拖拽分隔条；比例持久化在 `dsh.proton.split.v1`，与官方视图状态 `dsh.workspace.view` 用同一个 client store 引擎。
-- vendor 源码只服务**我们这一段的行**：`ProjectRowItem` 直接从 `vendor/ui-workspace` import，官方的段不经过我们的任何代码。
+- vendor 源码只服务**我们这一段的行**：`RemoteProjectRowItem`（`Rows.tsx` 里的远程变体）直接从 `vendor/ui-workspace` import，官方段与官方 `ProjectRowItem` 不经过我们的任何代码。
 
 理由：
 
 - 兼容性：官方仍是被渲染的组件，它的子槽与 store 都还在，别的插件不需要知道座位被影子过。
-- 远程行借用官方行组件，才有同一套排版、悬浮卡与机器后缀；这份改动只落在我们段里，改坏了也碰不到官方列表。
+- 远程行借用同一份 `Rows.tsx` 的排版与悬浮卡，才有同一套行高、图标槽与机器后缀；这份改动只落在我们段里，改坏了也碰不到官方列表。
 
 代价：
 
 - 质子要维护 kit（locale 绑定、store 实例、selector hook）——这是质子的本职，不是额外的域逻辑。
-- vendor 目录留着一份上游源码（pin 在 `dsh-v0.2.1-rc.5`），补丁只动 `Rows.tsx` / `tree.ts` / `Rows.module.css`，构建期打上、跑完还原。
+- vendor 目录留着一份上游源码（pin 在 `dsh-v0.2.2-rc.3`），补丁只动 `Rows.tsx` / `tree.ts` / `Rows.module.css`，构建期打上、跑完还原。
 - 分栏比例按槽名存一份；官方浏览器自己不知道下面还有一段。
 
 推翻它的条件：官方给侧栏开出「多区段」的正式机制，那时分栏与 contribution 可以退回普通槽。
