@@ -11283,8 +11283,8 @@ function PairingPanel(props) {
   return jsx4.jsxs("div", { className: "dwm-section", children: [
     jsx4.jsx("h3", { className: "dwm-h3", children: t("\u4E00\u952E\u914D\u5BF9", "Pair a machine") }),
     jsx4.jsx("p", { className: "dwm-hint", children: t(
-      "\u914D\u5BF9\u94FE\u63A5\u91CC\u5E26\u7740\u8FD9\u53F0\u673A\u5668\u7684\u5730\u5740\u4E0E\u5171\u4EAB\u5BC6\u94A5\uFF1A\u5728\u5BF9\u65B9\u673A\u5668\u4E0A\u6253\u5F00\u5B83\uFF0C\u4E24\u8FB9\u5C31\u901A\u4E86\uFF0C\u4E0D\u7528\u624B\u6539 mesh-config.json\u3002",
-      "The link carries this machine's URL and shared secret: open it on the other machine and both sides are connected, with no hand-edited mesh-config.json."
+      "\u914D\u5BF9\u94FE\u63A5\u91CC\u5E26\u7740\u8FD9\u53F0\u673A\u5668\u7684\u5730\u5740\u4E0E\u5171\u4EAB\u5BC6\u94A5\uFF1A\u628A\u94FE\u63A5\u53D1\u7ED9\u5BF9\u65B9\uFF0C\u5BF9\u65B9\u5728\u300C\u4E00\u952E\u914D\u5BF9\u300D\u91CC\u7C98\u8D34\u5BFC\u5165\uFF0C\u4E24\u8FB9\u5C31\u901A\u4E86\uFF0C\u4E0D\u7528\u624B\u6539 mesh-config.json\u3002",
+      "The link carries this machine's URL and shared secret: send it over; the other machine pastes it into 'Pair a machine' and both sides are connected, with no hand-edited mesh-config.json."
     ) }),
     jsx4.jsxs("div", { className: "dwm-pair-row", children: [
       jsx4.jsx(TextInput, {

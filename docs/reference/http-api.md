@@ -217,7 +217,7 @@ data: { "type": "ping" }
 
 ## 11. GET /api/mesh/pair-link 与 POST /api/mesh/pair
 
-一键配对：这台机器发一张「名片」，另一台机器打开它就多出一个对端。
+一键配对：这台机器发一张「名片」，另一台机器导入它就多出一个对端。
 
 ```text
 GET  /api/mesh/pair-address
@@ -228,7 +228,7 @@ POST /api/mesh/pair   { token } 或 { link }
   → { ok, peers, peer }
 ```
 
-链接形如 `<本机地址>/#mesh-pair=<base64url JSON>`，负载是 `{ v: 1, nodeId, url, secret }`。负载放在 `#` 后面而不是查询串：Web UI 对 `/?token=` 会 302 到 `/`，查询串被丢掉，片段会跟着走。在对方机器上打开链接，前端把负载 POST 回来，对端就写进自己的 `peers`（`secret` 是这一对端专用的），随后重建传输、立即生效。
+链接形如 `<本机地址>/#mesh-pair=<base64url JSON>`，负载是 `{ v: 1, nodeId, url, secret }`。负载放在 `#` 后面而不是查询串：Web UI 对 `/?token=` 会 302 到 `/`，查询串会被丢掉，片段会跟着走。名片的传递是**粘贴**：另一台机器把整条链接（或其中的 token）交给自己的 `/api/mesh/pair`，写进自己的 `peers`（`secret` 是这一对端专用的），随后重建传输、立即生效。链接的 origin 是生成方，在浏览器里打开它只会加载生成方的页面，导入不会发生在打开者那台机器上。
 
 生成这一侧如果还没有 `meshSecret`，会当场生成并落盘——否则发出去的名片在对方那儿验不过。
 

@@ -61,16 +61,20 @@ flowchart LR
 dsh plugin --profile web add dsh-workspace-mesh
 ```
 
-或者不安装，直接用覆盖层补丁（`--patch`）挂载——`name` 是模块名：
+装完即挂载：包的 bundle 层自带 `insert`（`id: mesh` / `name: dsh-workspace-mesh`，见
+[cordis.patch.yml](./packages/remote-mesh/cordis.patch.yml)），重启后四个工具、设置页「工作区网格」和配对
+链接处理器都会出现。
+
+配置不烤进包：设置页与配对/加入链接写 `$DSH_HOME/mesh-config.json`。部署脚本要预置条目级默认值时，在
+profile patch 里写**覆盖行**——不是 `insert`：
 
 ```yaml
-- insert:
-    - id: mesh
-      name: dsh-workspace-mesh
+- id: mesh
+  config:
+    assignmentFile: ./assignment.yml
 ```
 
-仓库里自带的 [cordis.patch.yml](./cordis.patch.yml) 故意是空数组：条目属于部署者的 profile patch，这样它才有
-唯一地址。
+同 id `insert` 两次会挂两份。已经手写 `- insert: - id: mesh` 的 profile，升级前把它改成上面的覆盖行。
 
 ## 快速开始
 
@@ -79,21 +83,22 @@ dsh plugin --profile web add dsh-workspace-mesh
 调用方需要插件来提供工具和传输。对端需要它来发布自己的原生工作区（`GET /api/mesh/workspaces`），走 relay
 模式时还需要它来挂握手与中继路由。对端不装也能用：只要每条 assignment 都带 `cwd`，传输就在那个目录里建会话。
 
-### 2. 配 peer
+### 2. 配对：交换一张链接
 
-在调用方的 profile patch 里：
+在**对端**（要被投递的那台机器）打开 设置 → 工作区网格 → 「一键配对」，生成链接；在**调用方**的同一页把它
+粘进导入框。导入只写这一对端的 `peers[]` 并重建传输，热生效，不重启。
+
+链接里带的是对端地址与这一对端专用的密钥，不是会轮换的登录 token，所以对端重启也不失效。要由部署脚本预置时，
+在调用方的 profile patch 里写覆盖行：
 
 ```yaml
-- insert:
-    - id: mesh
-      name: dsh-workspace-mesh
-      config:
-        peers:
-          - nodeId: tencent
-            baseUrl: https://dsh.example.com   # 对端 web 根地址
-            token: <登录 token>                # dsh web 启动时打印的 ?token= 值
-        meshSecret: <共享密钥>                 # 可选：relay 模式，见「凭证」
-        assignmentFile: ./assignment.yml       # 相对宿主进程 cwd
+- id: mesh
+  config:
+    peers:
+      - nodeId: tencent
+        baseUrl: https://dsh.example.com   # 对端 web 根地址
+        secret: <配对链接里带的密钥>        # 或者 token: <登录 token>
+    assignmentFile: ./assignment.yml       # 相对宿主进程 cwd
 ```
 
 ### 3. 声明工作区在哪台机器上
@@ -157,9 +162,8 @@ relay 模式下，调用方用共享密钥签 `mesh-handshake:<nodeId>:<ts>:<non
 
 ## 设置页
 
-浏览器半区注册了四块界面：设置里的「工作区网格」一节、插件详情页上的实时配置卡、左栏的「工作区网格」入口，
-以及这个入口打开的整页——列出这台实例能触达的每个工作区、它归哪台机器、那台机器在不在线，能给它发一条消息，也
-能只读地看远端会话的尾部。远端工作区在那里是虚拟的：什么都不复制，loop 仍然跑在归属机上。
+浏览器半区只注册一个界面：设置 → **工作区网格**。传输与对端状态、工作区归属、拓扑画布、一键配对、域（hub）
+和实时配置表单都在这一页。远端工作区在这里是虚拟的：什么都不复制，loop 仍然跑在归属机上。
 
 ```text
 浏览器路由    在宿主的签名 cookie 栅栏内
@@ -178,7 +182,8 @@ relay 模式下，调用方用共享密钥签 `mesh-handshake:<nodeId>:<ts>:<non
 
 ## 配置
 
-条目配置（profile patch 里的 `config:`）被 `$DSH_HOME/mesh-config.json` 覆盖，后者由设置页写入：
+条目配置（profile patch 覆盖行里的 `config:`；默认空）被 `$DSH_HOME/mesh-config.json` 覆盖，后者由设置页与
+配对/加入链接写入：
 
 | 字段 | 类型 | 默认 | 生效时机 |
 | --- | --- | --- | --- |

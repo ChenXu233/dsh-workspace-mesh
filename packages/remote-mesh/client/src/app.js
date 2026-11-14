@@ -997,8 +997,8 @@ import { createMeshWorkspaceSource } from "./proton-source.js";
       return jsx.jsxs("div", { className: "dwm-section", children: [
         jsx.jsx("h3", { className: "dwm-h3", children: t("一键配对", "Pair a machine") }),
         jsx.jsx("p", { className: "dwm-hint", children: t(
-          "配对链接里带着这台机器的地址与共享密钥：在对方机器上打开它，两边就通了，不用手改 mesh-config.json。",
-          "The link carries this machine's URL and shared secret: open it on the other machine and both sides are connected, with no hand-edited mesh-config.json."
+          "配对链接里带着这台机器的地址与共享密钥：把链接发给对方，对方在「一键配对」里粘贴导入，两边就通了，不用手改 mesh-config.json。",
+          "The link carries this machine's URL and shared secret: send it over; the other machine pastes it into 'Pair a machine' and both sides are connected, with no hand-edited mesh-config.json."
         ) }),
         jsx.jsxs("div", { className: "dwm-pair-row", children: [
           jsx.jsx(TextInput, {

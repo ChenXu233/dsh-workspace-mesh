@@ -11,9 +11,9 @@
 两层，后者覆盖前者，字段级合并：
 
 ```text
-cordis 条目 config（部署者的 profile patch）
+cordis 条目 config（bundle 层挂载时为空；部署者可用 profile patch 覆盖行给默认值）
   ↑ 覆盖
-$DSH_HOME/mesh-config.json（设置页 POST 写入的补丁）
+$DSH_HOME/mesh-config.json（设置页与配对/加入链接写入的补丁）
 ```
 
 覆盖文件里的字段优先；没写的字段保留条目配置的值。
@@ -85,11 +85,11 @@ assignments:
 
 | 文件 | 谁写 | 作用 |
 | --- | --- | --- |
-| 仓库 `cordis.patch.yml` | 维护者 | 故意是 `[]`：插件由部署者的 profile patch `insert` 挂载 |
-| profile patch（部署者机器） | 部署者 | 唯一地址化的条目，带 `config` |
-| `$DSH_HOME/mesh-config.json` | 设置页 | 浏览器可写的覆盖层 |
+| 仓库 `cordis.patch.yml` | 维护者 | bundle 层的 `insert`：`dsh plugin add` 后即挂载唯一的 `id: mesh` 条目，不带 config |
+| profile patch（部署者机器） | 部署者 | 可选：用**覆盖行**（`- id: mesh` + `config`）给条目级默认值；再 `insert` 同 id 会挂两份 |
+| `$DSH_HOME/mesh-config.json` | 设置页与配对/加入链接 | 浏览器可写的覆盖层 |
 
-覆盖文件存在的原因只有一条：profile-patch 挂载的条目不会被原生 settings 文档投影，原生配置管道改不了它。完整理由见 [decisions.md](../explanation/decisions.md) D6。
+覆盖文件存在的原因只有一条：条目不在 profile `include` 根下（bundle 层 insert），原生 settings 文档不投影它，原生配置管道改不了它。完整理由见 [decisions.md](../explanation/decisions.md) D7。
 
 ## 5. 不变量
 

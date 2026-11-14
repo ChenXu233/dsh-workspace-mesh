@@ -66,16 +66,22 @@ flowchart LR
 dsh plugin --profile web add dsh-workspace-mesh
 ```
 
-Or mount it from an overlay patch (`--patch`) without installing — `name` is a module specifier:
+Installing mounts it: the package's bundle layer ships the `insert` row (`id: mesh` /
+`name: dsh-workspace-mesh`, see [cordis.patch.yml](./packages/remote-mesh/cordis.patch.yml)), so a
+restart brings up the four tools, the **Workspace mesh** settings section and the pairing-link handler.
+
+Configuration is not baked in: the settings page and pairing/hub links write
+`$DSH_HOME/mesh-config.json`. A deploy script that needs entry-level defaults writes a **non-insert
+override row** in the profile patch:
 
 ```yaml
-- insert:
-    - id: mesh
-      name: dsh-workspace-mesh
+- id: mesh
+  config:
+    assignmentFile: ./assignment.yml
 ```
 
-The bundled [cordis.patch.yml](./cordis.patch.yml) ships empty on purpose: the entry belongs to the
-deployer's profile patch, which keeps it uniquely addressed.
+Two `insert` rows with the same id mount two copies. A profile that still hand-writes
+`- insert: - id: mesh` should replace it with the override row above.
 
 ## Quick start
 
@@ -86,21 +92,24 @@ workspaces (`GET /api/mesh/workspaces`) and, in relay mode, to serve the handsha
 A peer without it still works when every assignment carries a `cwd`: the transport then creates the
 session in that directory.
 
-### 2. Configure the peer
+### 2. Pair: exchange one link
 
-In the caller's profile patch:
+On the **peer** (the machine tasks are dispatched to) open Settings → Workspace mesh → **Pair a machine**
+and create a link; on the **caller** paste it into the import box on the same page. Import writes that
+one `peers[]` entry and rebuilds the transport — hot, no restart.
+
+The card carries the peer's URL and a secret for that one peer, not the rotating login token, so a peer
+restart does not break it. To seed it from a deploy script, write the override row in the caller's
+profile patch:
 
 ```yaml
-- insert:
-    - id: mesh
-      name: dsh-workspace-mesh
-      config:
-        peers:
-          - nodeId: tencent
-            baseUrl: https://dsh.example.com   # the peer's web root
-            token: <login token>               # the ?token= value dsh web prints
-        meshSecret: <shared secret>            # optional: relay mode, see Credentials
-        assignmentFile: ./assignment.yml       # resolved against the host process cwd
+- id: mesh
+  config:
+    peers:
+      - nodeId: tencent
+        baseUrl: https://dsh.example.com   # the peer's web root
+        secret: <the secret from the pairing link>   # or token: <login token>
+    assignmentFile: ./assignment.yml       # resolved against the host process cwd
 ```
 
 ### 3. Declare where the workspaces live
@@ -168,11 +177,10 @@ Error codes: `unavailable`, `unknown-node`, `invalid-target`, `denied`, `node-of
 
 ## Settings page
 
-The browser half registers four surfaces: a **Workspace mesh** section in Settings, a live
-configuration card on the plugin's own page, a left-rail entry, and the workspace page that entry
-opens — every reachable workspace, which machine owns it, whether that machine is online, a message
-box for it, and a read-only view of a remote session's tail. Remote workspaces are virtual there:
-nothing is copied, the loop still runs on the owning machine.
+The browser half registers one surface: Settings → **Workspace mesh**. Transport and peer state,
+workspace placement, the topology canvas, one-click pairing, the hub section and the live config form
+all live on that page. Remote workspaces are virtual there: nothing is copied, the loop still runs on
+the owning machine.
 
 ```text
 browser routes   behind the host's signed-cookie fence
@@ -192,8 +200,8 @@ Payloads, status codes and the hot/restart split:
 
 ## Configuration
 
-The entry config (`config:` in the profile patch) is layered under
-`$DSH_HOME/mesh-config.json`, the file the settings page writes:
+The entry config (`config:` in a profile override row; empty by default) is layered under
+`$DSH_HOME/mesh-config.json`, the file the settings page and pairing/hub links write:
 
 | Key | Type | Default | Applies |
 | --- | --- | --- | --- |

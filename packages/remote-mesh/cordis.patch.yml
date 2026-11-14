@@ -1,6 +1,15 @@
 # dsh-workspace-mesh bundle layer.
-# Intentionally empty: the plugin is mounted from the DEPLOYER's profile patch
-# (- id: mesh / name: dsh-workspace-mesh), which makes the entry uniquely
-# addressed and profile-owned — the requirement for the native settings form
-# (config-editor only edits profile-root-owned entries).
-[]
+# The entry ships here so `dsh plugin add dsh-workspace-mesh` both registers the
+# bundle and mounts the plugin: after a restart the mesh_* tools, the settings
+# section and the pairing-link handler exist.
+#
+# No config is baked in. Per-machine facts (peers, assignmentFile, meshSecret,
+# hub) come from the settings page or a pairing/hub link, which write
+# $DSH_HOME/mesh-config.json, or from a NON-insert override row in the profile
+# patch:
+#   - id: mesh
+#     config: { ... }
+# An `insert` of id: mesh in the profile patch as well would mount a second copy.
+- insert:
+    - id: mesh
+      name: dsh-workspace-mesh

@@ -14,7 +14,7 @@
 | --- | --- | --- | --- |
 | **A. pack 云端 dev 链路（我们自己的做法）** | 维护者，以及有自己服务器的贡献者 | 自己的开发服务器 + oh-my-dsh-pack 的开发覆盖层 | `pnpm verify` + 一条同步脚本 + 容器重启 |
 | B. 本地安装（`link:` / `file:`） | 只改浏览器半侧、或本机调试 | 本地 dsh ≥ 0.2.2-rc.3 | `pnpm build` + 重启本地 dsh |
-| C. 发布物安装 | 使用者 / 别的项目 | `dsh plugin add dsh-workspace-mesh` | 发版本 |
+| C. 发布物安装 | 使用者 / 别的项目 | `dsh plugin add dsh-workspace-mesh`（bundle 层自带挂载行） | 发版本 |
 
 ## 1. 我们的开发方式：pack 云端 dev 链路
 
@@ -53,7 +53,7 @@ pwsh <pack>/scripts/sync-plugin.ps1 -Plugin dsh-workspace-mesh
 - **只改 `client/client.js` 也要重启容器**：client bundle 的 `rev` 在 `dsh plugin add` 时才重算，不重启页面还是旧代码。
 - `client.js` 语法错 = 整个插件不注册（插件页显示「1 异常」）：提交前 `node --check client/client.js`。
 - 日志里 `[mesh] disposed` 是旧进程退出，别当成本次启动失败。
-- 本插件由 profile patch `insert` 挂载（仓库里的 `cordis.patch.yml` 故意是 `[]`），所以原生 settings 文档里没有它的命名空间。原因见 [decisions.md](../explanation/decisions.md) D7。
+- 条目由 bundle 层 `insert`（[cordis.patch.yml](../../packages/remote-mesh/cordis.patch.yml)），装完重启即挂载。profile patch 里再 `insert` 同 id 会挂两份——要覆盖条目的 `config` 时写覆盖行（`- id: mesh`），别写 `insert`。原生 settings 文档不投影它，原因见 [decisions.md](../explanation/decisions.md) D7。
 
 ### 1.5 侧栏工作区：三个质子包 + 一个区段包
 
@@ -89,6 +89,8 @@ dsh --profile web --no-open
 ```
 
 浏览器半侧和 `/api/mesh/*` 在本机实例上同样可用，适合先验证页面。
+
+装完重启即挂载，不用再往 profile patch 里写 `- insert: - id: mesh`；已经写了的删掉或改成覆盖行，否则同 id 两条 entry。
 
 profile 里必须挂 `id: tools` 行，否则 `ctx.tools` 不存在，四个工具不会注册（日志会打 `[mesh] tool runtime unavailable`）。
 
