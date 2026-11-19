@@ -377,7 +377,7 @@ test('the whole src tree stays zero-dependency (from / import() / require()) and
   }
   assert.equal(pkg.dependencies, undefined, 'no runtime dependencies may be added')
   assert.deepEqual(Object.keys(pkg.peerDependencies ?? {}).sort(), ['@deepseek-ai/cordis', '@deepseek-ai/schemastery'])
-  assert.deepEqual(pkg.peerDependencies?.['@deepseek-ai/schemastery'], '3.18.5')
+  assert.deepEqual(pkg.peerDependencies?.['@deepseek-ai/schemastery'], '^3.19.0')
   assert.deepEqual(pkg.peerDependenciesMeta?.['@deepseek-ai/schemastery'], { optional: true })
 })
 
